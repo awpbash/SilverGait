@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FFF8E1"/>
+  <!-- Elderly person with walking stick -->
+  <!-- Head -->
+  <circle cx="90" cy="50" r="18" fill="#8D6E63"/>
+  <!-- Hair (grey) -->
+  <path d="M72 45 Q90 30 108 45" stroke="#9E9E9E" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <!-- Body -->
+  <path d="M90 68 L85 120" stroke="#8D6E63" stroke-width="8" stroke-linecap="round"/>
+  <!-- Arms -->
+  <path d="M88 80 L65 100" stroke="#8D6E63" stroke-width="6" stroke-linecap="round"/>
+  <path d="M88 85 L110 105" stroke="#8D6E63" stroke-width="6" stroke-linecap="round"/>
+  <!-- Legs -->
+  <path d="M85 120 L70 165" stroke="#8D6E63" stroke-width="6" stroke-linecap="round"/>
+  <path d="M85 120 L95 165" stroke="#8D6E63" stroke-width="6" stroke-linecap="round"/>
+  <!-- Walking stick -->
+  <path d="M110 105 L120 170" stroke="#795548" stroke-width="5" stroke-linecap="round"/>
+  <path d="M115 105 L125 108" stroke="#795548" stroke-width="5" stroke-linecap="round"/>
+  <!-- HDB flat in background (Singapore context) -->
+  <rect x="140" y="100" width="40" height="60" fill="#90A4AE" rx="2"/>
+  <rect x="145" y="105" width="8" height="10" fill="#E3F2FD"/>
+  <rect x="157" y="105" width="8" height="10" fill="#FFF9C4"/>
+  <rect x="145" y="120" width="8" height="10" fill="#FFF9C4"/>
+  <rect x="157" y="120" width="8" height="10" fill="#E3F2FD"/>
+  <rect x="145" y="135" width="8" height="10" fill="#E3F2FD"/>
+  <rect x="157" y="135" width="8" height="10" fill="#FFF9C4"/>
+</svg>

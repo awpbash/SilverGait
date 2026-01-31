@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Singapore Health background -->
+  <rect width="200" height="200" rx="20" fill="#E8F5E9"/>
+  <!-- Heart with Singapore cross -->
+  <path d="M100 160 C50 110 30 70 55 50 C80 30 100 55 100 65 C100 55 120 30 145 50 C170 70 150 110 100 160Z" fill="#C62828"/>
+  <!-- White cross (Singapore medical) -->
+  <rect x="90" y="70" width="20" height="50" rx="3" fill="white"/>
+  <rect x="75" y="85" width="50" height="20" rx="3" fill="white"/>
+  <!-- Singapore flag colors accent -->
+  <circle cx="40" cy="40" r="15" fill="#C62828"/>
+  <path d="M35 35 L40 40 L45 35 L42 40 L45 45 L40 42 L35 45 L38 40 Z" fill="white"/>
+</svg>
