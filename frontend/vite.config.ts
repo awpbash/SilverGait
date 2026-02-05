@@ -12,8 +12,14 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts:['geometric-deprecatorily-eleni.ngrok-free.dev'],
+    // Allow access from any host (useful for ngrok, localtunnel, mobile testing, WSL)
+    host: true,
     port: 5173,
+    strictPort: false,
+    // Enable file watching in WSL (uncomment if hot reload doesn't work)
+    // watch: {
+    //   usePolling: true,
+    // },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
