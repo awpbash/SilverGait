@@ -36,15 +36,17 @@ SilverGait helps seniors maintain their mobility and independence through video-
 
 ### Prerequisites
 - Python 3.10 or higher
-- Node.js 16 or higher
+- Node.js 18 or higher
 - A Gemini API key (get one from [Google AI Studio](https://aistudio.google.com/app/apikey))
+
+**For WSL/Linux users**: See [INSTALL_LINUX.md](INSTALL_LINUX.md) for detailed installation instructions including system dependencies.
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd silvergait
+git clone https://github.com/awpbash/SilverGait.git
+cd SilverGait
 ```
 
 2. Set up environment variables:
@@ -69,12 +71,19 @@ The app will start:
 
 To share your local instance publicly (e.g., for testing on mobile devices):
 
+**Option 1: Using ngrok** (recommended, requires signup):
 ```bash
 chmod +x share.sh
 ./share.sh
 ```
 
-This will create a public URL using ngrok that you can access from any device.
+**Option 2: Using localtunnel** (no signup required):
+```bash
+chmod +x share-lt.sh
+./share-lt.sh
+```
+
+This will create a public URL that you can access from any device.
 
 ## Tech Stack
 

@@ -45,20 +45,43 @@ echo -e "\n${GREEN}Checking prerequisites...${NC}"
 
 if ! command_exists python3; then
     echo -e "${RED}Error: python3 not found. Please install Python 3.10+${NC}"
+    echo -e "${YELLOW}On Ubuntu/Debian: sudo apt update && sudo apt install python3 python3-venv python3-pip${NC}"
+    echo -e "${YELLOW}On WSL: Install Python from Windows Store or use apt${NC}"
+    exit 1
+fi
+
+# Check Python version
+PYTHON_VERSION=$(python3 --version 2>&1 | grep -oP '(?<=Python )\d+\.\d+' | head -1)
+PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 10 ]); then
+    echo -e "${RED}Error: Python 3.10+ required, found $PYTHON_VERSION${NC}"
+    exit 1
+fi
+
+# Check if python3-venv is available (common issue on Linux/WSL)
+if ! python3 -m venv --help >/dev/null 2>&1; then
+    echo -e "${RED}Error: python3-venv module not found${NC}"
+    echo -e "${YELLOW}On Ubuntu/Debian: sudo apt install python3-venv${NC}"
+    echo -e "${YELLOW}On other Linux: Install python3-venv or virtualenv package${NC}"
     exit 1
 fi
 
 if ! command_exists node; then
     echo -e "${RED}Error: node not found. Please install Node.js 18+${NC}"
+    echo -e "${YELLOW}On Ubuntu/Debian: curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt install nodejs${NC}"
+    echo -e "${YELLOW}On WSL: Same as Linux or install from Windows and use via WSL${NC}"
     exit 1
 fi
 
 if ! command_exists npm; then
     echo -e "${RED}Error: npm not found. Please install npm${NC}"
+    echo -e "${YELLOW}Usually comes with Node.js installation${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Prerequisites OK${NC}"
+echo -e "${GREEN}✓ Prerequisites OK (Python $PYTHON_VERSION, Node $(node --version))${NC}"
 
 # Setup Python virtual environment
 echo -e "\n${GREEN}Setting up Python environment...${NC}"
