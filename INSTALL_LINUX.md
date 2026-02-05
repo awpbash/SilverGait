@@ -2,6 +2,8 @@
 
 This guide helps you set up SilverGait on Windows Subsystem for Linux (WSL) or native Linux systems.
 
+> **Having issues?** Check the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) guide for common problems and solutions.
+
 ## Prerequisites
 
 ### For WSL Users
@@ -328,7 +330,7 @@ rm -rf SilverGait
 
 If you encounter issues not covered here:
 
-1. Check the main [README.md](README.md)
+1. Check the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) guide
 2. Review error messages in the terminal
 3. Open an issue on GitHub with:
    - Your OS/distribution and version
@@ -339,6 +341,7 @@ If you encounter issues not covered here:
 
 ## Additional Resources
 
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 - [WSL Documentation](https://docs.microsoft.com/en-us/windows/wsl/)
 - [Python Virtual Environments](https://docs.python.org/3/tutorial/venv.html)
 - [Node.js on Linux](https://nodejs.org/en/download/package-manager/)
