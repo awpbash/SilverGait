@@ -36,7 +36,8 @@ SilverGait helps seniors maintain their mobility and independence through video-
 
 ### Prerequisites
 - Python 3.10 or higher
-- Node.js 16 or higher
+- Node.js 18 or higher
+- pnpm (or Corepack, which ships with modern Node.js)
 - A Gemini API key (get one from [Google AI Studio](https://aistudio.google.com/app/apikey))
 
 ### Installation
@@ -56,8 +57,12 @@ cp .env.example .env
 
 3. Run the application:
 ```bash
+# Linux / macOS
 chmod +x run.sh
 ./run.sh
+
+# Windows (Command Prompt)
+run.bat
 ```
 
 The app will start:
@@ -176,8 +181,8 @@ uvicorn app.main:app --reload --port 8000
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ### Running Tests
@@ -187,16 +192,16 @@ npm run dev
 cd backend
 pytest
 
-# Frontend tests
+# Frontend checks
 cd frontend
-npm test
+pnpm run lint
 ```
 
 ## Deployment
 
 ### Local Network (for testing)
 
-Use the included `share.sh` script to create a public URL via ngrok:
+Use the included `share.sh` script to create a public URL via localtunnel:
 
 ```bash
 ./share.sh
@@ -209,7 +214,7 @@ Use the included `share.sh` script to create a public URL via ngrok:
 3. Build the frontend:
    ```bash
    cd frontend
-   npm run build
+   pnpm run build
    ```
 4. Serve the backend with a production ASGI server like gunicorn
 5. Use nginx or similar to serve the frontend static files

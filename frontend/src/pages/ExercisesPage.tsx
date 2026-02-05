@@ -3,7 +3,7 @@
  * Design Constitution: One action per screen, no jargon, no emojis
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Exercise {
   id: string;
@@ -73,8 +73,23 @@ const EXERCISES: Exercise[] = [
   },
 ];
 
-export function ExercisesPage() {
+interface ExercisesPageProps {
+  autoSelectExerciseId?: string | null;
+  onAutoSelectConsumed?: () => void;
+}
+
+export function ExercisesPage({ autoSelectExerciseId, onAutoSelectConsumed }: ExercisesPageProps) {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [isExerciseActive, setIsExerciseActive] = useState(false);
+
+  useEffect(() => {
+    if (!autoSelectExerciseId) return;
+    const match = EXERCISES.find((exercise) => exercise.id === autoSelectExerciseId);
+    if (match) {
+      setSelectedExercise(match);
+    }
+    onAutoSelectConsumed?.();
+  }, [autoSelectExerciseId]);
 
   // Exercise detail view
   if (selectedExercise) {
@@ -83,8 +98,11 @@ export function ExercisesPage() {
         {/* Back button */}
         <header className="py-4">
           <button
-            onClick={() => setSelectedExercise(null)}
-            className="flex items-center gap-2 text-[#0d7377] font-medium px-4"
+            onClick={() => {
+              setSelectedExercise(null);
+              setIsExerciseActive(false);
+            }}
+            className="flex items-center gap-2 text-[#5e8e3e] font-medium px-4"
           >
             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -94,19 +112,20 @@ export function ExercisesPage() {
         </header>
 
         {/* Exercise title */}
-        <div className="px-4 mb-6 text-center">
-          <h1 className="text-2xl font-bold text-[#1a202c]">{selectedExercise.title}</h1>
-          <p className="text-[#718096] mt-1">{selectedExercise.duration}</p>
+        <div className="px-5 mb-4 text-center">
+          <p className="subtle-text">Exercise Screen</p>
+          <h1 className="text-2xl font-bold text-[#1a202c] mt-1">{selectedExercise.title}</h1>
+          <p className="subtle-text mt-1">{selectedExercise.duration}</p>
         </div>
 
         {/* Steps */}
-        <div className="flex-1 px-4">
+        <div className="flex-1 px-5">
           <div className="card mb-6">
             <h2 className="text-lg font-semibold text-[#1a202c] mb-4">How to do it:</h2>
             <ol className="space-y-4">
               {selectedExercise.steps.map((step, i) => (
                 <li key={i} className="flex items-start gap-4">
-                  <span className="w-8 h-8 bg-[#0d7377] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                  <span className="w-8 h-8 bg-[#5e8e3e] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
                     {i + 1}
                   </span>
                   <span className="text-[#4a5568] pt-1">{step}</span>
@@ -116,19 +135,27 @@ export function ExercisesPage() {
           </div>
 
           {/* Safety note */}
-          <div className="card bg-[#fdf8e8] border border-[#f6e05e]">
-            <p className="font-semibold text-[#c9a227] mb-1">Safety</p>
+          <div className="card bg-[#faf2e2] border border-[#e3c57b]">
+            <p className="font-semibold text-[#b3872e] mb-1">Safety</p>
             <p className="text-[#4a5568]">{selectedExercise.safety}</p>
           </div>
         </div>
 
         {/* Done button */}
-        <div className="p-4">
+        <div className="p-5 space-y-3">
           <button
-            onClick={() => setSelectedExercise(null)}
+            onClick={() => setIsExerciseActive(true)}
             className="btn-primary"
+            disabled={isExerciseActive}
           >
-            Done
+            Start
+          </button>
+          <button
+            onClick={() => setIsExerciseActive(false)}
+            className="btn-secondary"
+            disabled={!isExerciseActive}
+          >
+            Pause
           </button>
         </div>
       </div>
@@ -139,38 +166,42 @@ export function ExercisesPage() {
   return (
     <div className="min-h-[80vh] flex flex-col">
       {/* Header */}
-      <header className="py-6 text-center">
-        <h1 className="text-2xl font-bold text-[#1a202c]">Simple Exercises</h1>
-        <p className="text-[#718096] mt-1">Gentle movements to keep you strong</p>
+      <header className="px-5 pt-6 pb-4 text-center">
+        <p className="subtle-text">Exercise Screen</p>
+        <h1 className="text-2xl font-bold text-[#1a202c] mt-1">Simple Exercises</h1>
+        <p className="subtle-text mt-1">Gentle movements to keep you strong</p>
       </header>
 
       {/* Safety reminder */}
-      <div className="mx-4 mb-6">
-        <div className="card bg-[#fdf8e8] border border-[#f6e05e]">
-          <p className="text-[#c9a227] font-medium text-center">
+      <div className="mx-5 mb-6">
+        <div className="card bg-[#faf2e2] border border-[#e3c57b]">
+          <p className="text-[#b3872e] font-medium text-center">
             Always have a chair or wall nearby for support
           </p>
         </div>
       </div>
 
       {/* Exercise list */}
-      <div className="flex-1 px-4 space-y-3">
+      <div className="flex-1 px-5 space-y-3">
         {EXERCISES.map((exercise) => (
           <button
             key={exercise.id}
-            onClick={() => setSelectedExercise(exercise)}
-            className="w-full card flex items-center gap-4 text-left active:bg-[#f7fafc]"
+            onClick={() => {
+              setSelectedExercise(exercise);
+              setIsExerciseActive(false);
+            }}
+            className="w-full card flex items-center gap-4 text-left active:bg-[#f1f0ea]"
           >
             {/* Exercise icon placeholder */}
-            <div className="w-14 h-14 rounded-xl bg-[#e8f5ef] flex items-center justify-center flex-shrink-0">
-              <svg className="w-7 h-7 text-[#0d7377]" viewBox="0 0 24 24" fill="currentColor">
+            <div className="w-14 h-14 rounded-xl bg-[#edf4e6] flex items-center justify-center flex-shrink-0">
+              <svg className="w-7 h-7 text-[#5e8e3e]" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7" />
               </svg>
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-[#1a202c]">{exercise.title}</h3>
-              <p className="text-[#718096] text-sm">{exercise.description}</p>
-              <p className="text-[#0d7377] text-sm mt-1">{exercise.duration}</p>
+              <p className="text-[#6a6a6a] text-sm">{exercise.description}</p>
+              <p className="text-[#5e8e3e] text-sm mt-1">{exercise.duration}</p>
             </div>
             <svg className="w-6 h-6 text-[#cbd5e0]" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />

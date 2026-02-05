@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     sealion_api_url: str = "https://api.sea-lion.ai/v1"
     sealion_api_key: Optional[str] = None
 
+    # OpenAI (Optional - required for voice)
+    openai_api_key: Optional[str] = None
+    openai_stt_model: str = "gpt-4o-mini-transcribe"
+    openai_tts_model: str = "gpt-4o-mini-tts"
+    openai_tts_voice: str = "alloy"
+    openai_tts_format: str = "mp3"
+
+    # Voice settings
+    voice_enabled: bool = True
+    voice_use_gemini_intent: bool = True
+    voice_intent_model: str = "gemini-1.5-flash"
+    voice_stream_tts: bool = False
+
     # Server
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000

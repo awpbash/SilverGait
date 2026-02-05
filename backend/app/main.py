@@ -1,5 +1,5 @@
 """
-SilverPhysio Backend - Agentic Physiotherapist API.
+SilverGait Backend - Agentic Physiotherapist API.
 FastAPI server for AI-powered elderly care.
 """
 
@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from .core.config import get_settings
-from .routers import health_router, assessment_router, intervention_router
+from .routers import health_router, assessment_router, intervention_router, voice_router
 
 # Configure logging
 logging.basicConfig(
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize app
 app = FastAPI(
-    title="SilverPhysio API",
+    title="SilverGait API",
     description="Physiotherapist-in-your-pocket for Singaporean elderly",
     version="1.0.0",
     docs_url="/api/docs",
@@ -40,13 +40,14 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api")
 app.include_router(assessment_router, prefix="/api")
 app.include_router(intervention_router, prefix="/api")
+app.include_router(voice_router, prefix="/api")
 
 
 @app.get("/")
 async def root():
     """Health check endpoint."""
     return {
-        "app": "SilverPhysio",
+        "app": "SilverGait",
         "status": "running",
         "version": "1.0.0",
     }

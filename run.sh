@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================
-# SilverPhysio - Development Runner Script
+# SilverGait - Development Runner Script
 # Starts both backend (FastAPI) and frontend (Vite)
 # ==============================================
 
@@ -10,6 +10,8 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 VENV_DIR="$BACKEND_DIR/venv"
+export COREPACK_HOME="$PROJECT_ROOT/.corepack"
+mkdir -p "$COREPACK_HOME"
 
 # Colors for output
 RED='\033[0;31m'
@@ -18,7 +20,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  SilverPhysio Development Server${NC}"
+echo -e "${GREEN}  SilverGait Development Server${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # Check for .env file
@@ -53,8 +55,21 @@ if ! command_exists node; then
     exit 1
 fi
 
-if ! command_exists npm; then
-    echo -e "${RED}Error: npm not found. Please install npm${NC}"
+if command_exists pnpm; then
+    PNPM_CMD=(pnpm)
+elif command_exists corepack; then
+    PNPM_CMD=(corepack pnpm)
+else
+    echo -e "${RED}Error: pnpm not found. Install pnpm or use Node.js with corepack enabled.${NC}"
+    exit 1
+fi
+
+pnpm_exec() {
+    "${PNPM_CMD[@]}" "$@"
+}
+
+if ! pnpm_exec --version >/dev/null 2>&1; then
+    echo -e "${RED}Error: pnpm is unavailable. Run 'corepack enable' and try again.${NC}"
     exit 1
 fi
 
@@ -78,10 +93,13 @@ echo -e "${GREEN}✓ Python dependencies installed${NC}"
 
 # Setup frontend
 echo -e "\n${GREEN}Setting up frontend...${NC}"
-if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
-    echo "Installing npm dependencies..."
-    cd "$FRONTEND_DIR"
-    npm install
+cd "$FRONTEND_DIR"
+if [ -f "$FRONTEND_DIR/pnpm-lock.yaml" ]; then
+    echo "Installing frontend dependencies with pnpm (frozen lockfile)..."
+    pnpm_exec install --frozen-lockfile
+else
+    echo "Installing frontend dependencies with pnpm..."
+    pnpm_exec install
 fi
 echo -e "${GREEN}✓ Frontend dependencies installed${NC}"
 
@@ -109,7 +127,7 @@ sleep 2
 # Start frontend
 echo -e "\n${GREEN}Starting frontend server...${NC}"
 cd "$FRONTEND_DIR"
-npm run dev &
+pnpm_exec run dev &
 FRONTEND_PID=$!
 echo -e "Frontend PID: $FRONTEND_PID"
 

@@ -121,7 +121,6 @@ claude_history.json
 *.dll
 *.dylib
 
-# Package manager lock files (optional - uncomment if not tracking)
+# Package manager lock files
 package-lock.json
 yarn.lock
-pnpm-lock.yaml

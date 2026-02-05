@@ -1,6 +1,15 @@
-# Project: SilverPhysio (Singapore Elderly Mobility Care)
+# Project: SilverGait (Singapore Elderly Mobility Care)
 
-## Project Status: MVP Complete
+## Hackathon Winning Vision
+SilverGait is a camera-first, elderly-friendly physiotherapy companion designed for Singapore's ageing population. It delivers a 5-minute daily mobility check (SPPB-style), instant feedback, and a personalized exercise plan, all on a phone. The goal is to reduce falls, keep seniors independent longer, and make early intervention accessible beyond clinics.
+
+### Why This Wins
+- **Clear problem with local urgency**: Falls and mobility decline are a top driver of hospitalizations in Singapore's ageing society. Early detection is hard outside clinics.
+- **Low-friction daily ritual**: A single "Check My Strength Today" flow that works in 5 minutes without wearables.
+- **Cultural fit**: HDB-friendly setup, Singlish tone option, and easy caregiver sharing.
+- **Fast validation path**: Ready for pilots with Active Ageing Centres and polyclinics.
+
+## Project Status: MVP Ready for Demo
 - Video recording and Gemini analysis working
 - Mobile-friendly UI with bottom navigation
 - Shareable via ngrok
@@ -76,6 +85,54 @@ silvergait/
 - High contrast colors
 - Bottom tab navigation (no hamburger menus)
 - Singapore context (HDB, Singlish tips)
+
+### 5. Voice Access (Optional)
+- Voice navigation via STT + intent routing
+- TTS guidance for setup and countdown
+- Language options: English, Mandarin, Bahasa Melayu, Singlish
+- Singlish / language rewrite using SeaLion (or Gemini fallback)
+
+## Expanded Product Concept (Hackathon Pitch)
+
+### Core User Journey (5 minutes)
+1. **Home**: "Good morning, Mr Tan" + one big button.
+2. **Camera setup**: Place phone on a table, step inside the box.
+3. **Assessment**: Stand up & sit down, then walk forward. 3-2-1 countdown.
+4. **Results**: Clear feedback ("Your movement looks steady today") + one action.
+5. **Exercise**: One guided exercise for today, simple instructions.
+
+### Differentiators vs. Typical Health Apps
+- **Camera-based SPPB scoring** without external sensors
+- **Trust-first UX** for seniors (large type, minimal decisions, clear safety)
+- **Local context**: HDB layouts, Singlish prompts, HPB aligned messaging
+- **Caregiver mode**: Optional detail view with confidence scores and issues
+
+### Impact Metrics (How We Win the Pitch)
+- **Short term**: 5-minute check adoption, weekly adherence, and exercise completion
+- **Mid term**: Improved SPPB scores and reduced fall-risk flags
+- **Long term**: Fewer hospital visits, delayed frailty progression
+
+### Pilot Plan (Singapore)
+- **Partners**: Active Ageing Centres, polyclinics, HPB, community hospitals
+- **Pilot design**: 3-month trial with baseline SPPB, 8-week coaching
+- **Outcome measures**: adherence, score improvements, user satisfaction, caregiver engagement
+
+### Privacy + Trust
+- **Video is processed securely**; no public sharing
+- **Consent-first** prompts with caregiver options
+- **Data minimization**: store scores + key metrics, not raw video unless opted in
+
+### Business / Deployment
+- **B2G2C** model with HPB/community partners
+- **Bundled care** for senior centers: assessment + guided exercise packs
+- **Clinician dashboard (future)** for referrals and monitoring
+
+### Demo Script (3 minutes)
+1. Show Home screen with daily greeting.
+2. Start assessment and show setup overlay.
+3. Countdown and "Stand Up & Sit Down" step.
+4. Results: "Your movement looks steady today."
+5. Show today's exercise with simple steps.
 
 ## Gemini Integration
 Using new `google-genai` SDK:

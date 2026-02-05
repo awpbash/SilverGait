@@ -54,7 +54,7 @@ export const useUserStore = create<UserState>()(
       setError: (error) => set({ error }),
     }),
     {
-      name: 'silverphysio-user',
+      name: 'SilverGait-user',
       partialize: (state) => ({
         userId: state.userId,
         preferredLanguage: state.preferredLanguage,

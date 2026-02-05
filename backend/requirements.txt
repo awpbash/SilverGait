@@ -13,3 +13,6 @@ google-genai>=1.0.0
 
 # HTTP Client
 httpx==0.26.0
+
+# OpenAI (Voice STT/TTS)
+openai>=1.0.0

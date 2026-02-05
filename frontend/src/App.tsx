@@ -1,16 +1,18 @@
 /**
- * SilverPhysio - Singapore Elderly Mobility Care
+ * SilverGait - Singapore Elderly Mobility Care
  * Government-trust design with muted teal/green palette
  */
 
 import { useState } from 'react';
-import { BottomNav } from './components';
+import { BottomNav, VoiceAssistant } from './components';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
 import { AssessmentPage } from './pages/AssessmentPage';
 import { ExercisesPage } from './pages/ExercisesPage';
+import { HelpPage } from './pages/HelpPage';
+import { CaregiverPage } from './pages/CaregiverPage';
 
-type PageId = 'home' | 'activity' | 'assessment' | 'exercises';
+type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver';
 
 // Icon components - simple, clear
 const HomeIcon = () => (
@@ -37,15 +39,26 @@ const ProgressIcon = () => (
   </svg>
 );
 
+const HelpIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9a2.5 2.5 0 115 0c0 2-2.5 2-2.5 4" />
+    <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 const navItems = [
   { id: 'home', label: 'Home', icon: <HomeIcon /> },
   { id: 'assessment', label: 'Check', icon: <CheckIcon /> },
   { id: 'exercises', label: 'Exercise', icon: <ExerciseIcon /> },
   { id: 'activity', label: 'Progress', icon: <ProgressIcon /> },
+  { id: 'help', label: 'Help', icon: <HelpIcon /> },
 ];
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>('home');
+  const [autoStartAssessment, setAutoStartAssessment] = useState(false);
+  const [autoSelectExerciseId, setAutoSelectExerciseId] = useState<string | null>(null);
 
   const handleNavigate = (page: string) => {
     setActivePage(page as PageId);
@@ -58,20 +71,56 @@ function App() {
       case 'activity':
         return <ActivityPage />;
       case 'assessment':
-        return <AssessmentPage />;
+        return (
+          <AssessmentPage
+            autoStart={autoStartAssessment}
+            onAutoStartConsumed={() => setAutoStartAssessment(false)}
+          />
+        );
       case 'exercises':
-        return <ExercisesPage />;
+        return (
+          <ExercisesPage
+            autoSelectExerciseId={autoSelectExerciseId}
+            onAutoSelectConsumed={() => setAutoSelectExerciseId(null)}
+          />
+        );
+      case 'help':
+        return <HelpPage onNavigate={handleNavigate} />;
+      case 'caregiver':
+        return <CaregiverPage onNavigate={handleNavigate} />;
       default:
         return <HomePage onNavigate={handleNavigate} />;
     }
   };
 
+  const handleVoiceAction = (action: {
+    type?: string;
+    target?: string | null;
+    exercise_id?: string | null;
+    auto_start?: boolean | null;
+  }) => {
+    if (action?.type !== 'navigate' || !action.target) {
+      return;
+    }
+
+    const target = action.target as PageId;
+    if (target === 'assessment') {
+      setAutoStartAssessment(Boolean(action.auto_start));
+    }
+    if (target === 'exercises') {
+      setAutoSelectExerciseId(action.exercise_id || null);
+    }
+    setActivePage(target);
+  };
+
   return (
-    <div className="min-h-screen pb-24 bg-[#f7fafc]">
+    <div className="app-shell">
       {/* Main content area */}
-      <main className="max-w-lg mx-auto">
+      <main className="max-w-lg mx-auto screen-frame">
         {renderPage()}
       </main>
+
+      <VoiceAssistant onAction={handleVoiceAction} />
 
       {/* Bottom navigation */}
       <BottomNav

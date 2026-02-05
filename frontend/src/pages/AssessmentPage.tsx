@@ -16,7 +16,12 @@ type AssessmentStep =
   | 'analyzing'
   | 'result';
 
-export function AssessmentPage() {
+interface AssessmentPageProps {
+  autoStart?: boolean;
+  onAutoStartConsumed?: () => void;
+}
+
+export function AssessmentPage({ autoStart, onAutoStartConsumed }: AssessmentPageProps) {
   const { latestAssessment, setLatestAssessment } = useAssessmentStore();
   const [step, setStep] = useState<AssessmentStep>('intro');
   const [countdown, setCountdown] = useState(3);
@@ -115,6 +120,13 @@ export function AssessmentPage() {
       setError('Cannot access camera. Please allow camera permission.');
     }
   };
+
+  useEffect(() => {
+    if (autoStart && step === 'intro') {
+      startCamera();
+      onAutoStartConsumed?.();
+    }
+  }, [autoStart, step]);
 
   const beginCountdown = () => {
     setCountdown(3);
@@ -223,30 +235,15 @@ export function AssessmentPage() {
   if (step === 'intro') {
     return (
       <div className="min-h-[80vh] flex flex-col">
-        <header className="py-6 text-center">
-          <h1 className="text-2xl font-bold text-[#1a202c]">Walking & Balance Check</h1>
-          <p className="text-[#718096] mt-2">Let's see how you're moving today</p>
+        <header className="px-5 pt-6 pb-4 text-center">
+          <p className="subtle-text">Assessment Step Screen</p>
+          <h1 className="screen-title mt-1">Stand Up & Sit Down</h1>
+          <p className="subtle-text mt-2">Stand inside the box</p>
         </header>
 
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="w-48 h-48 mb-6">
-            <svg viewBox="0 0 200 200" className="w-full h-full">
-              <circle cx="100" cy="45" r="20" fill="#0d7377" opacity="0.7"/>
-              <ellipse cx="100" cy="90" rx="25" ry="30" fill="#0d7377" opacity="0.6"/>
-              <rect x="85" y="115" width="10" height="45" rx="5" fill="#0d7377" opacity="0.5" transform="rotate(-15 90 115)"/>
-              <rect x="105" y="115" width="10" height="45" rx="5" fill="#0d7377" opacity="0.5" transform="rotate(15 110 115)"/>
-              <rect x="65" y="80" width="20" height="8" rx="4" fill="#0d7377" opacity="0.4" transform="rotate(20 75 84)"/>
-              <rect x="115" y="80" width="20" height="8" rx="4" fill="#0d7377" opacity="0.4" transform="rotate(-20 125 84)"/>
-            </svg>
-          </div>
-
-          <div className="text-center px-6 mb-8">
-            <p className="text-lg text-[#4a5568]">
-              We'll record a short video of you standing up and walking.
-            </p>
-            <p className="text-[#718096] mt-2">
-              This helps us give you better exercise suggestions.
-            </p>
+        <div className="flex-1 flex flex-col items-center justify-center px-5">
+          <div className="card w-full max-w-sm text-center">
+            <p className="subtle-text">We will record a short video. It is processed securely.</p>
           </div>
         </div>
 
@@ -256,9 +253,9 @@ export function AssessmentPage() {
           </div>
         )}
 
-        <div className="p-4 space-y-3">
+        <div className="p-5 space-y-3">
           <button onClick={startCamera} className="btn-primary">
-            Start Check
+            Start
           </button>
 
           {latestAssessment && (
@@ -283,15 +280,19 @@ export function AssessmentPage() {
         </div>
 
         {/* Header - changes based on step */}
-        <header className="py-4 text-center">
+        <header className="px-5 pt-6 pb-4 text-center">
           {step === 'setup' && (
             <>
-              <h1 className="text-xl font-bold text-[#1a202c]">Place phone here</h1>
-              <p className="text-[#718096]">Stand inside the box</p>
+              <p className="subtle-text">Camera Setup Screen</p>
+              <h1 className="screen-title mt-1">Place phone here</h1>
+              <p className="subtle-text mt-1">Stand inside the box</p>
             </>
           )}
           {step === 'countdown' && (
-            <p className="text-xl font-semibold text-[#0d7377]">Get ready...</p>
+            <>
+              <p className="subtle-text">Countdown Screen</p>
+              <h1 className="screen-title mt-1">Stand Up & Sit Down</h1>
+            </>
           )}
           {step === 'recording' && (
             <div className="flex items-center justify-center gap-2 text-[#c53030]">
@@ -302,7 +303,7 @@ export function AssessmentPage() {
         </header>
 
         {/* Camera view - persistent across all camera steps */}
-        <div className="flex-1 relative mx-4 rounded-2xl overflow-hidden bg-[#1a202c]">
+        <div className="flex-1 relative mx-5 rounded-2xl overflow-hidden bg-[#1a202c]">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
@@ -336,13 +337,19 @@ export function AssessmentPage() {
 
           {/* Countdown overlay */}
           {step === 'countdown' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-              <div className="text-center">
-                <div className="w-32 h-32 rounded-full bg-[#0d7377] flex items-center justify-center mx-auto mb-4">
-                  <span className="text-6xl font-bold text-white">{countdown}</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/35">
+              <div className="line-illustration bg-white/90 w-56 text-center">
+                <p className="font-semibold text-[#2a2a2a]">Stand Up & Sit Down</p>
+                <div className="flex items-center justify-center gap-3 text-2xl font-bold mt-3">
+                  {[3, 2, 1].map((num) => (
+                    <span
+                      key={num}
+                      className={countdown === num ? 'text-[#5e8e3e]' : 'text-[#8a8a8a]'}
+                    >
+                      {num}
+                    </span>
+                  ))}
                 </div>
-                <p className="text-2xl font-semibold text-white">Stand Up & Sit Down</p>
-                <p className="text-white/80 mt-2">Then walk towards the camera</p>
               </div>
             </div>
           )}
@@ -364,20 +371,21 @@ export function AssessmentPage() {
         </div>
 
         {/* Bottom controls - changes based on step */}
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-4">
           {step === 'setup' && (
             <>
-              <div className="card bg-[#e8f5ef] border-[#9ae6b4]">
-                <p className="text-[#2d8a5f] text-center font-medium">
-                  Put phone on a table pointing at you, or ask someone to hold it
+              <div className="panel text-center">
+                <p className="text-[#4a4a4a] font-medium">
+                  Place phone on a table pointing at you.
                 </p>
+                <p className="subtle-text mt-1">Ask someone to help if needed.</p>
               </div>
               <button
                 onClick={beginCountdown}
                 disabled={!cameraReady}
                 className="btn-primary"
               >
-                {cameraReady ? "I'm Ready - Start" : 'Waiting for camera...'}
+                {cameraReady ? 'Start' : 'Waiting for camera...'}
               </button>
               <button onClick={resetAssessment} className="btn-secondary">
                 Cancel
@@ -387,8 +395,8 @@ export function AssessmentPage() {
 
           {step === 'recording' && (
             <>
-              <div className="card bg-[#e8f5ef] border-[#9ae6b4]">
-                <p className="text-[#2d8a5f] text-lg font-medium text-center">
+              <div className="panel text-center">
+                <p className="text-[#4a4a4a] text-lg font-medium text-center">
                   1. Stand up from your chair<br/>
                   2. Walk towards the camera
                 </p>
@@ -430,9 +438,9 @@ export function AssessmentPage() {
     const message = getMessage();
 
     return (
-      <div className="min-h-[80vh] flex flex-col">
-        <header className="py-6 text-center">
-          <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isGood ? 'bg-[#2d8a5f]' : 'bg-[#c9a227]'}`}>
+        <div className="min-h-[80vh] flex flex-col">
+        <header className="px-5 pt-6 pb-4 text-center">
+          <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isGood ? 'bg-[#5e8e3e]' : 'bg-[#b3872e]'}`}>
             {message.icon === 'check' ? (
               <svg className="w-10 h-10 text-white" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -445,8 +453,8 @@ export function AssessmentPage() {
           </div>
         </header>
 
-        <div className="flex-1 px-4">
-          <div className={`card text-center py-8 mb-6 ${isGood ? 'bg-[#e8f5ef] border-[#9ae6b4]' : 'bg-[#fdf8e8] border-[#f6e05e]'}`}>
+        <div className="flex-1 px-5">
+          <div className={`panel text-center py-8 mb-6 ${isGood ? 'bg-[#edf4e6] border-[#b8d7a3]' : 'bg-[#faf2e2] border-[#e3c57b]'}`}>
             <h1 className="text-2xl font-bold text-[#1a202c] mb-2">
               {message.text}
             </h1>
@@ -460,7 +468,7 @@ export function AssessmentPage() {
             <ul className="space-y-3">
               {latestAssessment.recommendations.slice(0, 3).map((rec, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#0d7377] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                  <span className="w-6 h-6 rounded-full bg-[#5e8e3e] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                     {i + 1}
                   </span>
                   <span className="text-[#4a5568]">{rec}</span>
@@ -482,15 +490,15 @@ export function AssessmentPage() {
             {showCaregiverMode && (
               <div className="mt-4 pt-4 border-t border-[#e2e8f0]">
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-[#f7fafc] rounded-xl">
-                    <p className="text-3xl font-bold text-[#0d7377]">{score}/4</p>
-                    <p className="text-sm text-[#718096]">Overall Score</p>
+                  <div className="text-center p-3 bg-[#f6f5f0] rounded-xl">
+                    <p className="text-3xl font-bold text-[#5e8e3e]">{score}/4</p>
+                    <p className="text-sm text-[#6a6a6a]">Overall Score</p>
                   </div>
-                  <div className="text-center p-3 bg-[#f7fafc] rounded-xl">
-                    <p className="text-3xl font-bold text-[#0d7377]">
+                  <div className="text-center p-3 bg-[#f6f5f0] rounded-xl">
+                    <p className="text-3xl font-bold text-[#5e8e3e]">
                       {Math.round(latestAssessment.confidence * 100)}%
                     </p>
-                    <p className="text-sm text-[#718096]">Confidence</p>
+                    <p className="text-sm text-[#6a6a6a]">Confidence</p>
                   </div>
                 </div>
 
@@ -499,7 +507,7 @@ export function AssessmentPage() {
                     <p className="text-sm font-medium text-[#4a5568] mb-2">Areas to improve:</p>
                     <div className="flex flex-wrap gap-2">
                       {latestAssessment.issues.map((issue, i) => (
-                        <span key={i} className="px-3 py-1 bg-[#fdf8e8] text-[#c9a227] rounded-full text-sm">
+                        <span key={i} className="px-3 py-1 bg-[#faf2e2] text-[#b3872e] rounded-full text-sm">
                           {issue.replace(/_/g, ' ')}
                         </span>
                       ))}
@@ -511,7 +519,7 @@ export function AssessmentPage() {
           </div>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="p-5 space-y-3">
           <button onClick={resetAssessment} className="btn-success">
             Show Me Today's Exercise
           </button>
