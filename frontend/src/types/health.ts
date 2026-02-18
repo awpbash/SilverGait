@@ -22,7 +22,7 @@ export interface UserRiskProfile {
   sppb_score?: number;
   last_assessment_date?: string;
   caregiver_contact?: string;
-  preferred_language: 'en' | 'hokkien' | 'cantonese' | 'mandarin' | 'singlish';
+  preferred_language: 'en' | 'hokkien' | 'cantonese' | 'mandarin' | 'singlish' | 'malay';
 }
 
 export interface WeeklyTrend {

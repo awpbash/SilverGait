@@ -4,3 +4,6 @@ export { AssessmentPage } from './AssessmentPage';
 export { ExercisesPage } from './ExercisesPage';
 export { HelpPage } from './HelpPage';
 export { CaregiverPage } from './CaregiverPage';
+export { SafetyPage } from './SafetyPage';
+export { CommunityPage } from './CommunityPage';
+export { ReportPage } from './ReportPage';

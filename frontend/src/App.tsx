@@ -1,18 +1,35 @@
 /**
  * SilverGait - Singapore Elderly Mobility Care
- * Government-trust design with muted teal/green palette
+ * Warm, calm palette aligned with Figma mockups
  */
 
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav, VoiceAssistant } from './components';
+import { useUiStore } from './stores';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
 import { AssessmentPage } from './pages/AssessmentPage';
 import { ExercisesPage } from './pages/ExercisesPage';
 import { HelpPage } from './pages/HelpPage';
 import { CaregiverPage } from './pages/CaregiverPage';
+import { SafetyPage } from './pages/SafetyPage';
+import { CommunityPage } from './pages/CommunityPage';
+import { ReportPage } from './pages/ReportPage';
 
-type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver';
+type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver' | 'safety' | 'community' | 'report';
+
+const ROUTES: Record<PageId, string> = {
+  home: '/',
+  assessment: '/check',
+  exercises: '/exercises',
+  activity: '/progress',
+  help: '/help',
+  caregiver: '/caregiver',
+  safety: '/safety',
+  community: '/community',
+  report: '/report',
+};
 
 // Icon components - simple, clear
 const HomeIcon = () => (
@@ -29,21 +46,13 @@ const CheckIcon = () => (
 
 const ExerciseIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7" />
+    <path d="M4 10h3V8h2v8H7v-2H4v2H2V8h2v2zm18 0v6h-2v-2h-3v2h-2V8h2v2h3V8h2v2zM9 11h6v2H9v-2z" />
   </svg>
 );
 
 const ProgressIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
-  </svg>
-);
-
-const HelpIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M9.5 9a2.5 2.5 0 115 0c0 2-2.5 2-2.5 4" />
-    <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
+    <path d="M12 20s-6-4.35-8.5-7.5C1.4 9.4 3.1 6 6.5 6c2 0 3.5 1.1 4.5 2.6C12 7.1 13.5 6 15.5 6c3.4 0 5.1 3.4 3 6.5C18 15.65 12 20 12 20z" />
   </svg>
 );
 
@@ -52,45 +61,26 @@ const navItems = [
   { id: 'assessment', label: 'Check', icon: <CheckIcon /> },
   { id: 'exercises', label: 'Exercise', icon: <ExerciseIcon /> },
   { id: 'activity', label: 'Progress', icon: <ProgressIcon /> },
-  { id: 'help', label: 'Help', icon: <HelpIcon /> },
 ];
 
 function App() {
-  const [activePage, setActivePage] = useState<PageId>('home');
-  const [autoStartAssessment, setAutoStartAssessment] = useState(false);
-  const [autoSelectExerciseId, setAutoSelectExerciseId] = useState<string | null>(null);
+  const { viewMode } = useUiStore();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const handleNavigate = (page: string) => {
-    setActivePage(page as PageId);
-  };
+  const activeId = useMemo<PageId | ''>(() => {
+    const path = location.pathname;
+    if (path === ROUTES.home) return 'home';
+    if (path.startsWith(ROUTES.assessment)) return 'assessment';
+    if (path.startsWith(ROUTES.exercises)) return 'exercises';
+    if (path.startsWith(ROUTES.activity)) return 'activity';
+    if (path.startsWith(ROUTES.help)) return '';
+    if (path.startsWith(ROUTES.caregiver)) return '';
+    return '';
+  }, [location.pathname]);
 
-  const renderPage = () => {
-    switch (activePage) {
-      case 'home':
-        return <HomePage onNavigate={handleNavigate} />;
-      case 'activity':
-        return <ActivityPage />;
-      case 'assessment':
-        return (
-          <AssessmentPage
-            autoStart={autoStartAssessment}
-            onAutoStartConsumed={() => setAutoStartAssessment(false)}
-          />
-        );
-      case 'exercises':
-        return (
-          <ExercisesPage
-            autoSelectExerciseId={autoSelectExerciseId}
-            onAutoSelectConsumed={() => setAutoSelectExerciseId(null)}
-          />
-        );
-      case 'help':
-        return <HelpPage onNavigate={handleNavigate} />;
-      case 'caregiver':
-        return <CaregiverPage onNavigate={handleNavigate} />;
-      default:
-        return <HomePage onNavigate={handleNavigate} />;
-    }
+  const handleNavigate = (page: PageId) => {
+    navigate(ROUTES[page]);
   };
 
   const handleVoiceAction = (action: {
@@ -105,29 +95,53 @@ function App() {
 
     const target = action.target as PageId;
     if (target === 'assessment') {
-      setAutoStartAssessment(Boolean(action.auto_start));
+      const params = new URLSearchParams();
+      if (action.auto_start) {
+        params.set('start', '1');
+        params.set('mode', 'comprehensive');
+      }
+      const search = params.toString();
+      navigate(`${ROUTES.assessment}${search ? `?${search}` : ''}`);
+      return;
     }
     if (target === 'exercises') {
-      setAutoSelectExerciseId(action.exercise_id || null);
+      const params = new URLSearchParams();
+      if (action.exercise_id) {
+        params.set('exercise', action.exercise_id);
+      }
+      const search = params.toString();
+      navigate(`${ROUTES.exercises}${search ? `?${search}` : ''}`);
+      return;
     }
-    setActivePage(target);
+    navigate(ROUTES[target]);
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-view={viewMode}>
       {/* Main content area */}
-      <main className="max-w-lg mx-auto screen-frame">
-        {renderPage()}
+      <main className="screen-frame">
+        <Routes>
+          <Route path={ROUTES.home} element={<HomePage />} />
+          <Route path={ROUTES.assessment} element={<AssessmentPage />} />
+          <Route path={ROUTES.exercises} element={<ExercisesPage />} />
+          <Route path={ROUTES.activity} element={<ActivityPage />} />
+          <Route path={ROUTES.help} element={<HelpPage />} />
+          <Route path={ROUTES.caregiver} element={<CaregiverPage />} />
+          <Route path={ROUTES.safety} element={<SafetyPage />} />
+          <Route path={ROUTES.community} element={<CommunityPage />} />
+          <Route path={ROUTES.report} element={<ReportPage />} />
+          <Route path="*" element={<HomePage />} />
+        </Routes>
+
+        {/* Bottom navigation */}
+        <BottomNav
+          items={navItems}
+          activeId={activeId}
+          onSelect={(id) => handleNavigate(id as PageId)}
+        />
       </main>
 
       <VoiceAssistant onAction={handleVoiceAction} />
-
-      {/* Bottom navigation */}
-      <BottomNav
-        items={navItems}
-        activeId={activePage}
-        onSelect={(id) => setActivePage(id as PageId)}
-      />
     </div>
   );
 }

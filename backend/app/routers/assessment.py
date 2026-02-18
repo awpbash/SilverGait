@@ -18,6 +18,8 @@ def get_gemini_service() -> GeminiVisionService:
 async def analyze_video(
     video: UploadFile = File(..., description="Video file for SPPB analysis"),
     user_id: str = Form(..., description="User ID"),
+    test_type: str = Form("gait", description="SPPB test type (gait, balance, chair_stand)"),
+    pose_metrics: str = Form("", description="JSON pose metrics from frontend (optional)"),
     service: GeminiVisionService = Depends(get_gemini_service),
 ):
     """
@@ -52,12 +54,22 @@ async def analyze_video(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read video: {str(e)}")
 
+    # Validate test type
+    allowed_tests = ["gait", "balance", "chair_stand"]
+    if test_type not in allowed_tests:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid test type '{test_type}'. Allowed: {allowed_tests}",
+        )
+
     # Analyze via Gemini
     try:
         result = await service.analyze_video(
             video_bytes=video_bytes,
             user_id=user_id,
             mime_type=base_type,  # Use base type without codecs
+            test_type=test_type,
+            pose_metrics=pose_metrics,
         )
         return result
     except Exception as e:

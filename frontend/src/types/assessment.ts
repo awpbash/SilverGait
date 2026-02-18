@@ -24,6 +24,8 @@ export interface AssessmentResult {
   timestamp: string;
   score: number; // 0-4
   issues: GaitIssue[];
+  test_type?: 'gait' | 'balance' | 'chair_stand';
+  completed_tests?: Array<'gait' | 'balance' | 'chair_stand'>;
   sppb_breakdown?: SPPBScore;
   confidence: number;
   recommendations: string[];

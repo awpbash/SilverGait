@@ -21,6 +21,7 @@ export function BottomNav({ items, activeId, onSelect }: BottomNavProps) {
       {items.map((item) => (
         <button
           key={item.id}
+          type="button"
           onClick={() => onSelect(item.id)}
           className={`nav-item ${activeId === item.id ? 'active' : ''}`}
           aria-current={activeId === item.id ? 'page' : undefined}

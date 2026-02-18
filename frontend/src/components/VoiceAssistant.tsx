@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useUiStore, useUserStore } from '../stores';
 
 type VoiceAction = {
   type?: string;
@@ -26,7 +27,19 @@ const labelForLanguage = (value: string) => {
   }
 };
 
+type AppLanguage = 'en' | 'singlish' | 'hokkien' | 'cantonese' | 'mandarin' | 'malay';
+
+const mapLanguageToDialect = (language: AppLanguage) => {
+  if (language === 'mandarin') return 'mandarin';
+  if (language === 'malay') return 'malay';
+  if (language === 'singlish') return 'singlish';
+  if (language === 'hokkien' || language === 'cantonese') return 'mandarin';
+  return 'en';
+};
+
 export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
+  const { preferredLanguage } = useUserStore();
+  const { viewMode } = useUiStore();
   const [isSupported, setIsSupported] = useState(true);
   const [isEnabled, setIsEnabled] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -47,6 +60,17 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const autoStopRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const dragState = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+  }>({ active: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0 });
+  const dragMoved = useRef(false);
+
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hasDragged, setHasDragged] = useState(false);
 
   useEffect(() => {
     const mediaSupported = !!(navigator.mediaDevices && window.MediaRecorder);
@@ -77,6 +101,112 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
     };
   }, []);
 
+  useEffect(() => {
+    setDialect(mapLanguageToDialect(preferredLanguage as AppLanguage));
+  }, [preferredLanguage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const FAB_SIZE = 52;
+    const MARGIN = 16;
+    const NAV_HEIGHT = 84;
+
+    const clamp = (value: number, min: number, max: number) =>
+      Math.min(max, Math.max(min, value));
+
+    const computeBounds = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const frameWidth = viewMode === 'desktop' ? 980 : 420;
+      const frame = Math.min(frameWidth, width);
+      const frameLeft = (width - frame) / 2;
+      return {
+        minX: frameLeft + MARGIN,
+        maxX: frameLeft + frame - FAB_SIZE - MARGIN,
+        minY: MARGIN,
+        maxY: height - NAV_HEIGHT - FAB_SIZE - MARGIN,
+      };
+    };
+
+    const updatePosition = () => {
+      const bounds = computeBounds();
+      setPosition((prev) => {
+        if (!prev || !hasDragged) {
+          return { x: bounds.maxX, y: bounds.maxY };
+        }
+        return {
+          x: clamp(prev.x, bounds.minX, bounds.maxX),
+          y: clamp(prev.y, bounds.minY, bounds.maxY),
+        };
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, [viewMode, hasDragged]);
+
+  const handleFabClick = () => {
+    if (dragMoved.current) {
+      dragMoved.current = false;
+      return;
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (isOpen || !position) return;
+    dragState.current = {
+      active: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - position.x,
+      offsetY: event.clientY - position.y,
+    };
+    dragMoved.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!dragState.current.active || !position) return;
+    const dx = Math.abs(event.clientX - dragState.current.startX);
+    const dy = Math.abs(event.clientY - dragState.current.startY);
+    if (dx + dy > 4) {
+      dragMoved.current = true;
+      setHasDragged(true);
+    }
+    if (!dragMoved.current) return;
+
+    const FAB_SIZE = 52;
+    const MARGIN = 16;
+    const NAV_HEIGHT = 84;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const frameWidth = viewMode === 'desktop' ? 980 : 420;
+    const frame = Math.min(frameWidth, width);
+    const frameLeft = (width - frame) / 2;
+    const minX = frameLeft + MARGIN;
+    const maxX = frameLeft + frame - FAB_SIZE - MARGIN;
+    const minY = MARGIN;
+    const maxY = height - NAV_HEIGHT - FAB_SIZE - MARGIN;
+    const nextX = event.clientX - dragState.current.offsetX;
+    const nextY = event.clientY - dragState.current.offsetY;
+    const clamp = (value: number, min: number, max: number) =>
+      Math.min(max, Math.max(min, value));
+
+    setPosition({
+      x: clamp(nextX, minX, maxX),
+      y: clamp(nextY, minY, maxY),
+    });
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!dragState.current.active) return;
+    dragState.current.active = false;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
   const stopRecording = () => {
     if (autoStopRef.current) {
       window.clearTimeout(autoStopRef.current);
@@ -96,7 +226,7 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
     }
 
     try {
-      setStatusMessage('');
+      setStatusMessage('Recording...');
       setTranscript('');
       setReplyText('');
       setDetectedLanguage(null);
@@ -140,7 +270,7 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
     }
 
     setIsBusy(true);
-    setStatusMessage('Listening...');
+    setStatusMessage('Processing...');
 
     try {
       const formData = new FormData();
@@ -291,20 +421,48 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
   }
 
   return (
-    <div className="voice-assistant">
+    <div
+      className="voice-assistant"
+      style={position ? { left: `${position.x}px`, top: `${position.y}px` } : undefined}
+    >
       <button
         type="button"
         className={`voice-fab ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleFabClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         aria-expanded={isOpen}
+        aria-label={isOpen ? 'Close voice assistant' : 'Open voice assistant'}
       >
-        {isOpen ? 'Close Chat' : 'Voice Chat'}
+        {isOpen ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6l-12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            />
+            <path d="M19 11a7 7 0 0 1-14 0" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M12 18v3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+        )}
       </button>
 
       <div className={`voice-drawer ${isOpen ? 'open' : ''}`}>
         <div className="voice-panel">
           <div className="voice-header">
-            <span className="voice-title">Talk to SilverGait</span>
+            <span className="voice-title">Voice Assistant</span>
             <button
               type="button"
               className="voice-close"
@@ -314,9 +472,9 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
             </button>
           </div>
 
-        <div className="voice-language">
+          <div className="voice-language">
             <label htmlFor="voice-language" className="voice-label">
-              Response Language
+              Reply Language
             </label>
             <select
               id="voice-language"
@@ -335,7 +493,7 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
                 checked={useDetectedLanguage}
                 onChange={(event) => setUseDetectedLanguage(event.target.checked)}
               />
-              Read back in detected language
+              Use detected language
             </label>
             {detectedLanguage && useDetectedLanguage && (
               <div className="voice-detected">Detected: {labelForLanguage(detectedLanguage)}</div>
@@ -365,7 +523,7 @@ export function VoiceAssistant({ onAction }: VoiceAssistantProps) {
               onClick={() => (isRecording ? stopRecording() : startRecording())}
               disabled={!isEnabled || isBusy}
             >
-              {isRecording ? 'Stop' : 'Press to Speak'}
+              {isRecording ? 'Stop' : isBusy ? 'Processing...' : 'Press to Speak'}
             </button>
           </div>
         </div>

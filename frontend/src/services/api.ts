@@ -71,11 +71,16 @@ export const healthApi = {
 
 // Assessment API (Gemini Vision)
 export const assessmentApi = {
-  analyzeVideo: async (videoBlob: Blob, userId: string): Promise<AssessmentResult> => {
+  analyzeVideo: async (
+    videoBlob: Blob,
+    userId: string,
+    testType: 'gait' | 'balance' | 'chair_stand' = 'gait'
+  ): Promise<AssessmentResult> => {
     try {
       const formData = new FormData();
       formData.append('video', videoBlob, 'sppb-recording.webm');
       formData.append('user_id', userId);
+      formData.append('test_type', testType);
 
       const response = await api.post('/assessment/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

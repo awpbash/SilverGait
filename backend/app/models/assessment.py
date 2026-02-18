@@ -2,7 +2,7 @@
 
 from enum import Enum
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 
@@ -16,6 +16,13 @@ class GaitIssue(str, Enum):
     REDUCED_ARM_SWING = "reduced_arm_swing"
     WIDE_BASE = "wide_base"
     HESITATION = "hesitation"
+
+
+class AssessmentTest(str, Enum):
+    """SPPB component being assessed."""
+    GAIT = "gait"
+    BALANCE = "balance"
+    CHAIR_STAND = "chair_stand"
 
 
 class SPPBScore(BaseModel):
@@ -43,9 +50,16 @@ class AssessmentResult(BaseModel):
     # Core Gemini output
     score: int = Field(..., ge=0, le=4, description="Component score 0-4")
     issues: List[GaitIssue] = Field(default_factory=list, description="Detected gait/balance issues")
+    test_type: Optional[AssessmentTest] = Field(
+        default=None,
+        description="SPPB component for this result",
+    )
 
     # Extended analysis
     sppb_breakdown: Optional[SPPBScore] = None
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Model confidence")
     recommendations: List[str] = Field(default_factory=list)
     video_duration_seconds: Optional[float] = None
+    pose_metrics: Optional[Dict[str, Any]] = Field(
+        default=None, description="Computed pose metrics from frontend pose estimation"
+    )

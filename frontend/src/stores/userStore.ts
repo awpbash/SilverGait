@@ -12,7 +12,7 @@ interface UserState {
   userId: string;
 
   // Preferences
-  preferredLanguage: 'en' | 'singlish' | 'hokkien' | 'cantonese' | 'mandarin';
+  preferredLanguage: 'en' | 'singlish' | 'hokkien' | 'cantonese' | 'mandarin' | 'malay';
   setPreferredLanguage: (lang: UserState['preferredLanguage']) => void;
 
   // Health metrics
