@@ -1,241 +1,401 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AppHeader, ScoreRing, GoalSettingModal } from '../components';
-import { useAssessmentStore, useUserStore, useGoalStore } from '../stores';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AppHeader } from '../components';
+import { useUserStore, useChatStore } from '../stores';
+import type { ChatMessage } from '../stores';
+import { userApi, chatApi } from '../services/api';
+import { useT } from '../i18n';
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-}
-
-function getStreak(): number {
-  try {
-    const data = JSON.parse(localStorage.getItem('silvergait-streak') || '{}');
-    const today = new Date().toDateString();
-    if (data.date === today) return data.count || 0;
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (data.date === yesterday.toDateString()) return data.count || 0;
-    return 0;
-  } catch {
-    return 0;
-  }
-}
-
-function getExerciseDaysThisWeek(): number {
-  try {
-    const log = JSON.parse(localStorage.getItem('silvergait-exercise-log') || '{}');
-    const entries: Array<{ date: string; count: number }> = log.entries || [];
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    monday.setHours(0, 0, 0, 0);
-    return entries.filter((e) => {
-      const d = new Date(e.date);
-      return d >= monday && e.count > 0;
-    }).length;
-  } catch {
-    return 0;
-  }
-}
-
-function formatRelativeDate(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
-}
-
-function getMotivation(exerciseRatio: number, stepsRatio: number, assessmentRatio: number): string {
-  const avgRatio = (exerciseRatio + stepsRatio + assessmentRatio) / 3;
-  if (avgRatio >= 1) return "Amazing week! You\u2019ve hit all your goals!";
-  if (avgRatio >= 0.7) return 'Great progress! Almost there!';
-  if (avgRatio >= 0.3) return 'Good start! Keep going.';
-  return "Let\u2019s get moving today!";
-}
+const QUICK_PROMPT_ICONS = ['\u{1F972}', '\u{2753}', '\u{1F6E1}', '\u{1F9B5}'];
+const MAX_RECORD_MS = 6000;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { latestAssessment, history } = useAssessmentStore();
-  const { todayMetrics } = useUserStore();
-  const { goals } = useGoalStore();
-  const [showGoalModal, setShowGoalModal] = useState(false);
-  const streak = getStreak();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { userId, displayName, preferredLanguage, synced, setSynced } = useUserStore();
+  const { messages, loading, setMessages, setLoading, addMessage, updateMessage, appendToMessage } = useChatStore();
+  const t = useT();
 
-  const breakdown = latestAssessment?.sppb_breakdown;
-  const sppbScore = breakdown
-    ? breakdown.balance_score + breakdown.gait_score + breakdown.chair_stand_score
-    : latestAssessment
-    ? Math.round(latestAssessment.score * 3)
-    : null;
+  const [isRecording, setIsRecording] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [input, setInput] = useState('');
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const lastChecked = latestAssessment?.timestamp
-    ? formatRelativeDate(latestAssessment.timestamp)
-    : null;
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const streamMsgId = useRef<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const autoStopRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const recentActivities = history.slice(0, 3).map((item) => {
-    const tests = item.completed_tests ?? ['gait'];
-    const label = tests.length === 3
-      ? 'Full SPPB check'
-      : tests.map((t) => t === 'chair_stand' ? 'Chair stand' : t.charAt(0).toUpperCase() + t.slice(1)).join(', ') + ' check';
-    const date = formatRelativeDate(item.timestamp);
-    return { label, date };
-  });
+  const lang = preferredLanguage || 'en';
 
-  // Goal progress
-  const exerciseDays = getExerciseDaysThisWeek();
-  const stepsProgress = todayMetrics?.steps ?? 0;
-  const assessmentsThisWeek = useMemo(() => {
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    monday.setHours(0, 0, 0, 0);
-    return history.filter((a) => new Date(a.timestamp) >= monday).length;
-  }, [history]);
+  // Sync user with backend
+  useEffect(() => {
+    if (synced) return;
+    userApi.ensureUser(userId, displayName).then(() => setSynced(true)).catch(() => {});
+  }, [userId, displayName, synced, setSynced]);
 
-  const exerciseRatio = goals.exerciseDaysTarget > 0 ? exerciseDays / goals.exerciseDaysTarget : 0;
-  const stepsRatio = goals.stepsTarget > 0 ? stepsProgress / goals.stepsTarget : 0;
-  const assessmentRatio = goals.assessmentsTarget > 0 ? assessmentsThisWeek / goals.assessmentsTarget : 0;
+  // Initial greeting — only when store is empty or language changes
+  useEffect(() => {
+    const name = displayName || '';
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? t.chat.greeting_morning : hour < 17 ? t.chat.greeting_afternoon : t.chat.greeting_evening;
+    const nameStr = name ? `, ${name}` : '';
+
+    // Only set welcome if no messages yet
+    if (messages.length === 0) {
+      setMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        text: `${greeting}${nameStr}! ${t.chat.welcome}`,
+      }]);
+    }
+  }, [lang, displayName, t]);
+
+  // Auto-record when arriving via voice FAB (?mic=1)
+  useEffect(() => {
+    if (searchParams.get('mic') === '1') {
+      setSearchParams({}, { replace: true });
+      // Small delay to let component mount
+      const timer = setTimeout(() => startRecording(), 300);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Track scroll position for "jump to bottom" button
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollBtn(gap > 120);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      if (autoStopRef.current) window.clearTimeout(autoStopRef.current);
+    };
+  }, []);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // --- Chat ---
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || loading) return;
+
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text: text.trim() };
+    const botId = `b-${Date.now()}`;
+    streamMsgId.current = botId;
+
+    addMessage(userMsg);
+    addMessage({ id: botId, role: 'assistant', text: '' });
+    setInput('');
+    setLoading(true);
+
+    try {
+      const { actions } = await chatApi.sendStream(userId, text.trim(), (chunk) => {
+        appendToMessage(botId, chunk);
+      }, lang);
+
+      updateMessage(botId, { actions });
+    } catch {
+      const fallbackActions = [
+        { label: t.chat.checkStrength, route: '/check' },
+        { label: t.chat.dailyExercises, route: '/exercises' },
+        { label: t.chat.howAmIDoing, route: '/progress' },
+      ];
+      updateMessage(botId, { text: t.chat.cantConnect, actions: fallbackActions });
+    } finally {
+      setLoading(false);
+      streamMsgId.current = null;
+    }
+  }, [userId, loading, lang, t, addMessage, appendToMessage, updateMessage, setLoading]);
+
+  // --- Read Aloud (TTS) ---
+  const readAloud = useCallback(async (msgId: string, text: string) => {
+    if (speakingId === msgId) {
+      audioRef.current?.pause();
+      setSpeakingId(null);
+      return;
+    }
+
+    setSpeakingId(msgId);
+
+    try {
+      const formData = new FormData();
+      formData.append('text', text);
+
+      const res = await fetch('/api/voice/tts-stream', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok || !res.body) {
+        setSpeakingId(null);
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (!audioRef.current) audioRef.current = new Audio();
+      audioRef.current.src = url;
+      audioRef.current.onended = () => {
+        URL.revokeObjectURL(url);
+        setSpeakingId(null);
+      };
+      audioRef.current.play().catch(() => setSpeakingId(null));
+    } catch {
+      setSpeakingId(null);
+    }
+  }, [speakingId]);
+
+  // --- Voice (STT) ---
+  const mapDialect = (l: string) => {
+    if (l === 'mandarin') return 'mandarin';
+    if (l === 'malay') return 'malay';
+    if (l === 'tamil') return 'tamil';
+    return 'en';
+  };
+
+  const handleVoiceResult = useCallback(async (blob: Blob) => {
+    if (!blob.size) return;
+
+    const listenId = `v-${Date.now()}`;
+    addMessage({ id: listenId, role: 'user', text: '...' });
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('audio', blob, 'voice.webm');
+      formData.append('dialect', mapDialect(lang));
+      formData.append('last_prompt', '');
+      formData.append('use_detected_language', 'false');
+
+      const response = await fetch('/api/voice/turn', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Voice request failed');
+
+      const data = await response.json();
+      const transcript = data?.transcript || '';
+
+      updateMessage(listenId, { text: transcript || '(...)' });
+
+      if (data?.reply_audio) {
+        playBase64Audio(data.reply_audio, data.audio_mime_type);
+      }
+
+      if (transcript) {
+        setLoading(false);
+        await new Promise(r => setTimeout(r, 300));
+        sendMessage(transcript);
+      } else {
+        setLoading(false);
+      }
+
+      if (data?.action?.type === 'navigate' && data.action.target) {
+        const routeMap: Record<string, string> = {
+          assessment: '/check', exercises: '/exercises', activity: '/progress', home: '/',
+        };
+        const route = routeMap[data.action.target];
+        if (route) navigate(route);
+      }
+    } catch {
+      updateMessage(listenId, { text: t.chat.couldNotHear });
+      setLoading(false);
+    }
+  }, [lang, sendMessage, navigate, addMessage, updateMessage, setLoading]);
+
+  const playBase64Audio = (base64: string, mimeType = 'audio/mpeg') => {
+    try {
+      const byteChars = atob(base64);
+      const bytes = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      if (!audioRef.current) audioRef.current = new Audio();
+      audioRef.current.src = url;
+      audioRef.current.onended = () => URL.revokeObjectURL(url);
+      audioRef.current.play().catch(() => {});
+    } catch { /* silent */ }
+  };
+
+  const stopRecording = useCallback(() => {
+    if (autoStopRef.current) { window.clearTimeout(autoStopRef.current); autoStopRef.current = null; }
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (isRecording || loading) return;
+    try {
+      setIsRecording(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        handleVoiceResult(new Blob(chunksRef.current, { type: 'audio/webm' }));
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      autoStopRef.current = window.setTimeout(stopRecording, MAX_RECORD_MS);
+    } catch { setIsRecording(false); }
+  }, [isRecording, loading, handleVoiceResult, stopRecording]);
+
+  const handleSubmit = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const prompts = [
+    { icon: QUICK_PROMPT_ICONS[0], text: t.chat.qpUnsteady },
+    { icon: QUICK_PROMPT_ICONS[1], text: t.chat.qpWhatToDo },
+    { icon: QUICK_PROMPT_ICONS[2], text: t.chat.qpFallRisk },
+    { icon: QUICK_PROMPT_ICONS[3], text: t.chat.qpPain },
+  ];
 
   return (
-    <div className="page">
+    <div className="page chat-page">
       <AppHeader />
 
-      <div className="home-greeting">
-        <h1>{getGreeting()}</h1>
-        <p>Let&apos;s check in on your mobility today</p>
-      </div>
+      <div className="chat-container">
+        <div className="chat-messages" ref={chatScrollRef}>
+          {messages.map((msg) => (
+            <div key={msg.id} className={`chat-bubble ${msg.role}`}>
+              {msg.role === 'assistant' && (
+                <div className="chat-avatar">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4c-2.5 0-4 1.5-4 3.5 0 1.2.6 2.2 1.5 2.8C7.5 11.5 6 13.5 6 16c0 1 .5 2 2 2h8c1.5 0 2-1 2-2 0-2.5-1.5-4.5-3.5-5.7.9-.6 1.5-1.6 1.5-2.8C16 5.5 14.5 4 12 4z" fill="var(--olive-700)" />
+                  </svg>
+                </div>
+              )}
+              <div className="chat-content">
+                <div className="chat-text">
+                  {msg.text ? msg.text.split('\n').map((line, i) => (
+                    <p key={i}>{line || '\u00A0'}</p>
+                  )) : (
+                    loading && msg.id === streamMsgId.current && (
+                      <div className="chat-typing-row">
+                        <div className="chat-typing"><span /><span /><span /></div>
+                        <span className="chat-typing-label">{t.chat.thinking}</span>
+                      </div>
+                    )
+                  )}
+                </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <button className="quick-action-card" onClick={() => navigate('/check')}>
-          <span className="quick-action-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M7 7h2l1-2h4l1 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
-              <circle cx="12" cy="13" r="3.5" />
-            </svg>
-          </span>
-          <strong>Start Check</strong>
-          <span>SPPB Assessment</span>
-        </button>
+                {/* Read aloud button for assistant messages with text */}
+                {msg.role === 'assistant' && msg.text && (
+                  <button
+                    className={`chat-read-btn ${speakingId === msg.id ? 'active' : ''}`}
+                    onClick={() => readAloud(msg.id, msg.text)}
+                    aria-label={speakingId === msg.id ? 'Stop reading' : 'Read aloud'}
+                    type="button"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      {speakingId === msg.id ? (
+                        <><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" /><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" /></>
+                      ) : (
+                        <><polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" /></>
+                      )}
+                    </svg>
+                    <span>{speakingId === msg.id ? t.common.stop : t.chat.readAloud}</span>
+                  </button>
+                )}
 
-        <button className="quick-action-card" onClick={() => navigate('/exercises')}>
-          <span className="quick-action-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M18 8a6 6 0 0 1-6 6M6 12a6 6 0 0 0 6 6" />
-              <circle cx="12" cy="12" r="2" fill="currentColor" />
-              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-            </svg>
-          </span>
-          <strong>Exercises</strong>
-          <span>Daily Routine</span>
-        </button>
-      </div>
-
-      {/* Weekly Goals */}
-      <div className="home-goals-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p className="card-title">Weekly Goals</p>
-          <button className="btn-ghost" style={{ fontSize: '0.8rem', padding: '4px 10px' }} onClick={() => setShowGoalModal(true)}>
-            Edit
-          </button>
-        </div>
-        <div className="goal-rings-row">
-          <div className="goal-ring-item">
-            <ScoreRing score={Math.min(exerciseDays, goals.exerciseDaysTarget)} maxScore={goals.exerciseDaysTarget} size="sm" />
-            <span>Exercise</span>
-          </div>
-          <div className="goal-ring-item">
-            <ScoreRing score={Math.min(stepsProgress, goals.stepsTarget)} maxScore={goals.stepsTarget} size="sm" />
-            <span>Steps</span>
-          </div>
-          <div className="goal-ring-item">
-            <ScoreRing score={Math.min(assessmentsThisWeek, goals.assessmentsTarget)} maxScore={goals.assessmentsTarget} size="sm" />
-            <span>Checks</span>
-          </div>
-        </div>
-        <p className="goal-motivation">{getMotivation(exerciseRatio, stepsRatio, assessmentRatio)}</p>
-      </div>
-
-      {/* SPPB Score Card */}
-      <div className="home-score-card">
-        <div className="home-score-info">
-          <p className="card-title">SPPB Score</p>
-          {sppbScore !== null ? (
-            <p className="home-score-detail">
-              {lastChecked ? `Last checked: ${lastChecked}` : 'Recently assessed'}
-            </p>
-          ) : (
-            <p className="home-score-detail">No assessment yet</p>
-          )}
-        </div>
-        <ScoreRing
-          score={sppbScore ?? 0}
-          maxScore={12}
-          size="sm"
-          label={sppbScore !== null ? (sppbScore >= 9 ? 'Good' : sppbScore >= 6 ? 'Fair' : 'Low') : '--'}
-        />
-      </div>
-
-      {/* Feature Cards */}
-      <div className="home-feature-cards">
-        <button className="home-feature-card" onClick={() => navigate('/community')}>
-          <span className="home-feature-icon">{'\u{1F3C6}'}</span>
-          <strong>Challenges</strong>
-          <span>Join this week&apos;s community goals</span>
-        </button>
-        <button className="home-feature-card" onClick={() => navigate('/safety')}>
-          <span className="home-feature-icon">{'\u{1F3E0}'}</span>
-          <strong>Safety Check</strong>
-          <span>Home fall prevention guide</span>
-        </button>
-      </div>
-
-      {/* Streak */}
-      <div className="home-streak">
-        <span className="streak-flame" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C8 8 4 10 4 14a8 8 0 0 0 16 0c0-4-4-6-8-12z" fill="#ff9f0a" opacity="0.9"/>
-            <path d="M12 10c-2 3-4 4-4 6a4 4 0 0 0 8 0c0-2-2-3-4-6z" fill="#ffcc02"/>
-          </svg>
-        </span>
-        <div className="streak-info">
-          <strong>{streak} Day Streak</strong>
-          <span>{streak > 0 ? 'Keep it going!' : 'Start your streak today'}</span>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      {recentActivities.length > 0 && (
-        <div className="home-activity-list">
-          <p className="card-title">Recent Activity</p>
-          {recentActivities.map((item, i) => (
-            <div key={i} className="activity-item">
-              <div className="activity-dot" />
-              <span>{item.label}</span>
-              <small>{item.date}</small>
+                {msg.actions && msg.actions.length > 0 && (
+                  <div className="chat-actions">
+                    {msg.actions.map((action) => (
+                      <button
+                        key={action.route}
+                        className="chat-action-btn"
+                        onClick={() => navigate(action.route)}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
+          <div ref={chatEndRef} />
         </div>
-      )}
 
-      {/* Quick nav buttons */}
-      <div className="progress-actions">
-        <button className="btn-primary" onClick={() => navigate('/check?start=1')}>
-          Quick Comprehensive Check
-        </button>
-        <button className="btn-link" onClick={() => navigate('/report')}>
-          View Weekly Report
-        </button>
+        {/* Jump to bottom */}
+        {showScrollBtn && (
+          <button className="chat-scroll-btn" onClick={scrollToBottom} aria-label="Scroll to bottom" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+        )}
+
+        {/* Quick prompts — only shown initially */}
+        {messages.length <= 1 && !loading && (
+          <div className="chat-quick-prompts">
+            {prompts.map((p) => (
+              <button key={p.text} className="chat-chip" onClick={() => sendMessage(p.text)}>
+                <span className="chat-chip-icon">{p.icon}</span>
+                {p.text}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input bar */}
+        <form className="chat-input-bar" onSubmit={handleSubmit}>
+          <button
+            type="button"
+            className={`chat-mic-btn ${isRecording ? 'recording' : ''}`}
+            onClick={() => isRecording ? stopRecording() : startRecording()}
+            disabled={loading && !isRecording}
+            aria-label={isRecording ? 'Stop recording' : 'Voice input'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3z" />
+              <path d="M19 11a7 7 0 0 1-14 0" />
+              <path d="M12 18v3" />
+            </svg>
+          </button>
+          <input
+            type="text"
+            className="chat-input"
+            placeholder={isRecording ? '...' : t.chat.typePlaceholder}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={loading || isRecording}
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            className="chat-send-btn"
+            disabled={!input.trim() || loading}
+            aria-label="Send message"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          </button>
+        </form>
       </div>
-
-      {showGoalModal && <GoalSettingModal onClose={() => setShowGoalModal(false)} />}
     </div>
   );
 }

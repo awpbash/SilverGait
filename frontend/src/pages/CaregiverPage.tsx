@@ -1,11 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
 import { useAssessmentStore } from '../stores';
-
-function computeTotal(assessment: { score: number; sppb_breakdown?: { balance_score: number; gait_score: number; chair_stand_score: number } }): number {
-  const bd = assessment.sppb_breakdown;
-  return bd ? bd.balance_score + bd.gait_score + bd.chair_stand_score : Math.round(assessment.score * 3);
-}
+import { useT } from '../i18n';
+import { computeTotal } from '../utils/scoring';
+import { formatDate } from '../utils/formatting';
+import { useExerciseStats } from '../hooks/useExerciseStats';
 
 function getRiskLevel(score: number): { label: string; className: string } {
   if (score >= 9) return { label: 'Low Risk', className: 'low' };
@@ -13,31 +12,25 @@ function getRiskLevel(score: number): { label: string; className: string } {
   return { label: 'High Risk', className: 'high' };
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-SG', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 export function CaregiverPage() {
   const { latestAssessment, history } = useAssessmentStore();
   const navigate = useNavigate();
+  const t = useT();
+  const exerciseStats = useExerciseStats(7);
 
   const breakdown = latestAssessment?.sppb_breakdown;
   const totalScore = breakdown
     ? breakdown.balance_score + breakdown.gait_score + breakdown.chair_stand_score
     : latestAssessment
-    ? Math.round(latestAssessment.score * 3)
+    ? latestAssessment.score
     : null;
 
   const risk = totalScore !== null ? getRiskLevel(totalScore) : null;
   const confidenceText = latestAssessment ? `${Math.round(latestAssessment.confidence * 100)}%` : '--';
   const topRecommendations = latestAssessment?.recommendations?.slice(0, 3) || [
-    'Encourage short daily walks',
-    'Practice chair stands with support',
-    'Stay hydrated throughout the day',
+    t.caregiver.defaultRec1,
+    t.caregiver.defaultRec2,
+    t.caregiver.defaultRec3,
   ];
 
   const recentHistory = history.slice(0, 3);
@@ -45,7 +38,7 @@ export function CaregiverPage() {
   const handleShare = async () => {
     const scoreText = totalScore !== null ? `${totalScore}/12` : 'No data';
     const riskText = risk ? risk.label : 'Unknown';
-    const summary = `SilverGait Caregiver Summary\n\nMobility Score: ${scoreText}\nRisk Level: ${riskText}\nConfidence: ${confidenceText}\n\nRecommendations:\n${topRecommendations.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+    const summary = `SilverGait Caregiver Summary\n\nMobility Score: ${scoreText}\nRisk Level: ${riskText}\nConfidence: ${confidenceText}\nExercise Streak: ${exerciseStats.streak} days\nExercises This Week: ${exerciseStats.totalExercises}\n\nRecommendations:\n${topRecommendations.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 
     if (navigator.share) {
       try {
@@ -62,24 +55,24 @@ export function CaregiverPage() {
       <AppHeader />
 
       <div className="page-title">
-        <h1>Caregiver Summary</h1>
-        <p className="subtitle">Simple snapshot for family members</p>
+        <h1>{t.caregiver.title}</h1>
+        <p className="subtitle">{t.caregiver.subtitle}</p>
       </div>
 
       <div className="stack">
         {/* Score + Risk */}
         <div className="card">
-          <h2>Latest Check</h2>
+          <h2>{t.caregiver.latestCheck}</h2>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
             <div>
               <div className="metric-grid two" style={{ marginBottom: 12 }}>
                 <div className="metric-card">
                   <strong>{totalScore !== null ? `${totalScore}/12` : '--'}</strong>
-                  <span>Mobility Score</span>
+                  <span>{t.caregiver.mobilityScore}</span>
                 </div>
                 <div className="metric-card">
                   <strong>{confidenceText}</strong>
-                  <span>Confidence</span>
+                  <span>{t.caregiver.confidence}</span>
                 </div>
               </div>
               {risk && (
@@ -97,7 +90,7 @@ export function CaregiverPage() {
         {/* Assessment History */}
         {recentHistory.length > 0 && (
           <div className="card">
-            <h2>Recent Assessments</h2>
+            <h2>{t.caregiver.recentAssessments}</h2>
             <div className="caregiver-history" style={{ marginTop: 8 }}>
               {recentHistory.map((item, i) => {
                 const score = computeTotal(item);
@@ -114,7 +107,7 @@ export function CaregiverPage() {
 
         {/* Recommendations */}
         <div className="card">
-          <h2>Suggested Focus</h2>
+          <h2>{t.caregiver.suggestedFocus}</h2>
           <ul style={{ paddingLeft: 18, margin: '8px 0 0' }}>
             {topRecommendations.map((item) => (
               <li key={item} style={{ marginBottom: 6, color: 'var(--muted)', fontSize: '0.95rem' }}>
@@ -124,19 +117,39 @@ export function CaregiverPage() {
           </ul>
         </div>
 
+        {/* Exercise Activity */}
+        <div className="card">
+          <h2>Exercise Activity</h2>
+          <div className="metric-grid two" style={{ marginTop: 8 }}>
+            <div className="metric-card">
+              <strong>{exerciseStats.streak}</strong>
+              <span>Day Streak</span>
+            </div>
+            <div className="metric-card">
+              <strong>{exerciseStats.totalExercises}</strong>
+              <span>This Week</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, fontSize: '0.9rem', color: 'var(--muted)' }}>
+            Today: {exerciseStats.todayCompleted.length > 0
+              ? exerciseStats.todayCompleted.join(', ')
+              : 'No exercises yet'}
+          </div>
+        </div>
+
         {/* Care Notes */}
         <div className="card">
-          <h2>Care Notes</h2>
-          <p>Encourage hydration, clear walkways, and daily gentle movement.</p>
+          <h2>{t.caregiver.careNotes}</h2>
+          <p>{t.caregiver.careNotesDesc}</p>
         </div>
       </div>
 
       <div className="progress-actions">
         <button className="btn-primary" onClick={handleShare}>
-          Share Summary
+          {t.caregiver.shareSum}
         </button>
         <button onClick={() => navigate('/help')} className="btn-link">
-          Back to Help
+          {t.caregiver.backHelp}
         </button>
       </div>
     </div>

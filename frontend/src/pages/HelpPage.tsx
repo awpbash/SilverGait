@@ -1,81 +1,71 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components';
+import { useT } from '../i18n';
 
 interface FaqItem {
   question: string;
   answer: string;
 }
 
-const FAQ_ITEMS: FaqItem[] = [
-  {
-    question: 'What is an SPPB assessment?',
-    answer: 'The Short Physical Performance Battery (SPPB) is a simple test that measures your balance, walking speed, and ability to stand from a chair. It helps track your mobility over time.',
-  },
-  {
-    question: 'How often should I do the check?',
-    answer: 'We recommend doing a full assessment once a week. Daily exercises are encouraged to maintain and improve your mobility.',
-  },
-  {
-    question: 'Is it safe to do exercises alone?',
-    answer: 'The exercises are designed to be safe, but always have a sturdy chair or wall nearby for support. If you feel pain or dizziness, stop immediately and rest.',
-  },
-  {
-    question: 'How does the voice assistant work?',
-    answer: 'Press the voice button and say commands like "Start check", "Show exercises", or "Go home". It understands English and Singlish.',
-  },
-];
-
 export function HelpPage() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const t = useT();
+
+  const FAQ_ITEMS: FaqItem[] = [
+    { question: t.help.faqSppb, answer: t.help.faqSppbAnswer },
+    { question: t.help.faqOften, answer: t.help.faqOftenAnswer },
+    { question: t.help.faqSafe, answer: t.help.faqSafeAnswer },
+    { question: t.help.faqVoice, answer: t.help.faqVoiceAnswer },
+  ];
 
   return (
     <div className="page">
       <AppHeader />
 
       <div className="page-title">
-        <h1>Need Help?</h1>
-        <p className="subtitle">We are here to keep you safe</p>
+        <h1>{t.help.title}</h1>
+        <p className="subtitle">{t.help.subtitle}</p>
       </div>
 
       <div className="stack">
         <div className="card">
-          <h2>Quick Help</h2>
+          <h2>{t.help.quickHelp}</h2>
           <p>
-            If you feel dizzy or unsteady, sit down and rest. Ask a family member to stay nearby.
+            {t.help.quickHelpDesc}
           </p>
           <div className="stack" style={{ marginTop: 12 }}>
             <a href="tel:995" className="btn-danger" style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Call 995 (Emergency)
+              {t.help.emergency}
             </a>
             <button className="btn-secondary" onClick={() => navigate('/caregiver')}>
-              Message Caregiver
+              {t.help.messageCaregiver}
             </button>
             <button className="btn-secondary" onClick={() => navigate('/safety')}>
-              Home Safety Check
+              {t.help.safetyCheck}
             </button>
           </div>
         </div>
 
         <div className="card">
-          <h2>Voice Tips</h2>
+          <h2>{t.help.voiceTips}</h2>
           <p>
-            Press the Voice Assistant button and say: &quot;Start check&quot;, &quot;Show exercises&quot;, or &quot;Go home&quot;.
+            {t.help.voiceTipsDesc}
           </p>
         </div>
 
         <div className="card">
-          <h2>Local Support</h2>
+          <h2>{t.help.localSupport}</h2>
           <p>
-            Visit nearby Active Ageing Centres for guided exercises and community support.
+            {t.help.localSupportDesc}
           </p>
         </div>
       </div>
 
       {/* FAQ Accordion */}
       <div className="faq-section">
-        <p className="card-title">Frequently Asked Questions</p>
+        <p className="card-title">{t.help.faq}</p>
         {FAQ_ITEMS.map((item, i) => (
           <div key={i} className="faq-item">
             <button
@@ -101,10 +91,10 @@ export function HelpPage() {
           onClick={() => navigate('/caregiver')}
           className="btn-primary"
         >
-          Caregiver Summary
+          {t.help.caregiverSummary}
         </button>
         <button onClick={() => navigate('/')} className="btn-link">
-          Back to Home
+          {t.help.backHome}
         </button>
       </div>
     </div>

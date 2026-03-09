@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGoalStore } from '../stores';
+import { useT } from '../i18n';
 
 interface GoalSettingModalProps {
   onClose: () => void;
@@ -42,6 +43,7 @@ function Stepper({ label, value, onChange, min, max, step }: {
 export function GoalSettingModal({ onClose }: GoalSettingModalProps) {
   const { goals, setGoals, resetGoals } = useGoalStore();
   const [draft, setDraft] = useState(goals);
+  const t = useT();
 
   const handleSave = () => {
     setGoals(draft);
@@ -56,13 +58,13 @@ export function GoalSettingModal({ onClose }: GoalSettingModalProps) {
   return (
     <div className="pain-modal-overlay" onClick={onClose}>
       <div className="pain-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Weekly Goals</h2>
+        <h2>{t.goals.title}</h2>
         <p style={{ color: 'var(--muted)', marginBottom: 16 }}>
-          Set targets that feel right for you.
+          {t.goals.subtitle}
         </p>
 
         <Stepper
-          label="Exercise Days / Week"
+          label={t.goals.exerciseDays}
           value={draft.exerciseDaysTarget}
           onChange={(v) => setDraft({ ...draft, exerciseDaysTarget: v })}
           min={1}
@@ -71,7 +73,7 @@ export function GoalSettingModal({ onClose }: GoalSettingModalProps) {
         />
 
         <Stepper
-          label="Daily Step Goal"
+          label={t.goals.dailySteps}
           value={draft.stepsTarget}
           onChange={(v) => setDraft({ ...draft, stepsTarget: v })}
           min={1000}
@@ -80,7 +82,7 @@ export function GoalSettingModal({ onClose }: GoalSettingModalProps) {
         />
 
         <Stepper
-          label="Assessments / Week"
+          label={t.goals.assessmentsWeek}
           value={draft.assessmentsTarget}
           onChange={(v) => setDraft({ ...draft, assessmentsTarget: v })}
           min={1}
@@ -89,9 +91,9 @@ export function GoalSettingModal({ onClose }: GoalSettingModalProps) {
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-          <button className="btn-primary" onClick={handleSave}>Save Goals</button>
-          <button className="btn-ghost" onClick={handleReset}>Reset to Defaults</button>
-          <button className="btn-link" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={handleSave}>{t.goals.saveGoals}</button>
+          <button className="btn-ghost" onClick={handleReset}>{t.goals.resetDefaults}</button>
+          <button className="btn-link" onClick={onClose}>{t.common.cancel}</button>
         </div>
       </div>
     </div>

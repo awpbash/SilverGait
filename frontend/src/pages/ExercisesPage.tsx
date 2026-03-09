@@ -4,6 +4,10 @@ import { AppHeader, PoseOverlay } from '../components';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import { extractFrameMetrics } from '../utils/poseMetrics';
 import { useExerciseFormFeedback, FORM_FEEDBACK_EXERCISES } from '../hooks/useExerciseFormFeedback';
+import { useT, tpl } from '../i18n';
+import type { Translations } from '../i18n/en';
+import { exerciseApi } from '../services/api';
+import { useUserStore } from '../stores';
 
 interface Exercise {
   id: string;
@@ -17,146 +21,99 @@ interface Exercise {
   safety: string;
 }
 
-const EXERCISES: Exercise[] = [
-  {
-    id: 'chair-stand',
-    title: 'Chair Stand',
-    description: 'Strengthen your legs for better balance',
-    duration: '5 min',
-    durationSec: 300,
-    category: 'Legs',
-    icon: '\u{1FA91}',
-    steps: [
-      'Sit in a sturdy chair with your feet flat on floor',
-      'Cross your arms over your chest',
-      'Stand up slowly without using your hands',
-      'Sit back down slowly with control',
-      'Repeat 5-10 times',
-    ],
-    safety: 'Use a chair with armrests if needed. Go slowly.',
-  },
-  {
-    id: 'wall-push',
-    title: 'Wall Push-Up',
-    description: 'Build arm strength safely',
-    duration: '3 min',
-    durationSec: 180,
-    category: 'Arms',
-    icon: '\u{1F4AA}',
-    steps: [
-      'Stand facing a wall, about arm\'s length away',
-      'Place your palms flat on the wall at shoulder height',
-      'Slowly bend your elbows and lean towards the wall',
-      'Push back to starting position',
-      'Repeat 10 times',
-    ],
-    safety: 'Keep your back straight. Breathe normally.',
-  },
-  {
-    id: 'heel-raise',
-    title: 'Heel Raises',
-    description: 'Improve balance and calf strength',
-    duration: '3 min',
-    durationSec: 180,
-    category: 'Balance',
-    icon: '\u{1F9B6}',
-    steps: [
-      'Stand behind a chair and hold the back for support',
-      'Rise up on your toes slowly',
-      'Hold for 2 seconds',
-      'Lower your heels slowly',
-      'Repeat 10-15 times',
-    ],
-    safety: 'Keep holding the chair if needed.',
-  },
-  {
-    id: 'marching',
-    title: 'Marching in Place',
-    description: 'Good warm-up for daily movement',
-    duration: '3 min',
-    durationSec: 180,
-    category: 'Legs',
-    icon: '\u{1F6B6}',
-    steps: [
-      'Stand near a wall or chair for support if needed',
-      'Lift your right knee up towards your chest',
-      'Lower it and lift your left knee',
-      'Continue alternating like marching',
-      'Do for 1-2 minutes',
-    ],
-    safety: 'Start slowly. Stop if you feel dizzy.',
-  },
-  {
-    id: 'sit-to-stand-hold',
-    title: 'Sit-to-Stand Hold',
-    description: 'Improves balance and leg strength',
-    duration: '5 min',
-    durationSec: 300,
-    category: 'Legs',
-    icon: '\u{1FA91}',
-    steps: [
-      'Sit in a sturdy chair with your feet flat on the floor',
-      'Place your hands on your thighs',
-      'Stand up slowly without using your hands',
-      'Hold standing position for 5 seconds',
-      'Sit back down slowly with control',
-      'Repeat 5-10 times',
-    ],
-    safety: 'Use a sturdy chair. Have support nearby.',
-  },
-  {
-    id: 'ankle-circles',
-    title: 'Ankle Circles',
-    description: 'Improves ankle mobility and circulation',
-    duration: '3 min',
-    durationSec: 180,
-    category: 'Balance',
-    icon: '\u{1F504}',
-    steps: [
-      'Sit in a chair with your back straight',
-      'Lift one foot slightly off the ground',
-      'Rotate your ankle clockwise 10 times',
-      'Rotate counter-clockwise 10 times',
-      'Switch to the other foot and repeat',
-    ],
-    safety: 'Keep back straight. Use chair arms for support.',
-  },
-  {
-    id: 'leg-extensions',
-    title: 'Leg Extensions',
-    description: 'Strengthens quadriceps without standing',
-    duration: '4 min',
-    durationSec: 240,
-    category: 'Legs',
-    icon: '\u{1F9B5}',
-    steps: [
-      'Sit in a chair with your back straight',
-      'Hold the sides of the chair for support',
-      'Straighten one leg out in front of you',
-      'Hold for 5 seconds, keeping knee slightly bent',
-      'Lower your leg slowly back down',
-      'Repeat 10 times, then switch legs',
-    ],
-    safety: 'Don\'t lock your knee. Move slowly.',
-  },
-  {
-    id: 'shoulder-rolls',
-    title: 'Shoulder Rolls',
-    description: 'Reduces stiffness, improves posture',
-    duration: '2 min',
-    durationSec: 120,
-    category: 'Posture',
-    icon: '\u{1F9D8}',
-    steps: [
-      'Sit or stand with your arms relaxed',
-      'Roll your shoulders backward 10 times',
-      'Roll your shoulders forward 10 times',
-      'Keep movements slow and controlled',
-      'Breathe normally throughout',
-    ],
-    safety: 'Keep movements gentle. Stop if you feel pain.',
-  },
-];
+function getExercises(t: Translations): Exercise[] {
+  const ex = t.exercises;
+  return [
+    {
+      id: 'chair-stand',
+      title: ex.exChairStand,
+      description: ex.exChairStandDesc,
+      duration: ex.exChairStandDur,
+      durationSec: 300,
+      category: ex.catLegs,
+      icon: '\u{1FA91}',
+      steps: [ex.exChairStandS1, ex.exChairStandS2, ex.exChairStandS3, ex.exChairStandS4, ex.exChairStandS5],
+      safety: ex.exChairStandSafety,
+    },
+    {
+      id: 'wall-push',
+      title: ex.exWallPushUp,
+      description: ex.exWallPushUpDesc,
+      duration: ex.exWallPushUpDur,
+      durationSec: 180,
+      category: ex.catArms,
+      icon: '\u{1F4AA}',
+      steps: [ex.exWallPushUpS1, ex.exWallPushUpS2, ex.exWallPushUpS3, ex.exWallPushUpS4, ex.exWallPushUpS5],
+      safety: ex.exWallPushUpSafety,
+    },
+    {
+      id: 'heel-raise',
+      title: ex.exHeelRaise,
+      description: ex.exHeelRaiseDesc,
+      duration: ex.exHeelRaiseDur,
+      durationSec: 180,
+      category: ex.catBalance,
+      icon: '\u{1F9B6}',
+      steps: [ex.exHeelRaiseS1, ex.exHeelRaiseS2, ex.exHeelRaiseS3, ex.exHeelRaiseS4, ex.exHeelRaiseS5],
+      safety: ex.exHeelRaiseSafety,
+    },
+    {
+      id: 'marching',
+      title: ex.exMarching,
+      description: ex.exMarchingDesc,
+      duration: ex.exMarchingDur,
+      durationSec: 180,
+      category: ex.catLegs,
+      icon: '\u{1F6B6}',
+      steps: [ex.exMarchingS1, ex.exMarchingS2, ex.exMarchingS3, ex.exMarchingS4, ex.exMarchingS5],
+      safety: ex.exMarchingSafety,
+    },
+    {
+      id: 'sit-to-stand-hold',
+      title: ex.exSitToStand,
+      description: ex.exSitToStandDesc,
+      duration: ex.exSitToStandDur,
+      durationSec: 300,
+      category: ex.catLegs,
+      icon: '\u{1FA91}',
+      steps: [ex.exSitToStandS1, ex.exSitToStandS2, ex.exSitToStandS3, ex.exSitToStandS4, ex.exSitToStandS5, ex.exSitToStandS6],
+      safety: ex.exSitToStandSafety,
+    },
+    {
+      id: 'ankle-circles',
+      title: ex.exAnkleCircles,
+      description: ex.exAnkleCirclesDesc,
+      duration: ex.exAnkleCirclesDur,
+      durationSec: 180,
+      category: ex.catBalance,
+      icon: '\u{1F504}',
+      steps: [ex.exAnkleCirclesS1, ex.exAnkleCirclesS2, ex.exAnkleCirclesS3, ex.exAnkleCirclesS4, ex.exAnkleCirclesS5],
+      safety: ex.exAnkleCirclesSafety,
+    },
+    {
+      id: 'leg-extensions',
+      title: ex.exLegExtensions,
+      description: ex.exLegExtensionsDesc,
+      duration: ex.exLegExtensionsDur,
+      durationSec: 240,
+      category: ex.catLegs,
+      icon: '\u{1F9B5}',
+      steps: [ex.exLegExtensionsS1, ex.exLegExtensionsS2, ex.exLegExtensionsS3, ex.exLegExtensionsS4, ex.exLegExtensionsS5, ex.exLegExtensionsS6],
+      safety: ex.exLegExtensionsSafety,
+    },
+    {
+      id: 'shoulder-rolls',
+      title: ex.exShoulderRolls,
+      description: ex.exShoulderRollsDesc,
+      duration: ex.exShoulderRollsDur,
+      durationSec: 120,
+      category: ex.catPosture,
+      icon: '\u{1F9D8}',
+      steps: [ex.exShoulderRollsS1, ex.exShoulderRollsS2, ex.exShoulderRollsS3, ex.exShoulderRollsS4, ex.exShoulderRollsS5],
+      safety: ex.exShoulderRollsSafety,
+    },
+  ];
+}
 
 const STORAGE_KEY = 'silvergait-exercises';
 
@@ -222,16 +179,35 @@ function saveCompleted(completed: Set<string>) {
 }
 
 export function ExercisesPage() {
+  const t = useT();
+  const userId = useUserStore((s) => s.userId);
+  const EXERCISES = useMemo(() => getExercises(t), [t]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completed, setCompleted] = useState<Set<string>>(loadCompleted);
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [showPainModal, setShowPainModal] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
   const [searchParams] = useSearchParams();
   const consumedRef = useRef(false);
   const exerciseVideoRef = useRef<HTMLVideoElement>(null);
   const exerciseStreamRef = useRef<MediaStream | null>(null);
+  const timerStartRef = useRef<number>(0);
+
+  // Load today's completions from DB on mount
+  useEffect(() => {
+    exerciseApi.getStats(userId, 1).then((stats) => {
+      if (stats.today_completed.length > 0) {
+        setCompleted((prev) => {
+          const next = new Set(prev);
+          stats.today_completed.forEach((id) => next.add(id));
+          saveCompleted(next);
+          return next;
+        });
+      }
+    }).catch(() => { /* offline fallback to localStorage */ });
+  }, [userId]);
 
   useEffect(() => {
     if (consumedRef.current) return;
@@ -245,8 +221,8 @@ export function ExercisesPage() {
   const exercise = EXERCISES[currentIndex];
   const hasFormFeedback = FORM_FEEDBACK_EXERCISES.has(exercise.id);
 
-  // Pose detection for form feedback
-  const poseDetection = usePoseDetection(exerciseVideoRef, cameraEnabled && timerActive);
+  // Pose detection for form feedback — active whenever camera is on so user sees glow while positioning
+  const poseDetection = usePoseDetection(exerciseVideoRef, cameraEnabled);
   const liveMetrics = useMemo(() => {
     if (!poseDetection.currentPose) return null;
     return extractFrameMetrics(poseDetection.currentPose.keypoints);
@@ -259,6 +235,8 @@ export function ExercisesPage() {
     trunkLean: liveMetrics?.trunkLean ?? null,
     leftElbowAngle: liveMetrics?.leftElbowAngle ?? null,
     rightElbowAngle: liveMetrics?.rightElbowAngle ?? null,
+    leftShoulderY: liveMetrics?.leftShoulderY ?? null,
+    rightShoulderY: liveMetrics?.rightShoulderY ?? null,
   });
 
   // Camera management for form feedback
@@ -313,6 +291,7 @@ export function ExercisesPage() {
   const startTimer = useCallback(() => {
     setTimerSeconds(exercise.durationSec);
     setTimerActive(true);
+    timerStartRef.current = Date.now();
   }, [exercise.durationSec]);
 
   const markComplete = useCallback(() => {
@@ -321,9 +300,19 @@ export function ExercisesPage() {
     setCompleted(next);
     saveCompleted(next);
     setTimerActive(false);
+
+    // Calculate duration
+    const elapsed = timerStartRef.current
+      ? Math.round((Date.now() - timerStartRef.current) / 1000)
+      : undefined;
+    timerStartRef.current = 0;
+
+    // Persist to backend
+    exerciseApi.complete(userId, exercise.id, elapsed).catch(() => { /* offline ok */ });
+
     const nextIdx = EXERCISES.findIndex((e, i) => i > currentIndex && !next.has(e.id));
     if (nextIdx >= 0) setCurrentIndex(nextIdx);
-  }, [completed, exercise.id, currentIndex]);
+  }, [completed, exercise.id, currentIndex, userId]);
 
   const skip = useCallback(() => {
     setTimerActive(false);
@@ -350,14 +339,14 @@ export function ExercisesPage() {
       <AppHeader />
 
       <div className="page-title">
-        <h1>Today&apos;s Routine</h1>
+        <h1>{t.exercises.title}</h1>
       </div>
 
       {/* Progress bar */}
       <div className="exercise-progress-bar">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p className="card-title">Progress</p>
-          <span className="progress-text">{completedCount} of {totalCount}</span>
+          <p className="card-title">{t.exercises.progress}</p>
+          <span className="progress-text">{tpl(t.exercises.progressOf, { done: completedCount, total: totalCount })}</span>
         </div>
         <div className="progress-track">
           <div className="progress-fill" style={{ width: `${progressPct}%` }} />
@@ -386,7 +375,7 @@ export function ExercisesPage() {
         </div>
         {completed.has(exercise.id) && (
           <span className="exercise-category" style={{ background: '#e8f5e9', color: '#1b8a3e' }}>
-            Completed
+            {t.exercises.completed}
           </span>
         )}
       </div>
@@ -395,17 +384,34 @@ export function ExercisesPage() {
       {hasFormFeedback && (
         <div className="exercise-camera-section">
           <button className="btn-ghost" onClick={toggleCamera} style={{ marginBottom: 8 }}>
-            {cameraEnabled ? 'Turn Off Camera' : 'Use Camera for Form Feedback'}
+            {cameraEnabled ? t.exercises.turnOffCamera : t.exercises.useCamera}
           </button>
           {cameraEnabled && (
             <div className="exercise-camera-preview">
               <video ref={exerciseVideoRef} playsInline muted autoPlay style={{ width: '100%', borderRadius: 'var(--radius-sm)' }} />
               <PoseOverlay
                 videoRef={exerciseVideoRef}
-                pose={poseDetection.currentPose}
-                confidence={poseDetection.confidence}
-                isActive={cameraEnabled && timerActive}
+                poseRef={poseDetection.poseRef}
+                confidenceRef={poseDetection.confidenceRef}
+                isActive={cameraEnabled && poseDetection.isReady}
+                showOverlay={showOverlay}
               />
+              {poseDetection.isReady && (
+                <button
+                  className={`overlay-toggle${showOverlay ? ' active' : ''}`}
+                  onClick={() => setShowOverlay(v => !v)}
+                  aria-label="Toggle body overlay"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="5" r="3" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="11" x2="16" y2="11" />
+                    <line x1="10" y1="22" x2="12" y2="16" />
+                    <line x1="14" y1="22" x2="12" y2="16" />
+                  </svg>
+                  {showOverlay ? 'Body On' : 'Body Off'}
+                </button>
+              )}
             </div>
           )}
           {cameraEnabled && formFeedback.feedback.length > 0 && (
@@ -420,7 +426,7 @@ export function ExercisesPage() {
           {cameraEnabled && formFeedback.repCount > 0 && (
             <div className="rep-counter">
               <strong>{formFeedback.repCount}</strong>
-              <span>Reps</span>
+              <span>{t.exercises.reps}</span>
             </div>
           )}
         </div>
@@ -430,13 +436,13 @@ export function ExercisesPage() {
       {(timerActive || timerSeconds > 0) && (
         <div className="exercise-timer">
           <span className="timer-display">{formatTime(timerSeconds)}</span>
-          <span className="timer-label">{timerActive ? 'In progress...' : 'Timer paused'}</span>
+          <span className="timer-label">{timerActive ? t.exercises.inProgress : t.exercises.timerPaused}</span>
         </div>
       )}
 
       {/* Steps */}
       <div className="exercise-steps">
-        <h3>How to do it</h3>
+        <h3>{t.exercises.howToDo}</h3>
         <ol>
           {exercise.steps.map((step, idx) => (
             <li key={idx}>{step}</li>
@@ -460,19 +466,19 @@ export function ExercisesPage() {
       <div className="exercise-actions">
         {!timerActive && timerSeconds === 0 && (
           <button className="btn-secondary" onClick={startTimer}>
-            Start Timer
+            {t.exercises.startTimer}
           </button>
         )}
 
         {timerActive && (
           <button className="btn-secondary" onClick={() => setTimerActive(false)}>
-            Pause Timer
+            {t.exercises.pauseTimer}
           </button>
         )}
 
         {!timerActive && timerSeconds > 0 && (
           <button className="btn-secondary" onClick={() => setTimerActive(true)}>
-            Resume Timer
+            {t.exercises.resumeTimer}
           </button>
         )}
 
@@ -481,15 +487,15 @@ export function ExercisesPage() {
           onClick={markComplete}
           disabled={completed.has(exercise.id)}
         >
-          {completed.has(exercise.id) ? 'Completed' : 'Mark Complete'}
+          {completed.has(exercise.id) ? t.exercises.completed : t.exercises.markComplete}
         </button>
 
         <div className="exercise-btn-row">
           <button className="btn-ghost" onClick={goToPrev}>
-            Previous
+            {t.common.previous}
           </button>
           <button className="btn-ghost" onClick={skip}>
-            Skip
+            {t.common.skip}
           </button>
         </div>
 
@@ -497,7 +503,7 @@ export function ExercisesPage() {
           className="btn-outline-danger"
           onClick={() => setShowPainModal(true)}
         >
-          I Feel Pain
+          {t.exercises.iFeelPain}
         </button>
       </div>
 
@@ -505,16 +511,15 @@ export function ExercisesPage() {
       {showPainModal && (
         <div className="pain-modal-overlay" onClick={() => setShowPainModal(false)}>
           <div className="pain-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Take a Break</h2>
+            <h2>{t.exercises.painTitle}</h2>
             <p>
-              Please stop the exercise and rest. If pain continues, consider seeing
-              a doctor or physiotherapist. Your safety comes first.
+              {t.exercises.painDesc}
             </p>
             <button className="btn-primary" onClick={() => setShowPainModal(false)}>
-              I Understand
+              {t.exercises.painUnderstand}
             </button>
             <a href="tel:995" className="btn-outline-danger" style={{ textDecoration: 'none', textAlign: 'center' }}>
-              Call 995 (Emergency)
+              {t.exercises.painEmergency}
             </a>
           </div>
         </div>

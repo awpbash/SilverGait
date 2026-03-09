@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components';
-import { useAssessmentStore, useUserStore } from '../stores';
+import { useAssessmentStore } from '../stores';
+import { useT, tpl } from '../i18n';
 import type { Challenge } from '../types';
+import { useExerciseStats } from '../hooks/useExerciseStats';
 
 const CHALLENGE_POOL: Challenge[] = [
   { id: 'walk-5k', title: 'Daily Walker', description: 'Walk 5,000 steps today', icon: '\u{1F6B6}', targetType: 'steps', targetValue: 5000, unit: 'steps', participants: 248 },
@@ -41,21 +43,11 @@ function pickChallenges(weekNum: number, count: number): Challenge[] {
   return shuffled.slice(0, count);
 }
 
-function getExerciseCompletedCount(): number {
-  try {
-    const data = JSON.parse(localStorage.getItem('silvergait-exercises') || '{}');
-    const today = new Date().toISOString().slice(0, 10);
-    if (data.date === today) {
-      return (data.completed || []).length;
-    }
-  } catch { /* ignore */ }
-  return 0;
-}
-
 export function CommunityPage() {
   const navigate = useNavigate();
-  const { todayMetrics } = useUserStore();
+  const t = useT();
   const { history } = useAssessmentStore();
+  const exerciseStats = useExerciseStats(7);
 
   const weekNum = getWeekNumber();
   const weekLabel = getWeekLabel();
@@ -64,15 +56,15 @@ export function CommunityPage() {
   const getProgress = (challenge: Challenge): number => {
     switch (challenge.targetType) {
       case 'steps':
-        return todayMetrics?.steps ?? 0;
+        return exerciseStats.totalExercises * 1000; // estimate from exercises
       case 'exercises':
-        return getExerciseCompletedCount();
+        return exerciseStats.todayCompleted.length;
       case 'assessments': {
         const today = new Date().toISOString().slice(0, 10);
         return history.filter((a) => a.timestamp.startsWith(today)).length;
       }
       case 'chair_stands':
-        return getExerciseCompletedCount() > 0 ? 5 : 0; // simplified
+        return exerciseStats.todayCompleted.includes('chair-stand') ? 5 : 0;
       default:
         return 0;
     }
@@ -83,7 +75,7 @@ export function CommunityPage() {
       <AppHeader />
 
       <div className="page-title">
-        <h1>Community Challenges</h1>
+        <h1>{t.community.title}</h1>
         <p className="subtitle">{weekLabel}</p>
       </div>
 
@@ -101,7 +93,7 @@ export function CommunityPage() {
                   <strong>{challenge.title}</strong>
                   <span>{challenge.description}</span>
                 </div>
-                {isComplete && <span className="challenge-badge">Done!</span>}
+                {isComplete && <span className="challenge-badge">{t.community.done}</span>}
               </div>
 
               <div className="challenge-progress">
@@ -123,7 +115,7 @@ export function CommunityPage() {
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
-                <span>{challenge.participants} participating</span>
+                <span>{tpl(t.community.participating, { count: challenge.participants })}</span>
               </div>
             </div>
           );
@@ -132,10 +124,10 @@ export function CommunityPage() {
 
       <div className="progress-actions">
         <button className="btn-primary" onClick={() => navigate('/exercises')}>
-          Start Exercises
+          {t.community.startExercises}
         </button>
         <button className="btn-link" onClick={() => navigate('/')}>
-          Back to Home
+          {t.community.backHome}
         </button>
       </div>
     </div>

@@ -1,8 +1,10 @@
 /**
  * Zustand store for SPPB Assessment data
+ * Persisted to localStorage + synced with backend DB
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { AssessmentResult } from '../types';
 
 interface AssessmentState {
@@ -13,6 +15,7 @@ interface AssessmentState {
   // Assessment history
   history: AssessmentResult[];
   addToHistory: (assessment: AssessmentResult) => void;
+  setHistory: (history: AssessmentResult[]) => void;
 
   // Video recording state
   isRecording: boolean;
@@ -27,25 +30,38 @@ interface AssessmentState {
   setError: (error: string | null) => void;
 }
 
-export const useAssessmentStore = create<AssessmentState>((set) => ({
-  latestAssessment: null,
-  history: [],
-  isRecording: false,
-  isAnalyzing: false,
-  error: null,
+export const useAssessmentStore = create<AssessmentState>()(
+  persist(
+    (set) => ({
+      latestAssessment: null,
+      history: [],
+      isRecording: false,
+      isAnalyzing: false,
+      error: null,
 
-  setLatestAssessment: (assessment) =>
-    set((state) => ({
-      latestAssessment: assessment,
-      history: [assessment, ...state.history.slice(0, 9)], // Keep last 10
-    })),
+      setLatestAssessment: (assessment) =>
+        set((state) => ({
+          latestAssessment: assessment,
+          history: [assessment, ...state.history.slice(0, 19)], // Keep last 20
+        })),
 
-  addToHistory: (assessment) =>
-    set((state) => ({
-      history: [assessment, ...state.history.slice(0, 9)],
-    })),
+      addToHistory: (assessment) =>
+        set((state) => ({
+          history: [assessment, ...state.history.slice(0, 19)],
+        })),
 
-  setRecording: (isRecording) => set({ isRecording }),
-  setAnalyzing: (isAnalyzing) => set({ isAnalyzing }),
-  setError: (error) => set({ error }),
-}));
+      setHistory: (history) => set({ history }),
+
+      setRecording: (isRecording) => set({ isRecording }),
+      setAnalyzing: (isAnalyzing) => set({ isAnalyzing }),
+      setError: (error) => set({ error }),
+    }),
+    {
+      name: 'silvergait-assessments',
+      partialize: (state) => ({
+        latestAssessment: state.latestAssessment,
+        history: state.history,
+      }),
+    }
+  )
+);

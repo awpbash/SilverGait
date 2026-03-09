@@ -3,27 +3,32 @@
  * Warm, calm palette aligned with Figma mockups
  */
 
-import { useMemo } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { BottomNav, VoiceAssistant } from './components';
-import { useUiStore } from './stores';
+import { BottomNav, VoiceAssistant, OnboardingModal, Loading } from './components';
+import { useUiStore, useUserStore } from './stores';
+import { useT } from './i18n';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
-import { AssessmentPage } from './pages/AssessmentPage';
-import { ExercisesPage } from './pages/ExercisesPage';
 import { HelpPage } from './pages/HelpPage';
 import { CaregiverPage } from './pages/CaregiverPage';
 import { SafetyPage } from './pages/SafetyPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { ReportPage } from './pages/ReportPage';
+import { MorePage } from './pages/MorePage';
 
-type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver' | 'safety' | 'community' | 'report';
+// Lazy-load heavy routes (TF.js + pose detection)
+const AssessmentPage = lazy(() => import('./pages/AssessmentPage').then(m => ({ default: m.AssessmentPage })));
+const ExercisesPage = lazy(() => import('./pages/ExercisesPage').then(m => ({ default: m.ExercisesPage })));
+
+type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver' | 'safety' | 'community' | 'report' | 'more';
 
 const ROUTES: Record<PageId, string> = {
   home: '/',
   assessment: '/check',
   exercises: '/exercises',
   activity: '/progress',
+  more: '/more',
   help: '/help',
   caregiver: '/caregiver',
   safety: '/safety',
@@ -31,7 +36,8 @@ const ROUTES: Record<PageId, string> = {
   report: '/report',
 };
 
-// Icon components - simple, clear
+
+// Icon components
 const HomeIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
@@ -56,15 +62,26 @@ const ProgressIcon = () => (
   </svg>
 );
 
-const navItems = [
-  { id: 'home', label: 'Home', icon: <HomeIcon /> },
-  { id: 'assessment', label: 'Check', icon: <CheckIcon /> },
-  { id: 'exercises', label: 'Exercise', icon: <ExerciseIcon /> },
-  { id: 'activity', label: 'Progress', icon: <ProgressIcon /> },
-];
+const MoreIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="5" cy="12" r="2.5" />
+    <circle cx="12" cy="12" r="2.5" />
+    <circle cx="19" cy="12" r="2.5" />
+  </svg>
+);
 
 function App() {
-  const { viewMode } = useUiStore();
+  const { viewMode, setViewMode } = useUiStore();
+  const { hasOnboarded } = useUserStore();
+  const t = useT();
+
+  const navItems = useMemo(() => [
+    { id: 'home', label: t.nav.home, icon: <HomeIcon /> },
+    { id: 'assessment', label: t.nav.check, icon: <CheckIcon /> },
+    { id: 'exercises', label: t.nav.exercise, icon: <ExerciseIcon /> },
+    { id: 'activity', label: t.nav.progress, icon: <ProgressIcon /> },
+    { id: 'more', label: t.nav.more, icon: <MoreIcon /> },
+  ], [t]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -74,8 +91,13 @@ function App() {
     if (path.startsWith(ROUTES.assessment)) return 'assessment';
     if (path.startsWith(ROUTES.exercises)) return 'exercises';
     if (path.startsWith(ROUTES.activity)) return 'activity';
-    if (path.startsWith(ROUTES.help)) return '';
-    if (path.startsWith(ROUTES.caregiver)) return '';
+    // Pages accessible via "More" highlight the More tab
+    if (path.startsWith(ROUTES.more)) return 'more';
+    if (path.startsWith(ROUTES.help)) return 'more';
+    if (path.startsWith(ROUTES.caregiver)) return 'more';
+    if (path.startsWith(ROUTES.safety)) return 'more';
+    if (path.startsWith(ROUTES.community)) return 'more';
+    if (path.startsWith(ROUTES.report)) return 'more';
     return '';
   }, [location.pathname]);
 
@@ -83,65 +105,72 @@ function App() {
     navigate(ROUTES[page]);
   };
 
-  const handleVoiceAction = (action: {
-    type?: string;
-    target?: string | null;
-    exercise_id?: string | null;
-    auto_start?: boolean | null;
-  }) => {
-    if (action?.type !== 'navigate' || !action.target) {
-      return;
-    }
-
-    const target = action.target as PageId;
-    if (target === 'assessment') {
-      const params = new URLSearchParams();
-      if (action.auto_start) {
-        params.set('start', '1');
-        params.set('mode', 'comprehensive');
-      }
-      const search = params.toString();
-      navigate(`${ROUTES.assessment}${search ? `?${search}` : ''}`);
-      return;
-    }
-    if (target === 'exercises') {
-      const params = new URLSearchParams();
-      if (action.exercise_id) {
-        params.set('exercise', action.exercise_id);
-      }
-      const search = params.toString();
-      navigate(`${ROUTES.exercises}${search ? `?${search}` : ''}`);
-      return;
-    }
-    navigate(ROUTES[target]);
-  };
-
   return (
     <div className="app-shell" data-view={viewMode}>
-      {/* Main content area */}
-      <main className="screen-frame">
-        <Routes>
-          <Route path={ROUTES.home} element={<HomePage />} />
-          <Route path={ROUTES.assessment} element={<AssessmentPage />} />
-          <Route path={ROUTES.exercises} element={<ExercisesPage />} />
-          <Route path={ROUTES.activity} element={<ActivityPage />} />
-          <Route path={ROUTES.help} element={<HelpPage />} />
-          <Route path={ROUTES.caregiver} element={<CaregiverPage />} />
-          <Route path={ROUTES.safety} element={<SafetyPage />} />
-          <Route path={ROUTES.community} element={<CommunityPage />} />
-          <Route path={ROUTES.report} element={<ReportPage />} />
-          <Route path="*" element={<HomePage />} />
-        </Routes>
+      {!hasOnboarded && <OnboardingModal />}
 
-        {/* Bottom navigation */}
-        <BottomNav
-          items={navItems}
-          activeId={activeId}
-          onSelect={(id) => handleNavigate(id as PageId)}
-        />
-      </main>
+      {/* External toolbar — outside the phone frame */}
+      <div className="device-toolbar">
+        <div className="device-toolbar-brand">
+          <img src="/images/sg-health.svg" alt="SilverGait" className="device-toolbar-icon" />
+          <span>SilverGait</span>
+        </div>
 
-      <VoiceAssistant onAction={handleVoiceAction} />
+        <div className="device-toolbar-controls">
+          <div className="view-toggle" role="group" aria-label="View mode">
+            <button type="button" className={viewMode === 'mobile' ? 'active' : ''} onClick={() => setViewMode('mobile')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="2" width="14" height="20" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="18" r="1" /></svg>
+              {t.header.mobile}
+            </button>
+            <button type="button" className={viewMode === 'desktop' ? 'active' : ''} onClick={() => setViewMode('desktop')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 21h8M12 18v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              {t.header.desktop}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Phone frame */}
+      <div className="phone-bezel">
+        {/* Notch */}
+        <div className="phone-notch">
+          <div className="phone-notch-cam" />
+        </div>
+
+        {/* Screen content */}
+        <main className="screen-frame">
+          <div className="screen-scroll">
+            <Suspense fallback={<Loading message="Loading..." />}>
+              <Routes>
+                <Route path={ROUTES.home} element={<HomePage />} />
+                <Route path={ROUTES.assessment} element={<AssessmentPage />} />
+                <Route path={ROUTES.exercises} element={<ExercisesPage />} />
+                <Route path={ROUTES.activity} element={<ActivityPage />} />
+                <Route path={ROUTES.help} element={<HelpPage />} />
+                <Route path={ROUTES.caregiver} element={<CaregiverPage />} />
+                <Route path={ROUTES.safety} element={<SafetyPage />} />
+                <Route path={ROUTES.community} element={<CommunityPage />} />
+                <Route path={ROUTES.report} element={<ReportPage />} />
+                <Route path={ROUTES.more} element={<MorePage />} />
+                <Route path="*" element={<HomePage />} />
+              </Routes>
+            </Suspense>
+          </div>
+
+          {/* Voice FAB — navigates to home chat */}
+          {activeId !== 'home' && <VoiceAssistant />}
+
+          {/* Bottom navigation */}
+          <BottomNav
+            items={navItems}
+            activeId={activeId}
+            onSelect={(id) => handleNavigate(id as PageId)}
+          />
+        </main>
+
+        {/* Home indicator bar */}
+        <div className="phone-home-indicator" />
+      </div>
     </div>
   );
 }

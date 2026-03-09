@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
+import { useT, tpl } from '../i18n';
 import type { SafetyRoom } from '../types';
 
 const SAFETY_ROOMS: SafetyRoom[] = [
@@ -82,6 +83,14 @@ const TOTAL_QUESTIONS = SAFETY_ROOMS.reduce((sum, room) => sum + room.questions.
 
 export function SafetyPage() {
   const navigate = useNavigate();
+  const t = useT();
+  const roomNames: Record<string, string> = {
+    bathroom: t.safety.bathroom,
+    bedroom: t.safety.bedroom,
+    kitchen: t.safety.kitchen,
+    living: t.safety.livingRoom,
+    walkways: t.safety.walkways,
+  };
   const [checked, setChecked] = useState<Record<string, boolean>>(loadChecked);
   const [openRoom, setOpenRoom] = useState<string | null>(null);
 
@@ -122,8 +131,8 @@ export function SafetyPage() {
       <AppHeader />
 
       <div className="page-title">
-        <h1>Home Safety Check</h1>
-        <p className="subtitle">Room-by-room fall prevention guide</p>
+        <h1>{t.safety.title}</h1>
+        <p className="subtitle">{t.safety.subtitle}</p>
       </div>
 
       {/* Score summary */}
@@ -131,7 +140,7 @@ export function SafetyPage() {
         <ScoreRing score={checkedCount} maxScore={TOTAL_QUESTIONS} size="md" label={`${scorePercent}%`} />
         <div className="safety-score-info">
           <span className={`risk-badge ${riskClass}`}>{riskLabel}</span>
-          <p>{checkedCount} of {TOTAL_QUESTIONS} items checked</p>
+          <p>{tpl(t.safety.itemsChecked, { done: checkedCount, total: TOTAL_QUESTIONS })}</p>
         </div>
       </div>
 
@@ -147,7 +156,7 @@ export function SafetyPage() {
                 onClick={() => setOpenRoom(isOpen ? null : room.id)}
               >
                 <span className="safety-room-icon">{room.icon}</span>
-                <span className="safety-room-name">{room.name}</span>
+                <span className="safety-room-name">{roomNames[room.id] ?? room.name}</span>
                 <span className="safety-room-count">{roomChecked}/{room.questions.length}</span>
                 <span className={`faq-chevron${isOpen ? ' open' : ''}`}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -178,7 +187,7 @@ export function SafetyPage() {
       {/* Recommendations */}
       {uncheckedRecommendations.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
-          <h2>Recommendations</h2>
+          <h2>{t.safety.recommendations}</h2>
           <ul style={{ paddingLeft: 18, margin: '8px 0 0' }}>
             {uncheckedRecommendations.slice(0, 5).map((rec) => (
               <li key={rec} style={{ marginBottom: 6, color: 'var(--muted)', fontSize: '0.9rem' }}>{rec}</li>
@@ -188,8 +197,8 @@ export function SafetyPage() {
       )}
 
       <div className="progress-actions">
-        <button className="btn-primary" onClick={handleShare}>Share Results</button>
-        <button className="btn-link" onClick={() => navigate('/help')}>Back to Help</button>
+        <button className="btn-primary" onClick={handleShare}>{t.safety.shareResults}</button>
+        <button className="btn-link" onClick={() => navigate('/help')}>{t.safety.backHelp}</button>
       </div>
     </div>
   );

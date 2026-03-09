@@ -1,21 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
-import { useAssessmentStore, useUserStore } from '../stores';
-
-function computeTotal(assessment: { score: number; sppb_breakdown?: { balance_score: number; gait_score: number; chair_stand_score: number } }): number {
-  const bd = assessment.sppb_breakdown;
-  return bd ? bd.balance_score + bd.gait_score + bd.chair_stand_score : Math.round(assessment.score * 3);
-}
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-SG', { weekday: 'short' });
-}
+import { useAssessmentStore } from '../stores';
+import { useT, tpl } from '../i18n';
+import { computeTotal } from '../utils/scoring';
+import { useExerciseStats } from '../hooks/useExerciseStats';
 
 export function ActivityPage() {
   const { latestAssessment, history } = useAssessmentStore();
-  const { todayMetrics } = useUserStore();
   const navigate = useNavigate();
+  const t = useT();
+  const exerciseStats = useExerciseStats(7);
 
   const breakdown = latestAssessment?.sppb_breakdown;
   const sppbScore = breakdown
@@ -32,25 +26,26 @@ export function ActivityPage() {
 
   const deltaClass = delta === null ? 'neutral' : delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
   const deltaText = delta === null
-    ? 'No previous data'
+    ? t.activity.noPreviousData
     : delta === 0
-    ? 'Same as last time'
-    : `${delta > 0 ? '+' : ''}${delta} from last check`;
+    ? t.activity.sameAsLast
+    : tpl(t.activity.deltaFrom, { delta: `${delta > 0 ? '+' : ''}${delta}` });
 
-  const chartData = history.slice(0, 5).reverse().map((item) => ({
-    score: computeTotal(item),
-    label: formatShortDate(item.timestamp),
-  }));
-
-  const steps = todayMetrics?.steps ?? 0;
-  const mvpa = todayMetrics?.mvpa_minutes ?? 0;
+  // Daily checklist items
+  const didAssessment = !!latestAssessment && isToday(latestAssessment.timestamp);
+  const todayCount = exerciseStats.todayCompleted.length;
+  const checklist = [
+    { done: didAssessment, label: t.activity.checklistAssessment, action: () => navigate('/check') },
+    { done: todayCount >= 1, label: tpl(t.activity.checklistExercise, { count: String(Math.max(3 - todayCount, 0)) }), action: () => navigate('/exercises') },
+  ];
 
   return (
     <div className="page">
       <AppHeader />
 
       <div className="page-title">
-        <h1>Your Progress</h1>
+        <h1>{t.activity.title}</h1>
+        <p className="subtitle">{t.activity.todaySubtitle}</p>
       </div>
 
       {/* Hero Score Ring */}
@@ -59,8 +54,8 @@ export function ActivityPage() {
           score={sppbScore}
           maxScore={12}
           size="lg"
-          label="SPPB"
-          sublabel={sppbScore >= 9 ? 'Good' : sppbScore >= 6 ? 'Fair' : 'Needs Work'}
+          label={t.activity.sppb}
+          sublabel={sppbScore >= 9 ? t.activity.good : sppbScore >= 6 ? t.activity.fair : t.activity.needsWork}
         />
         <span className={`activity-delta ${deltaClass}`}>{deltaText}</span>
       </div>
@@ -69,73 +64,87 @@ export function ActivityPage() {
       <div className="activity-breakdown">
         <div className="breakdown-item">
           <ScoreRing score={balanceScore} maxScore={4} size="sm" />
-          <span className="breakdown-label">Balance</span>
+          <span className="breakdown-label">{t.activity.balance}</span>
         </div>
         <div className="breakdown-item">
           <ScoreRing score={gaitScore} maxScore={4} size="sm" />
-          <span className="breakdown-label">Gait</span>
+          <span className="breakdown-label">{t.activity.gait}</span>
         </div>
         <div className="breakdown-item">
           <ScoreRing score={chairScore} maxScore={4} size="sm" />
-          <span className="breakdown-label">Chair</span>
+          <span className="breakdown-label">{t.activity.chair}</span>
         </div>
       </div>
 
-      {/* Assessment History Chart */}
-      {chartData.length > 0 && (
-        <div className="history-chart">
-          <p className="card-title">Assessment History</p>
-          <div className="chart-bars">
-            {chartData.map((item, i) => (
-              <div key={i} className="chart-bar-wrapper">
-                <div
-                  className={`chart-bar${i === chartData.length - 1 ? ' latest' : ''}`}
-                  style={{ height: `${(item.score / 12) * 100}%` }}
-                />
-                <span className="chart-bar-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Daily Checklist */}
+      <div className="activity-checklist">
+        <p className="card-title">{t.activity.todayChecklist}</p>
+        {checklist.map((item) => (
+          <button
+            key={item.label}
+            className={`checklist-item ${item.done ? 'done' : ''}`}
+            onClick={item.action}
+          >
+            <span className="checklist-icon">
+              {item.done ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--olive-600)" strokeWidth="2.5">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                </svg>
+              )}
+            </span>
+            <span className="checklist-label">{item.label}</span>
+            {!item.done && (
+              <svg className="checklist-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Today's Stats */}
       <div className="activity-stats">
-        <p className="card-title">Today&apos;s Stats</p>
+        <p className="card-title">{t.activity.todayStats}</p>
         <div className="stat-row">
           <span className="stat-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 22s-8-6-8-12a8 8 0 0 1 16 0c0 6-8 12-8 12z" />
-              <circle cx="12" cy="10" r="3" />
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </span>
-          <strong>{steps > 0 ? steps.toLocaleString() : '--'} steps</strong>
-          <span>{steps >= 8000 ? 'Great!' : steps > 0 ? 'Keep moving' : 'No data'}</span>
+          <strong>{todayCount} {t.activity.exercisesToday}</strong>
+          <span>{todayCount >= 5 ? t.activity.great : todayCount > 0 ? t.activity.keepMoving : t.activity.noData}</span>
         </div>
         <div className="stat-row">
           <span className="stat-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </span>
-          <strong>{mvpa > 0 ? `${mvpa} min` : '--'} active</strong>
-          <span>{mvpa >= 30 ? 'On target' : mvpa > 0 ? 'Almost there' : 'No data'}</span>
+          <strong>{exerciseStats.streak} {t.activity.dayStreak}</strong>
+          <span>{exerciseStats.streak >= 7 ? t.activity.great : exerciseStats.streak >= 3 ? t.activity.keepMoving : exerciseStats.streak > 0 ? t.activity.almostThere : t.activity.noData}</span>
         </div>
       </div>
 
       {/* Actions */}
       <div className="progress-actions">
         <button className="btn-primary" onClick={() => navigate('/check')}>
-          Start Today&apos;s Check
-        </button>
-        <button className="btn-link" onClick={() => navigate('/exercises')}>
-          View Exercises
+          {t.activity.startCheck}
         </button>
         <button className="btn-link" onClick={() => navigate('/report')}>
-          Weekly Report
+          {t.activity.weeklyReport}
         </button>
       </div>
     </div>
   );
+}
+
+function isToday(timestamp: string): boolean {
+  const d = new Date(timestamp);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }

@@ -11,7 +11,10 @@ export type GaitIssue =
   | 'unsteady_turns'
   | 'reduced_arm_swing'
   | 'wide_base'
-  | 'hesitation';
+  | 'hesitation'
+  | 'irregular_rhythm'
+  | 'excessive_trunk_lean'
+  | 'poor_sit_to_stand';
 
 export interface SPPBScore {
   balance_score: number;
@@ -22,7 +25,7 @@ export interface SPPBScore {
 export interface AssessmentResult {
   user_id: string;
   timestamp: string;
-  score: number; // 0-4
+  score: number; // 0-12 for comprehensive, 0-4 for individual
   issues: GaitIssue[];
   test_type?: 'gait' | 'balance' | 'chair_stand';
   completed_tests?: Array<'gait' | 'balance' | 'chair_stand'>;
@@ -30,4 +33,5 @@ export interface AssessmentResult {
   confidence: number;
   recommendations: string[];
   video_duration_seconds?: number;
+  low_confidence_warning?: string;
 }

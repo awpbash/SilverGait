@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 
 from ..core.config import get_settings
 from ..services.voice import (
-    OpenAIVoiceService,
+    GeminiVoiceService,
     VoiceIntentService,
     VoiceLanguageService,
     build_reply_text,
@@ -17,7 +17,7 @@ from ..services.sealion import SeaLionService
 
 router = APIRouter(tags=["voice"])
 
-voice_service = OpenAIVoiceService()
+voice_service = GeminiVoiceService()
 intent_service = VoiceIntentService()
 language_service = VoiceLanguageService()
 sealion_service = SeaLionService()
@@ -32,7 +32,7 @@ async def voice_status():
         "tts_ready": voice_service.enabled,
         "sealion_ready": sealion_service.enabled,
         "stream_tts": settings.voice_stream_tts,
-        "tts_format": voice_service.tts_format,
+        "tts_format": "wav",
     }
 
 
@@ -63,13 +63,13 @@ async def voice_turn(
     dialect_map = {
         "en": "en",
         "english": "en",
-        "singlish": "singlish",
         "mandarin": "mandarin",
         "chinese": "mandarin",
         "zh": "mandarin",
         "malay": "malay",
         "bahasa": "malay",
-        "bahasa-melayu": "malay",
+        "tamil": "tamil",
+        "ta": "tamil",
     }
     dialect = dialect_map.get(dialect.lower(), "en")
 
@@ -86,7 +86,7 @@ async def voice_turn(
         speech_bytes = await voice_service.synthesize(reply_text)
         speech_b64 = voice_service.encode_audio(speech_bytes)
         if speech_b64:
-            audio_mime = "audio/mpeg" if voice_service.tts_format in ["mp3", "mpeg"] else f"audio/{voice_service.tts_format}"
+            audio_mime = "audio/wav"
 
     return {
         "transcript": transcript,
@@ -100,7 +100,7 @@ async def voice_turn(
         "reply_audio": speech_b64,
         "audio_mime_type": audio_mime,
         "stream_tts": settings.voice_stream_tts,
-        "tts_format": voice_service.tts_format,
+        "tts_format": "wav",
     }
 
 
@@ -112,10 +112,8 @@ async def voice_tts_stream(text: str = Form(...)):
     if not text.strip():
         raise HTTPException(status_code=400, detail="Empty text.")
 
-    mime_type = "audio/mpeg" if voice_service.tts_format in ["mp3", "mpeg"] else f"audio/{voice_service.tts_format}"
-
     async def generator():
         async for chunk in voice_service.stream_speech(text):
             yield chunk
 
-    return StreamingResponse(generator(), media_type=mime_type)
+    return StreamingResponse(generator(), media_type="audio/wav")

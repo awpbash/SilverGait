@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -11,10 +12,10 @@ import re
 from typing import Dict, Optional
 
 from google import genai
-from openai import OpenAI
-import httpx
+from google.genai import types
 
 from ..core.config import get_settings
+from ..utils.text import strip_markdown_fences
 
 logger = logging.getLogger(__name__)
 
@@ -32,74 +33,75 @@ class LanguageResult:
     confidence: float
 
 
-class OpenAIVoiceService:
-    """OpenAI STT + TTS wrapper."""
+class GeminiVoiceService:
+    """Gemini Native Audio STT + TTS."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.api_key = settings.openai_api_key
-        self.enabled = bool(self.api_key)
-        self.stt_model = settings.openai_stt_model
-        self.tts_model = settings.openai_tts_model
-        self.tts_voice = settings.openai_tts_voice
-        self.tts_format = settings.openai_tts_format
-        self.client = OpenAI(api_key=self.api_key) if self.enabled else None
-        self._httpx_timeout = httpx.Timeout(30.0, connect=10.0)
+        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.audio_model = settings.voice_audio_model
+        self.enabled = bool(settings.gemini_api_key)
 
     async def transcribe(self, audio_bytes: bytes, filename: str) -> Optional[str]:
-        if not self.enabled or not self.client:
+        if not self.enabled:
             return None
-        audio_file = BytesIO(audio_bytes)
-        audio_file.name = filename
         try:
-            response = self.client.audio.transcriptions.create(
-                model=self.stt_model,
-                file=audio_file,
+            # Determine MIME type from filename
+            mime = "audio/webm"
+            if filename.endswith(".wav"):
+                mime = "audio/wav"
+            elif filename.endswith(".mp3"):
+                mime = "audio/mpeg"
+            elif filename.endswith(".ogg"):
+                mime = "audio/ogg"
+
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.audio_model,
+                contents=[
+                    types.Content(parts=[
+                        types.Part.from_bytes(data=audio_bytes, mime_type=mime),
+                        types.Part.from_text("Transcribe this audio exactly as spoken. Return only the transcription text, nothing else."),
+                    ]),
+                ],
             )
             return (response.text or "").strip()
         except Exception as exc:
-            logger.error(f"STT failed: {exc}")
+            logger.error(f"Gemini STT failed: {exc}")
             return None
 
     async def synthesize(self, text: str) -> Optional[bytes]:
-        if not self.enabled or not self.client:
+        if not self.enabled:
             return None
         try:
-            response = self.client.audio.speech.create(
-                model=self.tts_model,
-                voice=self.tts_voice,
-                input=text,
-                response_format=self.tts_format,
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.audio_model,
+                contents=f"Read aloud the following text in a warm, friendly voice: {text}",
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Kore")
+                        )
+                    ),
+                ),
             )
-            return _read_audio_response(response)
+            # Extract audio bytes from response
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        return part.inline_data.data
+            return None
         except Exception as exc:
-            logger.error(f"TTS failed: {exc}")
+            logger.error(f"Gemini TTS failed: {exc}")
             return None
 
     async def stream_speech(self, text: str):
-        if not self.enabled:
-            return
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": self.tts_model,
-            "voice": self.tts_voice,
-            "input": text,
-            "response_format": self.tts_format,
-        }
-        async with httpx.AsyncClient(timeout=self._httpx_timeout) as client:
-            async with client.stream(
-                "POST",
-                "https://api.openai.com/v1/audio/speech",
-                headers=headers,
-                json=payload,
-            ) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    if chunk:
-                        yield chunk
+        """Fallback: synthesize then yield the whole blob."""
+        audio = await self.synthesize(text)
+        if audio:
+            yield audio
 
     @staticmethod
     def encode_audio(audio_bytes: Optional[bytes]) -> Optional[str]:
@@ -136,13 +138,13 @@ class VoiceIntentService:
             return IntentResult(intent="unknown", confidence=0.0)
 
         if self.use_gemini:
-            result = self._classify_with_gemini(text)
+            result = await self._classify_with_gemini(text)
             if result:
                 return result
 
         return self._classify_with_keywords(text)
 
-    def _classify_with_gemini(self, text: str) -> Optional[IntentResult]:
+    async def _classify_with_gemini(self, text: str) -> Optional[IntentResult]:
         prompt = (
             "You are a voice intent classifier for a Singapore elderly mobility app.\n"
             "The text may be in English, Singlish, Mandarin, or Malay.\n"
@@ -154,18 +156,12 @@ class VoiceIntentService:
             "Return: {\"intent\": \"...\", \"confidence\": 0-1, \"slots\": {\"exercise\": \"...\"}}\n"
         )
         try:
-            response = self.client.models.generate_content(
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
                 model=self.model,
                 contents=prompt,
             )
-            result_text = (response.text or "").strip()
-            if result_text.startswith("```"):
-                lines = result_text.split("\n")
-                if lines and lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                result_text = "\n".join(lines).strip()
+            result_text = strip_markdown_fences((response.text or "").strip())
             data = json.loads(result_text)
             intent = data.get("intent", "unknown")
             if intent not in self.INTENTS:
@@ -205,7 +201,7 @@ class VoiceIntentService:
 class VoiceLanguageService:
     """Language detection (English, Mandarin, Malay, Singlish)."""
 
-    LANGUAGES = ["en", "mandarin", "malay", "singlish"]
+    LANGUAGES = ["en", "mandarin", "malay", "tamil"]
 
     def __init__(self) -> None:
         settings = get_settings()
@@ -219,33 +215,27 @@ class VoiceLanguageService:
             return LanguageResult(language="en", confidence=0.0)
 
         if self.use_gemini:
-            result = self._detect_with_gemini(text)
+            result = await self._detect_with_gemini(text)
             if result:
                 return result
 
         return self._detect_with_rules(text)
 
-    def _detect_with_gemini(self, text: str) -> Optional[LanguageResult]:
+    async def _detect_with_gemini(self, text: str) -> Optional[LanguageResult]:
         prompt = (
             "Detect the language of the text for a Singapore elderly app.\n"
             "Return ONLY JSON, no markdown.\n"
-            "Supported: en, mandarin, malay, singlish.\n"
+            "Supported: en, mandarin, malay, tamil.\n"
             f'Text: "{text}"\n'
             "Return: {\"language\": \"...\", \"confidence\": 0-1}\n"
         )
         try:
-            response = self.client.models.generate_content(
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
                 model=self.model,
                 contents=prompt,
             )
-            result_text = (response.text or "").strip()
-            if result_text.startswith("```"):
-                lines = result_text.split("\n")
-                if lines and lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                result_text = "\n".join(lines).strip()
+            result_text = strip_markdown_fences((response.text or "").strip())
             data = json.loads(result_text)
             language = data.get("language", "en")
             if language not in self.LANGUAGES:
@@ -268,9 +258,16 @@ class VoiceLanguageService:
         if any(kw in lower for kw in malay_keywords):
             return LanguageResult(language="malay", confidence=0.6)
 
-        singlish_particles = ["lah", "lor", "leh", "meh", "sia", "can anot", "can or not"]
-        if any(kw in lower for kw in singlish_particles):
-            return LanguageResult(language="singlish", confidence=0.6)
+        tamil_keywords = [
+            "vanakkam", "nandri", "enna", "epdi", "udambu", "kaal", "kai",
+            "payirchi", "udarpayirchi", "paathukaappu",
+        ]
+        if any(kw in lower for kw in tamil_keywords):
+            return LanguageResult(language="tamil", confidence=0.6)
+
+        # Tamil script detection
+        if re.search(r"[\u0B80-\u0BFF]", text):
+            return LanguageResult(language="tamil", confidence=0.7)
 
         return LanguageResult(language="en", confidence=0.5)
 
@@ -337,21 +334,3 @@ def build_reply_text(intent_result: IntentResult, last_prompt: Optional[str] = N
     return "Sorry, I did not catch that. You can say start check, show exercises, or go home."
 
 
-def _read_audio_response(response: object) -> Optional[bytes]:
-    if response is None:
-        return None
-    content = getattr(response, "content", None)
-    if isinstance(content, (bytes, bytearray)):
-        return bytes(content)
-    reader = getattr(response, "read", None)
-    if callable(reader):
-        try:
-            data = reader()
-            if isinstance(data, (bytes, bytearray)):
-                return bytes(data)
-        except Exception as exc:
-            logger.error(f"Failed to read audio response: {exc}")
-            return None
-    if isinstance(response, (bytes, bytearray)):
-        return bytes(response)
-    return None

@@ -11,6 +11,10 @@ pydantic-settings
 # Google Gemini SDK (new client API)
 google-genai>=1.0.0
 
+# Database
+sqlalchemy[asyncio]>=2.0
+aiosqlite
+
 # HTTP Client
 httpx==0.26.0
 

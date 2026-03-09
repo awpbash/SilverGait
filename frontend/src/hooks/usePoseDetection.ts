@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import * as tf from '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
 import * as poseDetection from '@tensorflow-models/pose-detection';
+import { getDetector } from '../lib/poseDetectorSingleton';
 
 export interface PoseLandmarks {
   keypoints: poseDetection.Keypoint[];
@@ -10,9 +9,18 @@ export interface PoseLandmarks {
 export interface UsePoseDetectionReturn {
   isReady: boolean;
   isDetecting: boolean;
-  currentPose: PoseLandmarks | null;
-  confidence: number;
+  currentPose: PoseLandmarks | null;  // throttled state (for React consumers)
+  confidence: number;                  // throttled state
+  poseRef: RefObject<PoseLandmarks | null>;       // real-time ref
+  confidenceRef: RefObject<number>;                // real-time ref
   error: string | null;
+}
+
+/** Map confidence value to a tier: 0 = low, 1 = medium, 2 = high */
+function confidenceTier(value: number): number {
+  if (value >= 0.7) return 2;
+  if (value >= 0.4) return 1;
+  return 0;
 }
 
 export function usePoseDetection(
@@ -25,6 +33,10 @@ export function usePoseDetection(
   const [confidence, setConfidence] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Real-time refs — updated every frame, no re-renders
+  const poseRef = useRef<PoseLandmarks | null>(null);
+  const confidenceRef = useRef<number>(0);
+
   const detectorRef = useRef<poseDetection.PoseDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isActiveRef = useRef(isActive);
@@ -32,51 +44,29 @@ export function usePoseDetection(
   // Keep isActive ref in sync
   isActiveRef.current = isActive;
 
-  // Initialize TensorFlow.js MoveNet (once on mount)
+  // Acquire the shared pre-initialized detector
   useEffect(() => {
     let disposed = false;
 
-    const initPose = async () => {
-      try {
-        console.log('🔄 Initializing TensorFlow.js backend...');
-        await tf.setBackend('webgl');
-        await tf.ready();
-        console.log('✅ TensorFlow.js backend ready:', tf.getBackend());
-
+    getDetector()
+      .then((detector) => {
         if (disposed) return;
-
-        console.log('🔄 Loading MoveNet model...');
-        const model = poseDetection.SupportedModels.MoveNet;
-        const detector = await poseDetection.createDetector(model, {
-          modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
-        });
-
-        if (disposed) {
-          detector.dispose();
-          return;
-        }
-
         detectorRef.current = detector;
         setIsReady(true);
         setError(null);
-        console.log('✅ TensorFlow.js MoveNet initialized successfully');
-      } catch (err) {
+      })
+      .catch((err) => {
         if (!disposed) {
-          console.error('❌ Failed to initialize MoveNet:', err);
+          console.error('\u{274C} Failed to get MoveNet detector:', err);
           setError('Failed to load pose detection.');
           setIsReady(false);
         }
-      }
-    };
-
-    initPose();
+      });
 
     return () => {
       disposed = true;
-      if (detectorRef.current) {
-        detectorRef.current.dispose();
-        detectorRef.current = null;
-      }
+      // Don't dispose — singleton is shared across the app
+      detectorRef.current = null;
     };
   }, []);
 
@@ -92,20 +82,25 @@ export function usePoseDetection(
         setIsDetecting(false);
         setCurrentPose(null);
         setConfidence(0);
+        poseRef.current = null;
+        confidenceRef.current = 0;
       }
       return;
     }
 
     // Start detection
-    console.log('🎥 Starting pose detection loop');
+    console.log('\u{1F3A5} Starting pose detection loop');
     setIsDetecting(true);
 
     let lastProcessTime = 0;
+    let lastStateUpdateTime = 0;
+    let lastConfidenceTier = -1;
+    let throttleGap = 150; // adaptive: starts at 150ms (reduce React re-renders)
 
     const loop = async () => {
       // Check if still active
       if (!isActiveRef.current || !detectorRef.current) {
-        console.log('⏹️ Pose detection stopped');
+        console.log('\u{23F9}\u{FE0F} Pose detection stopped');
         setIsDetecting(false);
         return;
       }
@@ -116,13 +111,22 @@ export function usePoseDetection(
       // Process at ~15 FPS and only if video is playing
       if (video && video.readyState >= 2 && now - lastProcessTime > 66) {
         try {
+          const t0 = performance.now();
           const poses = await detectorRef.current.estimatePoses(video, {
             flipHorizontal: false,
           });
+          const elapsed = performance.now() - t0;
+
+          // Adaptive throttle: slow device = less frequent state updates
+          if (elapsed > 80) {
+            throttleGap = 250;
+          } else if (elapsed < 40) {
+            throttleGap = 150;
+          }
 
           if (poses && poses.length > 0) {
             const pose = poses[0];
-            setCurrentPose({ keypoints: pose.keypoints || [] });
+            const poseData: PoseLandmarks = { keypoints: pose.keypoints || [] };
 
             const visibleKeypoints = pose.keypoints.filter(
               (kp) => kp.score && kp.score > 0.3
@@ -132,10 +136,37 @@ export function usePoseDetection(
                 ? visibleKeypoints.reduce((sum, kp) => sum + (kp.score || 0), 0) /
                   visibleKeypoints.length
                 : 0;
-            setConfidence(avgConfidence);
+
+            // Always update refs at full rate (for PoseOverlay rAF loop)
+            poseRef.current = poseData;
+            confidenceRef.current = avgConfidence;
+
+            // Throttle React state updates
+            if (now - lastStateUpdateTime > throttleGap) {
+              setCurrentPose(poseData);
+              lastStateUpdateTime = now;
+            }
+
+            // Only update confidence state when tier changes
+            const tier = confidenceTier(avgConfidence);
+            if (tier !== lastConfidenceTier) {
+              setConfidence(avgConfidence);
+              lastConfidenceTier = tier;
+            }
           } else {
-            setCurrentPose(null);
-            setConfidence(0);
+            poseRef.current = null;
+            confidenceRef.current = 0;
+
+            if (now - lastStateUpdateTime > throttleGap) {
+              setCurrentPose(null);
+              lastStateUpdateTime = now;
+            }
+
+            const tier = confidenceTier(0);
+            if (tier !== lastConfidenceTier) {
+              setConfidence(0);
+              lastConfidenceTier = tier;
+            }
           }
 
           lastProcessTime = now;
@@ -158,6 +189,8 @@ export function usePoseDetection(
       setIsDetecting(false);
       setCurrentPose(null);
       setConfidence(0);
+      poseRef.current = null;
+      confidenceRef.current = 0;
     };
   }, [isActive, isReady]);
 
@@ -166,6 +199,8 @@ export function usePoseDetection(
     isDetecting,
     currentPose,
     confidence,
+    poseRef,
+    confidenceRef,
     error,
   };
 }

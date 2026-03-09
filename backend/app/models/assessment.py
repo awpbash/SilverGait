@@ -16,6 +16,9 @@ class GaitIssue(str, Enum):
     REDUCED_ARM_SWING = "reduced_arm_swing"
     WIDE_BASE = "wide_base"
     HESITATION = "hesitation"
+    IRREGULAR_RHYTHM = "irregular_rhythm"
+    EXCESSIVE_TRUNK_LEAN = "excessive_trunk_lean"
+    POOR_SIT_TO_STAND = "poor_sit_to_stand"
 
 
 class AssessmentTest(str, Enum):
@@ -60,6 +63,9 @@ class AssessmentResult(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Model confidence")
     recommendations: List[str] = Field(default_factory=list)
     video_duration_seconds: Optional[float] = None
+    low_confidence_warning: Optional[str] = Field(
+        default=None, description="Warning when analysis could not be completed reliably"
+    )
     pose_metrics: Optional[Dict[str, Any]] = Field(
         default=None, description="Computed pose metrics from frontend pose estimation"
     )
