@@ -817,6 +817,7 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scaleX(-1);
 }
 
 .camera-overlay-fit {
@@ -1825,6 +1826,7 @@ button:disabled {
   height: 100%;
   z-index: 15;
   pointer-events: none;
+  transform: scaleX(-1);
   will-change: contents;
   contain: layout size;
 }

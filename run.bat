@@ -78,8 +78,8 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
 )
 
 echo Installing Python dependencies...
-call "%VENV_DIR%\Scripts\pip.exe" install --upgrade pip -q
-call "%VENV_DIR%\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt" -q
+call "%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip -q
+call "%VENV_DIR%\Scripts\python.exe" -m pip install -r "%BACKEND_DIR%\requirements.txt" -q
 echo Python dependencies installed.
 
 rem Copy .env to backend

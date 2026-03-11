@@ -329,10 +329,11 @@ export function useAssessmentFlow() {
     const testsParam = searchParams.get('tests');
     if (mode === 'individual') {
       const parsed = normalizeTests(testsParam);
-      if (parsed.length > 0) startAssessment(parsed);
+      if (parsed.length > 0) { startAssessment(parsed); setPendingStart(true); }
       else setStep('select');
     } else {
       startAssessment(ALL_TEST_IDS);
+      setPendingStart(true);
     }
     autoStartHandledRef.current = true;
   }, [searchParams, step]);
@@ -380,7 +381,6 @@ export function useAssessmentFlow() {
     setError(null);
     setStep('setup');
     userIdRef.current = `user_${Date.now()}`;
-    setPendingStart(true);
   };
 
   const toggleTest = (id: AssessmentTestId) => {
@@ -519,7 +519,7 @@ export function useAssessmentFlow() {
     }
   };
 
-  const startNextTest = () => { setTestIndex((prev) => prev + 1); setPendingStart(true); };
+  const startNextTest = () => { setTestIndex((prev) => prev + 1); };
 
   const resetAssessment = useCallback(() => {
     if (streamRef.current) { streamRef.current.getTracks().forEach((track) => track.stop()); streamRef.current = null; }
@@ -605,5 +605,6 @@ export function useAssessmentFlow() {
     resetAssessment,
     computeTotalScore,
     setStep,
+    triggerCameraStart: () => setPendingStart(true),
   };
 }

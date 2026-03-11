@@ -74,6 +74,7 @@ export function AssessmentPage() {
     setShowOverlay,
     setVoiceCoachEnabled,
     setStep,
+    triggerCameraStart,
     latestIntervention,
   } = flow;
 
@@ -100,6 +101,7 @@ export function AssessmentPage() {
   // When demo is dismissed, proceed to camera setup
   const dismissDemo = () => {
     setShowDemo(false);
+    triggerCameraStart();
   };
 
   // --- INTRO SCREEN ---
