@@ -68,7 +68,7 @@ Open [`langgraph-diagrams.html`](langgraph-diagrams.html) in a browser for inter
 
 1. Clone and enter the repo:
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/ngjunsiang/SilverGait.git
    cd SilverGait
    ```
 
@@ -182,17 +182,6 @@ SilverGait/
 | POST | `/api/voice/turn` | Speech-to-text + response |
 
 Full API docs available at http://localhost:8000/api/docs when running.
-
-## Demo
-
-Place screenshots, GIFs, and demo videos in the `demo/` folder. Example usage in this README:
-
-```markdown
-![Screenshot](demo/home.png)
-![SPPB Assessment](demo/sppb-demo.gif)
-```
-
-Demo videos for the CV/kinematics pipeline (balance, gait, chair-stand tests) go in `demo/` as well. See [`docs/kinematics-and-sppb.md`](docs/kinematics-and-sppb.md) for what the pipeline does.
 
 ## Development
 
