@@ -56,7 +56,8 @@ Design philosophy: **LLM only where reasoning is needed.** Scoring, classificati
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for detailed specs, state schemas, and DB schema.
 See [`docs/kinematics-and-sppb.md`](docs/kinematics-and-sppb.md) for our CV/kinematics approach and research references (35+ peer-reviewed papers).
 See [`docs/research.md`](docs/research.md) for the clinical evidence and scientific rationale behind the system.
-Open [`langgraph-diagrams.html`](langgraph-diagrams.html) in a browser for interactive flow diagrams.
+View the **[documentation site](https://awpbash.github.io/SilverGait/)** — interactive diagrams, architecture specs, kinematics pipeline, and clinical evidence.
+- [LangGraph Diagrams](https://awpbash.github.io/SilverGait/langgraph-diagrams.html) · [Architecture](https://awpbash.github.io/SilverGait/architecture.html) · [Kinematics](https://awpbash.github.io/SilverGait/kinematics.html) · [Research](https://awpbash.github.io/SilverGait/research.html)
 
 ## Prerequisites
 

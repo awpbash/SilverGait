@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SilverGait — System Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root, [data-theme="light"] {
+    --bg:           #f5f4f0;
+    --card:         #ffffff;
+    --text:         #111;
+    --text-secondary: #333;
+    --text-muted:   #555;
+    --border:       #ccc9c2;
+    --border-light: #dddad4;
+    --accent:       #1a2a3a;
+    --det:   #e8eef4; --det-s: #5a7a96; --det-t: #1e3a54;
+    --llm:   #fdf3e4; --llm-s: #b87830; --llm-t: #6b3d0a;
+    --dec:   #ede6f6; --dec-s: #7550a0; --dec-t: #3e2068;
+    --trg:   #e4f5ea; --trg-s: #4a9060; --trg-t: #1a4028;
+    --db:    #f5e8e8; --db-s:  #9e5050; --db-t:  #5a1a1a;
+    --api:   #e2f1f5; --api-s: #3a8898; --api-t: #1a4852;
+    --sidebar-bg:   #1a2a3a;
+    --sidebar-text: #a8b8c8;
+    --sidebar-head: #e0dcd6;
+    --sidebar-act:  #d09040;
+    --sidebar-w:    280px;
+    --font-serif:   'DM Serif Display', Georgia, serif;
+    --font-sans:    'IBM Plex Sans', sans-serif;
+    --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+    --radius:       6px;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,0.08);
+    --transition:   0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  [data-theme="dark"] {
+    --bg:           #121418;
+    --card:         #1a1d24;
+    --text:         #e8e6e1;
+    --text-secondary: #b8b4ad;
+    --text-muted:   #8a8680;
+    --border:       #2e3038;
+    --border-light: #252830;
+    --accent:       #e0dcd6;
+    --det:   #1a2230; --det-s: #5a8ab0; --det-t: #a0c4e0;
+    --llm:   #2a2010; --llm-s: #d09040; --llm-t: #e8b868;
+    --dec:   #201830; --dec-s: #9070c0; --dec-t: #c0a8e0;
+    --trg:   #142818; --trg-s: #60b070; --trg-t: #90d8a0;
+    --db:    #281818; --db-s:  #c06060; --db-t:  #e09090;
+    --api:   #142830; --api-s: #50a8b8; --api-t: #88d0e0;
+    --sidebar-bg:   #0e1218;
+    --sidebar-text: #7a8898;
+    --sidebar-head: #b0a898;
+    --sidebar-act:  #d09040;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background .3s, color .3s;
+  }
+
+  /* ── Progress Bar ─────────────────────────────────────────── */
+  #progress-bar {
+    position: fixed;
+    top: 44px;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--det-s);
+    z-index: 300;
+    transition: width .1s linear;
+  }
+
+  /* ── Top Nav ──────────────────────────────────────────────── */
+  .topnav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 44px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 2rem;
+    z-index: 250;
+    transition: background .3s, border-color .3s;
+  }
+
+  .topnav a {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .topnav a:hover { color: var(--text); }
+  .topnav a.active { color: var(--accent); }
+
+  /* ── Theme Toggle ─────────────────────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 50px; right: 24px; z-index: 200;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--card);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .3s, border-color .3s, transform .15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  .theme-toggle:hover { transform: scale(1.08); }
+  .theme-toggle svg { width: 20px; height: 20px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s; }
+  .theme-toggle .icon-sun { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    flex: 1;
+    margin-top: 46px; /* below topnav + progress */
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--sidebar-bg);
+    position: sticky;
+    top: 46px;
+    height: calc(100vh - 46px);
+    overflow-y: auto;
+    padding: 2rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 100;
+    transition: background .3s;
+  }
+
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .sidebar-brand {
+    color: var(--sidebar-head);
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2rem;
+    line-height: 1.3;
+  }
+
+  .sidebar-tagline {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .toc-label {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    font-weight: 500;
+  }
+
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0; }
+
+  .toc-item a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.42rem 0.75rem;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    transition: background var(--transition), color var(--transition);
+    border-left: 2px solid transparent;
+    font-family: var(--font-sans);
+  }
+
+  .toc-item a:hover, .toc-item a.active {
+    background: rgba(255,255,255,0.07);
+    color: var(--sidebar-head);
+    border-left-color: var(--sidebar-act);
+  }
+
+  .toc-num {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    color: rgba(255,255,255,0.2);
+    min-width: 1.2rem;
+    transition: color var(--transition);
+  }
+
+  .toc-item a:hover .toc-num, .toc-item a.active .toc-num { color: var(--sidebar-act); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+  }
+
+  /* ── Main Content ─────────────────────────────────────────── */
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 0 3.5rem 6rem 3rem;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  #hero {
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3.5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--det-s);
+    background: var(--det);
+    border: 1px solid var(--det-s);
+    padding: 0.32rem 0.9rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--accent);
+    margin-bottom: 0.9rem;
+    letter-spacing: -0.02em;
+    transition: color .3s;
+  }
+
+  .hero-sub {
+    font-size: 0.98rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.75;
+    transition: color .3s;
+  }
+
+  /* ── Sections ─────────────────────────────────────────────── */
+  .section {
+    margin-bottom: 4.5rem;
+    animation: fadeUp 0.5s ease both;
+    scroll-margin-top: 64px;
+  }
+
+  .section:nth-child(2) { animation-delay: .1s; }
+  .section:nth-child(3) { animation-delay: .2s; }
+  .section:nth-child(4) { animation-delay: .3s; }
+  .section:nth-child(5) { animation-delay: .4s; }
+  .section:nth-child(6) { animation-delay: .5s; }
+  .section:nth-child(7) { animation-delay: .6s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    min-width: max-content;
+  }
+
+  h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+    transition: color .3s;
+  }
+
+  h3 {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin: 1.75rem 0 0.65rem;
+    transition: color .3s;
+  }
+
+  p { margin-bottom: 0.9rem; color: var(--text-secondary); font-size: 0.93rem; transition: color .3s; line-height: 1.75; }
+
+  strong { color: var(--text); font-weight: 600; }
+
+  .section-intro { margin: 1rem 0 1.5rem; }
+
+  /* ── File path badge ──────────────────────────────────────── */
+  .file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: var(--det);
+    color: var(--det-t);
+    border: 1px solid var(--det-s);
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.03em;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  .file-badge::before { content: '📄'; font-size: 0.7rem; }
+
+  /* ── Node grid ────────────────────────────────────────────── */
+  .node-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 1.25rem 0;
+  }
+
+  .node-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    transition: background .3s, border-color .3s, box-shadow var(--transition);
+  }
+
+  .node-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.09); }
+
+  .node-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .node-name {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .node-badge {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    font-weight: 500;
+    white-space: nowrap;
+    margin-left: auto;
+  }
+
+  .badge-det { background: var(--det); color: var(--det-t); border: 1px solid var(--det-s); }
+  .badge-llm { background: var(--llm); color: var(--llm-t); border: 1px solid var(--llm-s); }
+  .badge-dec { background: var(--dec); color: var(--dec-t); border: 1px solid var(--dec-s); }
+  .badge-trg { background: var(--trg); color: var(--trg-t); border: 1px solid var(--trg-s); }
+  .badge-db  { background: var(--db);  color: var(--db-t);  border: 1px solid var(--db-s); }
+  .badge-api { background: var(--api); color: var(--api-t); border: 1px solid var(--api-s); }
+
+  .node-desc {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ── 2-column node grid ───────────────────────────────────── */
+  .node-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .node-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  /* ── Code block ───────────────────────────────────────────── */
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    transition: background .3s, border-color .3s;
+  }
+
+  .code-block pre {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre;
+  }
+
+  .code-block-llm {
+    background: var(--llm);
+    border-color: var(--llm-s);
+  }
+
+  .code-block-llm pre { color: var(--llm-t); }
+
+  /* ── Tables ───────────────────────────────────────────────── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.87rem;
+    transition: background .3s;
+  }
+
+  .data-table thead tr {
+    background: var(--accent);
+    color: #e0dcd6;
+  }
+
+  [data-theme="dark"] .data-table thead tr { background: var(--border); color: var(--text); }
+
+  .data-table th {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    font-weight: 500;
+  }
+
+  .data-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    vertical-align: top;
+    transition: color .3s;
+  }
+
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tbody tr:hover { background: var(--bg); }
+
+  .data-table td:first-child {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── Service cards ────────────────────────────────────────── */
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 1.25rem 0;
+  }
+
+  .service-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+    transition: background .3s, border-color .3s, box-shadow var(--transition);
+  }
+
+  .service-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.09); }
+
+  .service-card-name {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.3rem;
+    transition: color .3s;
+  }
+
+  .service-card-path {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.03em;
+  }
+
+  .service-fn-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .service-fn-list li {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--det-t);
+    background: var(--det);
+    border: 1px solid var(--det-s);
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  /* ── Phase timeline ───────────────────────────────────────── */
+  .phase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 1.25rem 0;
+  }
+
+  .phase-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+    position: relative;
+    transition: background .3s, border-color .3s, box-shadow var(--transition);
+  }
+
+  .phase-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.09); }
+
+  .phase-num {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .phase-name {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    transition: color .3s;
+  }
+
+  .phase-llm-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 10px;
+    margin-bottom: 0.65rem;
+    font-weight: 500;
+  }
+
+  .llm-zero { background: var(--trg); color: var(--trg-t); border: 1px solid var(--trg-s); }
+  .llm-one  { background: var(--det); color: var(--det-t); border: 1px solid var(--det-s); }
+  .llm-multi { background: var(--llm); color: var(--llm-t); border: 1px solid var(--llm-s); }
+
+  .phase-desc {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ── Budget table color cells ─────────────────────────────── */
+  .total-zero { background: var(--trg); color: var(--trg-t); font-weight: 700; font-family: var(--font-mono); text-align: center; }
+  .total-one  { background: var(--det); color: var(--det-t); font-weight: 700; font-family: var(--font-mono); text-align: center; }
+  .total-multi { background: var(--llm); color: var(--llm-t); font-weight: 700; font-family: var(--font-mono); text-align: center; }
+
+  /* ── DB schema ────────────────────────────────────────────── */
+  .db-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 1.25rem 0;
+  }
+
+  .db-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: background .3s, border-color .3s;
+  }
+
+  .db-card-header {
+    background: var(--db);
+    border-bottom: 1px solid var(--db-s);
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--db-t);
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  .db-card-body {
+    padding: 0.6rem 1rem 0.75rem;
+  }
+
+  .db-col {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    line-height: 1.85;
+  }
+
+  .db-pk { color: var(--db-t); font-weight: 600; }
+  .db-fk { color: var(--det-t); }
+
+  /* ── Trigger flow ─────────────────────────────────────────── */
+  .trigger-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 1.25rem 0;
+  }
+
+  .trigger-row {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr 32px 1fr;
+    align-items: center;
+    gap: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: background .3s, border-color .3s;
+  }
+
+  .trigger-cell {
+    padding: 0.65rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+
+  .trigger-cell-event {
+    background: var(--trg);
+    color: var(--trg-t);
+    font-weight: 600;
+    transition: background .3s, color .3s;
+  }
+
+  .trigger-cell-arrow {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.65rem 0;
+    background: var(--bg);
+    transition: background .3s;
+  }
+
+  .trigger-cell-endpoint {
+    background: var(--api);
+    color: var(--api-t);
+    font-size: 0.72rem;
+    transition: background .3s, color .3s;
+  }
+
+  .trigger-cell-graph {
+    background: var(--det);
+    color: var(--det-t);
+    transition: background .3s, color .3s;
+  }
+
+  /* ── Numbered list ────────────────────────────────────────── */
+  .numbered-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .numbered-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 0.6rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    transition: background .3s, border-color .3s;
+  }
+
+  .numbered-list li strong { color: var(--text); }
+
+  .list-num {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: var(--det);
+    color: var(--det-t);
+    border: 1px solid var(--det-s);
+    border-radius: 3px;
+    padding: 0.12rem 0.4rem;
+    min-width: 1.6rem;
+    text-align: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  /* ── Sep ──────────────────────────────────────────────────── */
+  .sep { height: 1px; background: var(--border); margin: 3rem 0; transition: background .3s; }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    main { padding: 0 1.5rem 4rem; }
+    .node-grid, .node-grid-2, .node-grid-4 { grid-template-columns: 1fr 1fr; }
+    .service-grid, .phase-grid, .db-grid { grid-template-columns: 1fr; }
+    .trigger-row { grid-template-columns: 1fr; }
+    .trigger-cell-arrow { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    .node-grid, .node-grid-2, .node-grid-4 { grid-template-columns: 1fr; }
+    h1 { font-size: 1.7rem; }
+    main { padding: 0 1rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav class="topnav">
+  <a href="index.html">Overview</a>
+  <a href="langgraph-diagrams.html">Diagrams</a>
+  <a href="architecture.html" class="active">Architecture</a>
+  <a href="kinematics.html">Kinematics</a>
+  <a href="research.html">Research</a>
+</nav>
+
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">SilverGait</div>
+    <div class="sidebar-tagline">System Architecture</div>
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li class="toc-item"><a href="#s1"><span class="toc-num">01</span>Assessment Graph</a></li>
+      <li class="toc-item"><a href="#s2"><span class="toc-num">02</span>Chat Graph</a></li>
+      <li class="toc-item"><a href="#s3"><span class="toc-num">03</span>Deterministic Services</a></li>
+      <li class="toc-item"><a href="#s4"><span class="toc-num">04</span>User Journey</a></li>
+      <li class="toc-item"><a href="#s5"><span class="toc-num">05</span>LLM Budget</a></li>
+      <li class="toc-item"><a href="#s6"><span class="toc-num">06</span>Database Schema</a></li>
+      <li class="toc-item"><a href="#s7"><span class="toc-num">07</span>Event Triggers</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      SilverGait<br>
+      DBA5102 · NUS MSBA
+    </div>
+  </nav>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <main>
+
+    <section id="hero">
+      <div class="hero-eyebrow">Technical Reference</div>
+      <h1>SilverGait — System Architecture</h1>
+      <p class="hero-sub">Detailed node-level specs, state schemas, and database design for the two-graph LangGraph system.</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 1: Assessment Graph                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>Assessment Graph</h2>
+      </div>
+
+      <div class="file-badge">backend/app/services/langgraph_agents/assessment_graph.py</div>
+
+      <p class="section-intro">Six-node pipeline that scores raw health inputs, classifies frailty tier, and conditionally updates care plans. All nodes are deterministic — zero LLM calls.</p>
+
+      <div class="node-grid">
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">score_node</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Runs <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">score_katz()</code> → 0–6, <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">score_cfs()</code> → 1–9, <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">score_sppb()</code> → 0–12. Trigger-dependent: onboarding skips SPPB, assessment skips Katz re-compute.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">classify_node</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">classify_frailty(cfs, katz, sppb)</code> — pure rule-based logic → <em>robust / pre_frail / frail / severely_frail</em>. Generates templated risk_explanation.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">tier_change_router</span>
+            <span class="node-badge badge-dec">decision</span>
+          </div>
+          <div class="node-desc">Conditional edge. Compares new tier to previous from <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">frailty_evaluations</code>. Returns <strong>"changed"</strong> or <strong>"unchanged"</strong> to route subsequent nodes.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">update_plans_node</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Only runs if tier changed. Selects care plans from <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">content_library.py</code>: exercise, sleep, education, monitoring. Supersedes old active plans in DB.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">notify_node</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Only runs if tier changed. Creates alerts: <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">tier_decline</code> (urgent if frail/severely_frail) or <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">tier_improvement</code> (info). No alert on first evaluation.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">persist_node</span>
+            <span class="node-badge badge-db">database</span>
+          </div>
+          <div class="node-desc">Always runs last. INSERT into <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">frailty_evaluations</code>, <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">care_plans</code>, and <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">agent_runs</code>. Health_snapshots inserted before graph entry.</div>
+        </div>
+      </div>
+
+      <h3>Classification Rule</h3>
+      <div class="code-block">
+        <pre>if cfs >= 7 or (katz &lt;= 2 and sppb is not None and sppb &lt;= 3):
+    tier = "severely_frail"
+elif cfs >= 5 or (katz &lt;= 4 and sppb is not None and sppb &lt;= 6):
+    tier = "frail"
+elif cfs >= 4 or (sppb is not None and sppb &lt;= 9):
+    tier = "pre_frail"
+else:
+    tier = "robust"</pre>
+      </div>
+
+      <h3>State Schema</h3>
+      <div class="code-block">
+        <pre>class AssessmentState(TypedDict, total=False):
+    user_id: str
+    trigger: str              # onboarding | assessment | profile_update | biweekly_recheck
+    language: str
+    katz_answers: dict | None
+    contributing: dict | None
+    sppb_balance: int | None
+    sppb_gait: int | None
+    sppb_chair: int | None
+    issues: list[str] | None
+    katz_total: int | None
+    cfs_score: int | None
+    sppb_total: int | None
+    frailty_tier: str | None
+    risk_explanation: str | None
+    previous_tier: str | None
+    tier_changed: bool
+    new_plans: list[dict]
+    alerts: list[dict]
+    health_snapshot_id: int | None
+    assessment_id: int | None
+    db: AsyncSession | None</pre>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 2: Chat Graph                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>Chat Graph</h2>
+      </div>
+
+      <div class="file-badge">backend/app/services/langgraph_agents/chat_graph.py</div>
+
+      <p class="section-intro">Four-node pipeline triggered by each user chat message. Assembles full user context, invokes Gemini 2.5 Flash with native function calling, applies safety pattern matching, then persists.</p>
+
+      <div class="node-grid node-grid-2" style="grid-template-columns: repeat(2,1fr);">
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">context_assembly</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">build_user_context()</code> — 10+ DB queries across health_snapshots, frailty_evaluations, care_plans, assessments, exercise_logs, alerts. Serializes via <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">to_system_prompt_context()</code> into Gemini system prompt.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">agent_node</span>
+            <span class="node-badge badge-llm">LLM</span>
+          </div>
+          <div class="node-desc">Model: <strong>gemini-2.5-flash</strong> (orchestrator). Loads last 10 chat messages for conversation history. Uses Gemini native function calling with TOOL_DECLARATIONS. If Gemini returns a function_call → executes sub-agent → second Gemini call to synthesize. 1–5 LLM calls total.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">safety_gate</span>
+            <span class="node-badge badge-det">deterministic</span>
+          </div>
+          <div class="node-desc">Pattern-matches user message for crisis signals. Appends safety info (does not replace response). Falls → alert. Chest pain / can't breathe → "Please call 995". Distress phrases → crisis helplines.</div>
+        </div>
+        <div class="node-card">
+          <div class="node-card-header">
+            <span class="node-name">persist_node</span>
+            <span class="node-badge badge-db">database</span>
+          </div>
+          <div class="node-desc">INSERT <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">chat_messages</code> for both user and assistant roles. Stores <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">tool_calls</code> JSON if tools were used during this turn.</div>
+        </div>
+      </div>
+
+      <h3>Chat Tools — Gemini Function Calling</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Type</th>
+            <th>Purpose</th>
+            <th>LLM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>get_exercise_plan()</td>
+            <td><span class="node-badge badge-llm" style="font-size:0.62rem">LLM sub-agent</span></td>
+            <td>Exercise Agent → personalized 4-week progressive program based on tier/SPPB/deficits</td>
+            <td>1 Gemini Flash Lite</td>
+          </tr>
+          <tr>
+            <td>get_sleep_advice()</td>
+            <td><span class="node-badge badge-llm" style="font-size:0.62rem">LLM sub-agent</span></td>
+            <td>Sleep Agent → CBT-I + sleep hygiene plan based on sleep risk level</td>
+            <td>1 Gemini Flash Lite</td>
+          </tr>
+          <tr>
+            <td>get_education(topic)</td>
+            <td><span class="node-badge badge-llm" style="font-size:0.62rem">LLM sub-agent</span></td>
+            <td>Education Agent → frailty/balance/nutrition education tailored to tier</td>
+            <td>1 Gemini Flash Lite</td>
+          </tr>
+          <tr>
+            <td>analyze_trends()</td>
+            <td><span class="node-badge badge-llm" style="font-size:0.62rem">LLM sub-agent</span></td>
+            <td>Monitoring Agent → health trend analysis + deterioration detection from DB data</td>
+            <td>1 Gemini Flash Lite</td>
+          </tr>
+          <tr>
+            <td>get_progress_summary()</td>
+            <td><span class="node-badge badge-det" style="font-size:0.62rem">deterministic</span></td>
+            <td>Computes SPPB/Katz trends, exercise streak from DB queries</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>alert_caregiver(message)</td>
+            <td><span class="node-badge badge-det" style="font-size:0.62rem">deterministic</span></td>
+            <td>INSERT alert record with severity=warning, notifies caregiver</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>State Schema</h3>
+      <div class="code-block">
+        <pre>class ChatState(TypedDict, total=False):
+    user_id: str
+    user_message: str
+    language: str
+    system_prompt: str | None
+    user_context: UserContext | None
+    agent_response: str | None
+    tool_calls: list[dict] | None
+    safety_alerts: list[dict]
+    response_appendix: str | None
+    db: AsyncSession | None</pre>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 3: Deterministic Services                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>Deterministic Services</h2>
+      </div>
+
+      <p class="section-intro">Core services that underpin both graphs. Zero LLM calls — all logic is rule-based or database-driven.</p>
+
+      <div class="service-grid">
+        <div class="service-card">
+          <div class="service-card-name">Scoring</div>
+          <div class="service-card-path">services/scoring.py</div>
+          <ul class="service-fn-list">
+            <li>score_katz(answers) → 0–6</li>
+            <li>score_cfs(katz_total) → 1–9</li>
+            <li>score_sppb(balance, gait, chair) → 0–12</li>
+            <li>classify_frailty(cfs, katz, sppb)</li>
+            <li>route_care(tier, risks) → list[str]</li>
+            <li>generate_narrative(tier, …) → str</li>
+          </ul>
+        </div>
+        <div class="service-card">
+          <div class="service-card-name">Content Library</div>
+          <div class="service-card-path">services/content_library.py</div>
+          <ul class="service-fn-list">
+            <li>EXERCISE_PLANS[tier]</li>
+            <li>DEFICIT_EXERCISES[deficit]</li>
+            <li>SLEEP_CONTENT[risk_level]</li>
+            <li>EDUCATION_CONTENT[topic][tier]</li>
+            <li>MONITORING_TEMPLATES[tier]</li>
+          </ul>
+        </div>
+        <div class="service-card">
+          <div class="service-card-name">UserContext</div>
+          <div class="service-card-path">services/context.py</div>
+          <ul class="service-fn-list">
+            <li>build_user_context(db, user_id)</li>
+            <li>to_system_prompt_context()</li>
+            <li>User identity + language</li>
+            <li>Latest snapshot, eval, plans</li>
+            <li>SPPB/Katz trends (last 5)</li>
+            <li>Exercise stats + alerts</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 4: User Journey                                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>User Journey</h2>
+      </div>
+
+      <p class="section-intro">Six distinct phases, each mapped to specific graph triggers and LLM call counts.</p>
+
+      <div class="phase-grid">
+        <div class="phase-card">
+          <div class="phase-num">Phase 1</div>
+          <div class="phase-name">Onboarding</div>
+          <span class="phase-llm-badge llm-zero">0 LLM calls</span>
+          <div class="phase-desc">Welcome → Name + language. Katz ADL: 6 yes/no questions with TTS/STT support. Contributing conditions: 4 three-option questions. POST <code style="font-family:var(--font-mono);font-size:0.8em">/api/users/{id}/health-snapshot</code> → Assessment Graph (trigger="onboarding"). Score → Classify → Update Plans → Persist.</div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 2</div>
+          <div class="phase-name">First Assessment</div>
+          <span class="phase-llm-badge llm-one">1 LLM call</span>
+          <div class="phase-desc">Video recording: balance → gait → chair stand sequence. Gemini 2.5 Flash analyzes video → SPPB sub-scores. Assessment Graph (trigger="assessment") → complete tier with all three scores combined.</div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 3</div>
+          <div class="phase-name">Daily Routine</div>
+          <span class="phase-llm-badge llm-one">1 LLM call</span>
+          <div class="phase-desc">Morning: assessment → exercises from personalized plan. Assessment Graph runs each time; most days tier unchanged → short path (skips update_plans + notify). Exercises logged via <code style="font-family:var(--font-mono);font-size:0.8em">/api/exercises/complete</code>.</div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 4</div>
+          <div class="phase-name">Chat</div>
+          <span class="phase-llm-badge llm-multi">1–5 LLM calls</span>
+          <div class="phase-desc">Chat Graph: context assembly → Gemini agent → safety gate → persist. Gemini native function calling dispatches to management sub-agents when user needs personalized exercise, sleep, or education content.</div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 5</div>
+          <div class="phase-name">Profile Updates</div>
+          <span class="phase-llm-badge llm-zero">0 LLM calls</span>
+          <div class="phase-desc">Via UI or chat <code style="font-family:var(--font-mono);font-size:0.8em">update_profile</code> tool. Triggers Assessment Graph (trigger="profile_update"). Re-runs scoring + classification with updated health answers. May change tier and supersede care plans.</div>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 6</div>
+          <div class="phase-name">Caregiver View</div>
+          <span class="phase-llm-badge llm-zero">0 LLM calls</span>
+          <div class="phase-desc">CaregiverPage shows clinical detail: frailty tier, CFS, Katz total, SPPB sub-scores, risk explanation, active care plans, unread alerts. No sensitive medication info — referral pathway for clinical follow-up.</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 5: LLM Budget                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>LLM Budget</h2>
+      </div>
+
+      <p class="section-intro">Design philosophy: LLM only where reasoning is needed. Scoring, classification, routing, and plan selection are all deterministic.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>Gemini Video</th>
+            <th>Assessment Graph</th>
+            <th>Chat Graph</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Onboarding</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td class="total-zero">0</td>
+          </tr>
+          <tr>
+            <td>Assessment (no tier change)</td>
+            <td style="text-align:center;font-family:var(--font-mono)">1</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td class="total-one">1</td>
+          </tr>
+          <tr>
+            <td>Assessment (tier change)</td>
+            <td style="text-align:center;font-family:var(--font-mono)">1</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td class="total-one">1</td>
+          </tr>
+          <tr>
+            <td>Chat turn (no tool)</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">1</td>
+            <td class="total-one">1</td>
+          </tr>
+          <tr>
+            <td>Chat turn (with sub-agent)</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">2–3</td>
+            <td class="total-multi">2–3</td>
+          </tr>
+          <tr>
+            <td>Profile update (UI)</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td style="text-align:center;font-family:var(--font-mono)">0</td>
+            <td class="total-zero">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 6: Database Schema                             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2>Database Schema</h2>
+      </div>
+
+      <p class="section-intro">SQLite via SQLAlchemy async (aiosqlite). Append-only design for full auditability.</p>
+
+      <div class="db-grid">
+        <div class="db-card">
+          <div class="db-card-header">users</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, display_name, date_of_birth,<br>
+              gender, language, created_at, onboarded_at
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">health_snapshots</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, captured_at, trigger,<br>
+              katz_bathing, katz_dressing, katz_toileting,<br>
+              katz_transferring, katz_continence, katz_feeding,<br>
+              katz_total, cognitive_risk, mood_risk,<br>
+              sleep_risk, social_isolation_risk,<br>
+              cfs_score, cfs_label, notes
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">assessments</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, timestamp,<br>
+              test_type, completed_tests,<br>
+              balance_score, gait_score, chair_stand_score,<br>
+              sppb_total, confidence, issues,<br>
+              recommendations, pose_metrics
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">frailty_evaluations</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, timestamp, trigger,<br>
+              <span class="db-fk">health_snapshot_id</span>, <span class="db-fk">assessment_id</span>,<br>
+              cfs_score, katz_total, sppb_total,<br>
+              frailty_tier, risk_explanation,<br>
+              tier_changed, previous_tier
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">care_plans</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>,<br>
+              plan_type, content, created_at,<br>
+              status, <span class="db-fk">superseded_by_id</span>, trigger
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">agent_runs</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, timestamp,<br>
+              graph_type, trigger, input_summary,<br>
+              output_summary, nodes_executed, elapsed_seconds
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">exercise_logs</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, date,<br>
+              exercise_id, completed,<br>
+              duration_seconds, reps, form_score, logged_at
+            </div>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-card-header">chat_messages &amp; alerts</div>
+          <div class="db-card-body">
+            <div class="db-col">
+              <em>chat_messages:</em> <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, role,<br>
+              content, tool_calls, language, timestamp<br><br>
+              <em>alerts:</em> <span class="db-pk">id</span>, <span class="db-fk">user_id</span>, timestamp,<br>
+              alert_type, severity, message, source, read
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Key Design Decisions</h3>
+      <ol class="numbered-list">
+        <li><span class="list-num">1</span><div><strong>health_snapshots is append-only</strong> — never UPDATE, always INSERT. Enables diffs, trends, and full audit trail across sessions.</div></li>
+        <li><span class="list-num">2</span><div><strong>frailty_evaluations links its inputs</strong> — FK to both health_snapshot_id and assessment_id provides complete input traceability for each evaluation.</div></li>
+        <li><span class="list-num">3</span><div><strong>care_plans have lifecycle</strong> — status transitions from active → superseded, with superseded_by_id pointer to the replacement plan.</div></li>
+        <li><span class="list-num">4</span><div><strong>care_plans content is NOT LLM-generated</strong> — selected from content_library.py (expert-reviewed, curated content). LLM sub-agents personalize on top of these templates.</div></li>
+        <li><span class="list-num">5</span><div><strong>agent_runs tracks graph executions</strong> — graph_type, trigger, nodes executed, elapsed time. Essential for debugging and auditability.</div></li>
+        <li><span class="list-num">6</span><div><strong>alerts have source field</strong> — distinguishes assessment_graph vs chat_safety_gate vs system alerts for triage and display logic.</div></li>
+      </ol>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 7: Event Triggers                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2>Event Triggers</h2>
+      </div>
+
+      <p class="section-intro">Every graph execution is event-driven. Each trigger maps to a specific API endpoint and graph.</p>
+
+      <div class="trigger-flow">
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">ONBOARDING COMPLETE</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">POST /api/users/{id}/health-snapshot</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">Assessment Graph (trigger=onboarding)</div>
+        </div>
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">VIDEO ASSESSMENT</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">POST /api/assessment/analyze-stream</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">Assessment Graph (trigger=assessment)</div>
+        </div>
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">PROFILE UPDATE</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">POST /api/users/{id}/health-snapshot</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">Assessment Graph (trigger=profile_update)</div>
+        </div>
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">BIWEEKLY RECHECK</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">POST /api/users/{id}/health-snapshot</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">Assessment Graph (trigger=biweekly_recheck)</div>
+        </div>
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">CHAT MESSAGE</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">POST /api/chat/stream</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">Chat Graph</div>
+        </div>
+        <div class="trigger-row">
+          <div class="trigger-cell trigger-cell-event">DAILY SYSTEM CHECK</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-endpoint">Cron: check exercise_logs + health_snapshots</div>
+          <div class="trigger-cell-arrow">→</div>
+          <div class="trigger-cell trigger-cell-graph">alerts table (no graph)</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  /* ── Dark mode toggle ─────────────────────────────────────── */
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    localStorage.setItem('sg-theme', html.getAttribute('data-theme'));
+  }
+
+  (function() {
+    const saved = localStorage.getItem('sg-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+
+  /* ── Progress bar ─────────────────────────────────────────── */
+  window.addEventListener('scroll', function() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  });
+
+  /* ── Scroll spy ───────────────────────────────────────────── */
+  (function() {
+    const sections = document.querySelectorAll('.section[id]');
+    const tocLinks = document.querySelectorAll('.toc-item a');
+
+    function onScroll() {
+      let current = '';
+      sections.forEach(sec => {
+        const top = sec.getBoundingClientRect().top;
+        if (top <= 80) current = sec.id;
+      });
+      tocLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SilverGait — Kinematics Pipeline &amp; SPPB Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root, [data-theme="light"] {
+    --bg:           #f5f4f0;
+    --card:         #ffffff;
+    --text:         #111;
+    --text-secondary: #333;
+    --text-muted:   #555;
+    --border:       #ccc9c2;
+    --border-light: #dddad4;
+    --accent:       #1a2a3a;
+    --det:   #e8eef4; --det-s: #5a7a96; --det-t: #1e3a54;
+    --llm:   #fdf3e4; --llm-s: #b87830; --llm-t: #6b3d0a;
+    --dec:   #ede6f6; --dec-s: #7550a0; --dec-t: #3e2068;
+    --trg:   #e4f5ea; --trg-s: #4a9060; --trg-t: #1a4028;
+    --db:    #f5e8e8; --db-s:  #9e5050; --db-t:  #5a1a1a;
+    --api:   #e2f1f5; --api-s: #3a8898; --api-t: #1a4852;
+    --sidebar-bg:   #1a2a3a;
+    --sidebar-text: #a8b8c8;
+    --sidebar-head: #e0dcd6;
+    --sidebar-act:  #d09040;
+    --sidebar-w:    280px;
+    --font-serif:   'DM Serif Display', Georgia, serif;
+    --font-sans:    'IBM Plex Sans', sans-serif;
+    --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+    --radius:       6px;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,0.08);
+    --transition:   0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  [data-theme="dark"] {
+    --bg:           #121418;
+    --card:         #1a1d24;
+    --text:         #e8e6e1;
+    --text-secondary: #b8b4ad;
+    --text-muted:   #8a8680;
+    --border:       #2e3038;
+    --border-light: #252830;
+    --accent:       #e0dcd6;
+    --det:   #1a2230; --det-s: #5a8ab0; --det-t: #a0c4e0;
+    --llm:   #2a2010; --llm-s: #d09040; --llm-t: #e8b868;
+    --dec:   #201830; --dec-s: #9070c0; --dec-t: #c0a8e0;
+    --trg:   #142818; --trg-s: #60b070; --trg-t: #90d8a0;
+    --db:    #281818; --db-s:  #c06060; --db-t:  #e09090;
+    --api:   #142830; --api-s: #50a8b8; --api-t: #88d0e0;
+    --sidebar-bg:   #0e1218;
+    --sidebar-text: #7a8898;
+    --sidebar-head: #b0a898;
+    --sidebar-act:  #d09040;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background .3s, color .3s;
+  }
+
+  /* ── Progress Bar ─────────────────────────────────────────── */
+  #progress-bar {
+    position: fixed;
+    top: 44px;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--llm-s);
+    z-index: 300;
+    transition: width .1s linear;
+  }
+
+  /* ── Top Nav ──────────────────────────────────────────────── */
+  .topnav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 44px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 2rem;
+    z-index: 250;
+    transition: background .3s, border-color .3s;
+  }
+
+  .topnav a {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .topnav a:hover { color: var(--text); }
+  .topnav a.active { color: var(--accent); }
+
+  /* ── Theme Toggle ─────────────────────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 50px; right: 24px; z-index: 200;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--card);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .3s, border-color .3s, transform .15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  .theme-toggle:hover { transform: scale(1.08); }
+  .theme-toggle svg { width: 20px; height: 20px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s; }
+  .theme-toggle .icon-sun { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    flex: 1;
+    margin-top: 46px;
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--sidebar-bg);
+    position: sticky;
+    top: 46px;
+    height: calc(100vh - 46px);
+    overflow-y: auto;
+    padding: 2rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 100;
+    transition: background .3s;
+  }
+
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .sidebar-brand {
+    color: var(--sidebar-head);
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2rem;
+    line-height: 1.3;
+  }
+
+  .sidebar-tagline {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .toc-label {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    font-weight: 500;
+  }
+
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0; }
+
+  .toc-item a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.42rem 0.75rem;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    transition: background var(--transition), color var(--transition);
+    border-left: 2px solid transparent;
+    font-family: var(--font-sans);
+  }
+
+  .toc-item a:hover, .toc-item a.active {
+    background: rgba(255,255,255,0.07);
+    color: var(--sidebar-head);
+    border-left-color: var(--sidebar-act);
+  }
+
+  .toc-num {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    color: rgba(255,255,255,0.2);
+    min-width: 1.2rem;
+    transition: color var(--transition);
+  }
+
+  .toc-item a:hover .toc-num, .toc-item a.active .toc-num { color: var(--sidebar-act); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+  }
+
+  /* ── Main Content ─────────────────────────────────────────── */
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 0 3.5rem 6rem 3rem;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  #hero {
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3.5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--llm-s);
+    background: var(--llm);
+    border: 1px solid var(--llm-s);
+    padding: 0.32rem 0.9rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--accent);
+    margin-bottom: 0.9rem;
+    letter-spacing: -0.02em;
+    transition: color .3s;
+  }
+
+  .hero-sub {
+    font-size: 0.98rem;
+    color: var(--text-secondary);
+    max-width: 620px;
+    line-height: 1.75;
+    transition: color .3s;
+  }
+
+  /* ── Sections ─────────────────────────────────────────────── */
+  .section {
+    margin-bottom: 4.5rem;
+    animation: fadeUp 0.5s ease both;
+    scroll-margin-top: 64px;
+  }
+
+  .section:nth-child(2) { animation-delay: .1s; }
+  .section:nth-child(3) { animation-delay: .2s; }
+  .section:nth-child(4) { animation-delay: .3s; }
+  .section:nth-child(5) { animation-delay: .4s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    min-width: max-content;
+  }
+
+  h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+    transition: color .3s;
+  }
+
+  h3 {
+    font-family: var(--font-serif);
+    font-size: 1.08rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin: 1.75rem 0 0.65rem;
+    transition: color .3s;
+  }
+
+  h4 {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  p { margin-bottom: 0.9rem; color: var(--text-secondary); font-size: 0.93rem; transition: color .3s; line-height: 1.75; }
+  strong { color: var(--text); font-weight: 600; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.83em;
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    padding: 1px 5px;
+    border-radius: 3px;
+    transition: background .3s, border-color .3s;
+  }
+
+  /* ── Tables ───────────────────────────────────────────────── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.86rem;
+    transition: background .3s;
+  }
+
+  .data-table thead tr { background: var(--accent); }
+  [data-theme="dark"] .data-table thead tr { background: var(--border); }
+
+  .data-table th {
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.65rem 1rem;
+    text-align: left;
+    font-weight: 500;
+    color: #e0dcd6;
+  }
+
+  [data-theme="dark"] .data-table th { color: var(--text); }
+
+  .data-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    vertical-align: top;
+    transition: color .3s;
+    line-height: 1.55;
+  }
+
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tbody tr:hover { background: var(--bg); }
+
+  .data-table td:first-child {
+    font-family: var(--font-mono);
+    font-size: 0.79rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── Comparison table: det (left) vs llm (right) ─────────── */
+  .compare-table { border-collapse: collapse; width: 100%; margin: 1.25rem 0; font-size: 0.86rem; border-radius: var(--radius); overflow: hidden; }
+  .compare-table th { padding: 0.65rem 1.1rem; font-family: var(--font-mono); font-size: 0.67rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .compare-table td { padding: 0.6rem 1.1rem; border-bottom: 1px solid var(--border-light); vertical-align: top; line-height: 1.55; }
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  .th-det { background: var(--det); color: var(--det-t); }
+  .th-llm { background: var(--llm); color: var(--llm-t); }
+  .th-db  { background: var(--db);  color: var(--db-t); }
+  .th-trg { background: var(--trg); color: var(--trg-t); }
+  .th-acc { background: var(--accent); color: #e0dcd6; }
+
+  [data-theme="dark"] .th-acc { background: var(--border); color: var(--text); }
+
+  .td-det { background: var(--det); color: var(--det-t); transition: background .3s, color .3s; }
+  .td-llm { background: var(--llm); color: var(--llm-t); transition: background .3s, color .3s; }
+  .td-db  { background: var(--db);  color: var(--db-t);  transition: background .3s, color .3s; }
+  .td-trg { background: var(--trg); color: var(--trg-t); transition: background .3s, color .3s; }
+
+  /* ── System comparison cards ──────────────────────────────── */
+  .system-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 1.25rem 0;
+  }
+
+  .system-card {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: background .3s, border-color .3s;
+  }
+
+  .system-card-header {
+    padding: 0.75rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .system-card-header.det-header { background: var(--det); color: var(--det-t); }
+  .system-card-header.llm-header { background: var(--llm); color: var(--llm-t); }
+
+  .system-card-body {
+    background: var(--card);
+    padding: 0.75rem 1.1rem;
+  }
+
+  .system-card-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .system-card-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    min-width: 90px;
+    padding-top: 0.1rem;
+  }
+
+  .system-card-val { color: var(--text-secondary); }
+
+  /* ── Data flow pipeline ───────────────────────────────────── */
+  .flow-pipeline {
+    display: flex;
+    flex-direction: column;
+    margin: 1.25rem 0;
+    gap: 0;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .flow-step-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 36px;
+    flex-shrink: 0;
+  }
+
+  .flow-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--det-s);
+    border: 2px solid var(--card);
+    box-shadow: 0 0 0 1.5px var(--det-s);
+    flex-shrink: 0;
+    margin-top: 14px;
+    transition: background .3s;
+  }
+
+  .flow-line {
+    flex: 1;
+    width: 1.5px;
+    background: var(--border);
+    margin: 2px 0;
+    transition: background .3s;
+  }
+
+  .flow-step:last-child .flow-line { display: none; }
+
+  .flow-content {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.7rem 1rem;
+    margin-bottom: 8px;
+    transition: background .3s, border-color .3s;
+  }
+
+  .flow-content-inner {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .flow-arrow-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-right: 0.5rem;
+  }
+
+  /* ── Keypoint map ─────────────────────────────────────────── */
+  .kp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin: 1.25rem 0;
+    max-width: 520px;
+  }
+
+  .kp-item {
+    background: var(--card);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.35rem 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background .3s, border-color .3s;
+  }
+
+  .kp-idx {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--det-t);
+    background: var(--det);
+    border: 1px solid var(--det-s);
+    border-radius: 3px;
+    padding: 0.08rem 0.4rem;
+    min-width: 1.6rem;
+    text-align: center;
+    flex-shrink: 0;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  .kp-name {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+  }
+
+  /* ── Metric blocks ────────────────────────────────────────── */
+  .metric-blocks {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 1.25rem 0;
+  }
+
+  .metric-block {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    transition: background .3s, border-color .3s;
+  }
+
+  .metric-block-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  .metric-block-desc {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ── Code block ───────────────────────────────────────────── */
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    transition: background .3s, border-color .3s;
+  }
+
+  .code-block pre {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre;
+  }
+
+  .code-block-llm {
+    background: var(--llm);
+    border-color: var(--llm-s);
+  }
+
+  .code-block-llm pre { color: var(--llm-t); }
+
+  /* ── Two-column det/llm split ─────────────────────────────── */
+  .two-col-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 1.25rem 0;
+  }
+
+  .split-det {
+    background: var(--det);
+    border: 1px solid var(--det-s);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+    transition: background .3s, border-color .3s;
+  }
+
+  .split-llm {
+    background: var(--llm);
+    border: 1px solid var(--llm-s);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+    transition: background .3s, border-color .3s;
+  }
+
+  .split-header {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+  }
+
+  .split-det .split-header { color: var(--det-t); }
+  .split-llm .split-header { color: var(--llm-t); }
+
+  .split-list {
+    list-style: none;
+    padding: 0;
+    font-size: 0.84rem;
+    line-height: 1.65;
+  }
+
+  .split-det .split-list { color: var(--det-t); }
+  .split-llm .split-list { color: var(--llm-t); }
+
+  .split-list li::before { content: '→ '; opacity: 0.6; }
+
+  /* ── Scoring table ────────────────────────────────────────── */
+  .score-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.85rem;
+  }
+
+  .score-table th {
+    background: var(--accent);
+    color: #e0dcd6;
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.6rem 1rem;
+    text-align: left;
+    font-weight: 500;
+  }
+
+  [data-theme="dark"] .score-table th { background: var(--border); color: var(--text); }
+
+  .score-table td {
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    line-height: 1.5;
+    transition: color .3s;
+  }
+
+  .score-table tr:last-child td { border-bottom: none; }
+
+  .score-4 { background: #e4f5ea; color: #1a4028; font-weight: 700; text-align: center; font-family: var(--font-mono); }
+  .score-3 { background: #dff0d8; color: #2d5016; font-weight: 700; text-align: center; font-family: var(--font-mono); }
+  .score-2 { background: #fdf3e4; color: #6b3d0a; font-weight: 700; text-align: center; font-family: var(--font-mono); }
+  .score-1 { background: #fde8d0; color: #6b2a0a; font-weight: 700; text-align: center; font-family: var(--font-mono); }
+  .score-0 { background: #f5e8e8; color: #5a1a1a; font-weight: 700; text-align: center; font-family: var(--font-mono); }
+
+  [data-theme="dark"] .score-4 { background: #142818; color: #90d8a0; }
+  [data-theme="dark"] .score-3 { background: #1a3018; color: #7db88a; }
+  [data-theme="dark"] .score-2 { background: #2a2010; color: #e8b868; }
+  [data-theme="dark"] .score-1 { background: #2e1c10; color: #e09868; }
+  [data-theme="dark"] .score-0 { background: #281818; color: #e09090; }
+
+  /* ── Clinical flags box ───────────────────────────────────── */
+  .clinical-flags {
+    background: var(--db);
+    border: 1px solid var(--db-s);
+    border-left: 4px solid var(--db-s);
+    border-radius: var(--radius);
+    padding: 0.9rem 1.1rem;
+    margin: 1rem 0;
+    transition: background .3s, border-color .3s;
+  }
+
+  .clinical-flags-label {
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--db-t);
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+
+  .clinical-flags-content {
+    font-size: 0.85rem;
+    color: var(--db-t);
+    line-height: 1.6;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Warning box ──────────────────────────────────────────── */
+  .warning-box {
+    background: var(--db);
+    border: 1px solid var(--db-s);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    transition: background .3s, border-color .3s;
+  }
+
+  .warning-box-label {
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--db-t);
+    margin-bottom: 0.5rem;
+  }
+
+  .warning-box p { color: var(--db-t); margin-bottom: 0; }
+
+  /* ── Test subsection ──────────────────────────────────────── */
+  .test-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.5rem;
+    margin: 1.75rem 0;
+    transition: background .3s, border-color .3s;
+  }
+
+  .test-title {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+    transition: color .3s;
+  }
+
+  .test-goal {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin-bottom: 1.25rem;
+    font-style: italic;
+  }
+
+  /* ── Combined SPPB ────────────────────────────────────────── */
+  .sppb-combined {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 1.25rem 0;
+  }
+
+  .sppb-tier-card {
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    text-align: center;
+    border: 1px solid;
+    transition: background .3s, border-color .3s, color .3s;
+  }
+
+  .sppb-tier-robust { background: var(--trg); border-color: var(--trg-s); }
+  .sppb-tier-prefrail { background: var(--llm); border-color: var(--llm-s); }
+  .sppb-tier-frail { background: var(--db); border-color: var(--db-s); }
+
+  .sppb-range {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .sppb-tier-robust .sppb-range { color: var(--trg-t); }
+  .sppb-tier-prefrail .sppb-range { color: var(--llm-t); }
+  .sppb-tier-frail .sppb-range { color: var(--db-t); }
+
+  .sppb-tier-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  .sppb-tier-robust .sppb-tier-label { color: var(--trg-t); }
+  .sppb-tier-prefrail .sppb-tier-label { color: var(--llm-t); }
+  .sppb-tier-frail .sppb-tier-label { color: var(--db-t); }
+
+  .sppb-interp {
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .sppb-tier-robust .sppb-interp { color: var(--trg-t); }
+  .sppb-tier-prefrail .sppb-interp { color: var(--llm-t); }
+  .sppb-tier-frail .sppb-interp { color: var(--db-t); }
+
+  /* ── Sep ──────────────────────────────────────────────────── */
+  .sep { height: 1px; background: var(--border); margin: 3rem 0; transition: background .3s; }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    main { padding: 0 1.5rem 4rem; }
+    .system-compare, .two-col-split { grid-template-columns: 1fr; }
+    .metric-blocks, .sppb-combined { grid-template-columns: 1fr 1fr; }
+    .kp-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .metric-blocks, .sppb-combined, .kp-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 1.7rem; }
+    main { padding: 0 1rem 3rem; }
+    .test-section { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav class="topnav">
+  <a href="index.html">Overview</a>
+  <a href="langgraph-diagrams.html">Diagrams</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="kinematics.html" class="active">Kinematics</a>
+  <a href="research.html">Research</a>
+</nav>
+
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">SilverGait</div>
+    <div class="sidebar-tagline">Kinematics &amp; SPPB</div>
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li class="toc-item"><a href="#s1"><span class="toc-num">01</span>System Architecture</a></li>
+      <li class="toc-item"><a href="#s2"><span class="toc-num">02</span>Design Rationale</a></li>
+      <li class="toc-item"><a href="#s3"><span class="toc-num">03</span>SPPB Test Algorithms</a></li>
+      <li class="toc-item"><a href="#s4"><span class="toc-num">04</span>Aggregation Strategy</a></li>
+      <li class="toc-item"><a href="#s5"><span class="toc-num">05</span>Known Limitations</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      SilverGait<br>
+      DBA5102 · NUS MSBA
+    </div>
+  </nav>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <main>
+
+    <section id="hero">
+      <div class="hero-eyebrow">Technical Reference</div>
+      <h1>Kinematics Pipeline &amp; SPPB Assessment</h1>
+      <p class="hero-sub">How SilverGait approximates clinical SPPB scoring using smartphone-based 2D pose estimation.</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 1: System Architecture                         -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>System Architecture</h2>
+      </div>
+
+      <p>SilverGait uses two parallel analysis systems for each SPPB test — a real-time quantitative pipeline and a post-hoc visual intelligence layer that cross-references it.</p>
+
+      <div class="system-compare">
+        <div class="system-card">
+          <div class="system-card-header det-header">MoveNet — Frontend, Real-Time</div>
+          <div class="system-card-body">
+            <div class="system-card-row"><span class="system-card-label">Role</span><span class="system-card-val">17 body keypoints at ~15 FPS, computes biomechanical metrics per frame</span></div>
+            <div class="system-card-row"><span class="system-card-label">Strengths</span><span class="system-card-val">Quantitative, frame-level precision, reproducible, runs on-device</span></div>
+            <div class="system-card-row"><span class="system-card-label">Weaknesses</span><span class="system-card-val">Pixel-space only, 2D projection, noisy individual frames</span></div>
+          </div>
+        </div>
+        <div class="system-card">
+          <div class="system-card-header llm-header">Gemini Vision — Backend, Post-Hoc</div>
+          <div class="system-card-body">
+            <div class="system-card-row"><span class="system-card-label">Role</span><span class="system-card-val">Watches full video, scores holistically with clinical context</span></div>
+            <div class="system-card-row"><span class="system-card-label">Strengths</span><span class="system-card-val">Context-aware, detects qualitative issues, robust to camera angle</span></div>
+            <div class="system-card-row"><span class="system-card-label">Weaknesses</span><span class="system-card-val">Non-deterministic, no frame-level data, API latency</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:0.88rem;color:var(--text-muted);font-style:italic">MoveNet metrics are appended to the Gemini prompt as a structured supplement with clinical reference ranges and auto-generated flags. Gemini cross-references its visual assessment with the quantitative data.</p>
+
+      <h3>Data Flow</h3>
+      <div class="flow-pipeline">
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">input</span><strong>Camera (15 FPS)</strong> — smartphone video capture</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>MoveNet</strong> — 17 keypoints per frame (x, y, confidence 0–1)</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>Per-frame FrameMetrics</strong> — angles, positions, velocities computed and coordinates discarded</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>aggregateMetrics()</strong> on recording stop — reduces ~300 frames to summary statistics</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>PoseMetricsSummary</strong> — ~30 scalar values (mean, min, max, SD, CV, count)</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>Appended to Gemini prompt</strong> alongside video upload</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-connector"><div class="flow-dot" style="background:var(--llm-s);box-shadow:0 0 0 1.5px var(--llm-s)"></div></div>
+          <div class="flow-content" style="background:var(--llm);border-color:var(--llm-s)"><div class="flow-content-inner" style="color:var(--llm-t)"><span class="flow-arrow-label" style="color:var(--llm-s)">→</span><strong>Gemini returns</strong> — score (0–4), issues[], confidence, recommendations[]</div></div>
+        </div>
+      </div>
+
+      <h3>MoveNet Keypoint Map</h3>
+      <p style="font-size:0.85rem;color:var(--text-muted)">17 keypoints, 2D pixel-space, confidence 0–1 per keypoint. Minimum confidence threshold: <strong>0.3</strong>.</p>
+      <div class="kp-grid">
+        <div class="kp-item"><span class="kp-idx">0</span><span class="kp-name">nose</span></div>
+        <div class="kp-item"><span class="kp-idx">1</span><span class="kp-name">left_eye</span></div>
+        <div class="kp-item"><span class="kp-idx">2</span><span class="kp-name">right_eye</span></div>
+        <div class="kp-item"><span class="kp-idx">3</span><span class="kp-name">left_ear</span></div>
+        <div class="kp-item"><span class="kp-idx">4</span><span class="kp-name">right_ear</span></div>
+        <div class="kp-item"><span class="kp-idx">5</span><span class="kp-name">left_shoulder</span></div>
+        <div class="kp-item"><span class="kp-idx">6</span><span class="kp-name">right_shoulder</span></div>
+        <div class="kp-item"><span class="kp-idx">7</span><span class="kp-name">left_elbow</span></div>
+        <div class="kp-item"><span class="kp-idx">8</span><span class="kp-name">right_elbow</span></div>
+        <div class="kp-item"><span class="kp-idx">9</span><span class="kp-name">left_wrist</span></div>
+        <div class="kp-item"><span class="kp-idx">10</span><span class="kp-name">right_wrist</span></div>
+        <div class="kp-item"><span class="kp-idx">11</span><span class="kp-name">left_hip</span></div>
+        <div class="kp-item"><span class="kp-idx">12</span><span class="kp-name">right_hip</span></div>
+        <div class="kp-item"><span class="kp-idx">13</span><span class="kp-name">left_knee</span></div>
+        <div class="kp-item"><span class="kp-idx">14</span><span class="kp-name">right_knee</span></div>
+        <div class="kp-item"><span class="kp-idx">15</span><span class="kp-name">left_ankle</span></div>
+        <div class="kp-item"><span class="kp-idx">16</span><span class="kp-name">right_ankle</span></div>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 2: Design Rationale                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>Design Rationale</h2>
+      </div>
+
+      <h3>Why Derived Metrics, Not Raw Coordinates</h3>
+      <p>Storing all 17 keypoints (x, y, confidence) at 15 FPS over 20 seconds = 15,300 values. Instead, we compute ~16 clinically meaningful features per frame and discard coordinates immediately.</p>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="th-db" style="width:50%">Problem with raw coordinates</th>
+            <th class="th-trg" style="width:50%">How derived metrics solve it</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-db">Camera distance changes pixel values — same person at different distances gets different absolute coordinates</td>
+            <td class="td-trg">Joint angles are view-invariant in the sagittal plane — independent of camera distance</td>
+          </tr>
+          <tr>
+            <td class="td-db">MoveNet jitters several pixels frame-to-frame — raw data is noisy at individual frame level</td>
+            <td class="td-trg">Temporal aggregation (mean, CV) filters noise — individual jitter averages out over ~300 frames</td>
+          </tr>
+          <tr>
+            <td class="td-db">15K values bloat the Gemini prompt — thousands of tokens consumed before any context can be given</td>
+            <td class="td-trg">~30 scalar summary (~200 tokens) leaves context budget for video analysis and clinical reasoning</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Joint Angle Computation</h3>
+      <p>All angles use the three-point dot-product formula. Returns 0–180 degrees. View-invariant, numerically stable (cosine clamped to [−1, 1]), no reference frame needed.</p>
+
+      <div class="code-block code-block-llm">
+        <pre>angle_at_B = arccos( (BA · BC) / (|BA| × |BC|) )
+
+where A, B, C are three consecutive keypoints:
+  A = proximal joint (e.g., hip)
+  B = joint being measured (e.g., knee)
+  C = distal joint (e.g., ankle)</pre>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Angle</th>
+            <th>Keypoints (L / R)</th>
+            <th>Clinical Relevance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Knee (hip–knee–ankle)</td>
+            <td style="font-family:var(--font-mono);font-size:0.8rem">11–13–15 / 12–14–16</td>
+            <td>Sit-to-stand ability, gait phase detection, lower extremity function</td>
+          </tr>
+          <tr>
+            <td>Hip (shoulder–hip–knee)</td>
+            <td style="font-family:var(--font-mono);font-size:0.8rem">5–11–13 / 6–12–14</td>
+            <td>Trunk-to-thigh flexion during sit-to-stand; forward lean compensation</td>
+          </tr>
+          <tr>
+            <td>Elbow (shoulder–elbow–wrist)</td>
+            <td style="font-family:var(--font-mono);font-size:0.8rem">5–7–9 / 6–8–10</td>
+            <td>Exercise form assessment (e.g., wall push-ups); arm use during chair stand</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="font-size:0.87rem;color:var(--text-muted)">Left and right angles computed independently, then averaged. This handles partial occlusion and enables asymmetry detection.</p>
+
+      <h3>Key Derived Metrics</h3>
+      <div class="metric-blocks">
+        <div class="metric-block">
+          <div class="metric-block-name">Hip Center</div>
+          <div class="metric-block-desc">Midpoint of keypoints 11 and 12 (left + right hip). Serves as center-of-mass proxy for sway analysis, vertical tracking (sit-to-stand rep pattern), and horizontal tracking (lateral gait movement). Preferred over nose (head turns) or shoulder midpoint (arm movement).</div>
+        </div>
+        <div class="metric-block">
+          <div class="metric-block-name">Trunk Lean</div>
+          <div class="metric-block-desc">Angle between the shoulder–hip line and the vertical axis, via <code>atan2(|dx|, dy)</code>. Measures lean relative to gravity, not relative to thigh angle. Temporal SD captures instability — higher variability = less postural control.</div>
+        </div>
+        <div class="metric-block">
+          <div class="metric-block-name">Confidence Threshold: 0.3</div>
+          <div class="metric-block-desc">Intentionally low because MoveNet Lightning is optimized for speed over accuracy, and temporal aggregation smooths noisy individual readings. Consistent with thresholds used in Ung et al. (2022) and Ali et al. (2024).</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 3: SPPB Test Algorithms                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>SPPB Test Algorithms</h2>
+      </div>
+
+      <!-- Test 1: Balance -->
+      <div class="test-section">
+        <div class="test-title">Test 1: Balance (12 seconds)</div>
+        <div class="test-goal">Goal: Can the person stand still with feet together for ~10 seconds without excessive sway?</div>
+
+        <h4>Metrics Extracted</h4>
+        <table class="data-table">
+          <thead><tr><th>Metric</th><th>Computation</th><th>Reference Range</th></tr></thead>
+          <tbody>
+            <tr><td>Sway velocity</td><td>Mean frame-to-frame hip center displacement</td><td>Healthy: &lt;2.0 px/frame</td></tr>
+            <tr><td>Sway area</td><td>Bounding box of hip center path</td><td>Lower = better</td></tr>
+            <tr><td>Max sway deviation</td><td>Max distance from mean hip center</td><td>—</td></tr>
+            <tr><td>Trunk lean avg/max</td><td><code>angleFromVertical(shoulderMid, hipMid)</code></td><td>Healthy: &lt;5 avg, &lt;10 max</td></tr>
+            <tr><td>Trunk lean variability</td><td>SD of trunk lean across all frames</td><td>Healthy: &lt;3.0, At-risk: &gt;4.0</td></tr>
+            <tr><td>Stance width</td><td><code>distance(leftAnkle, rightAnkle)</code></td><td>Wider = less stable</td></tr>
+          </tbody>
+        </table>
+
+        <div class="clinical-flags">
+          <div class="clinical-flags-label">Clinical Flags</div>
+          <div class="clinical-flags-content">High sway velocity (&gt;3.0) · High trunk lean variability (&gt;4.0 SD) · Excessive trunk lean (&gt;15 max)</div>
+        </div>
+
+        <div class="two-col-split">
+          <div class="split-det">
+            <div class="split-header">MoveNet Detects</div>
+            <ul class="split-list">
+              <li>Body sway magnitude and velocity</li>
+              <li>Trunk lean consistency over time</li>
+              <li>Shoulder tilt and lateral lean</li>
+              <li>Stance width changes between frames</li>
+            </ul>
+          </div>
+          <div class="split-llm">
+            <div class="split-header">Gemini Fills In</div>
+            <ul class="split-list">
+              <li>Stepping or foot repositioning events</li>
+              <li>Grabbing support or nearby surface</li>
+              <li>Arm recovery movements</li>
+              <li>Fear responses and hesitation</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Scoring</h4>
+        <table class="score-table">
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr><td class="score-4">4</td><td>Steady throughout, minimal sway, trunk lean &lt;5</td></tr>
+            <tr><td class="score-3">3</td><td>Minor sway but maintains position, trunk lean variability &lt;4</td></tr>
+            <tr><td class="score-2">2</td><td>Noticeable wobble, needs adjustment, trunk lean &gt;10 at times</td></tr>
+            <tr><td class="score-1">1</td><td>Unable to hold position, steps or grabs support</td></tr>
+            <tr><td class="score-0">0</td><td>Unable to attempt safely</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Test 2: Gait -->
+      <div class="test-section">
+        <div class="test-title">Test 2: Gait / Walking (15 seconds)</div>
+        <div class="test-goal">Goal: Can the person walk at a normal pace with a smooth, symmetric gait pattern?</div>
+
+        <h4>Step Detection Algorithm</h4>
+        <div class="code-block">
+          <pre>1. Compute relativeAnkleX = leftAnkle.x − rightAnkle.x per frame
+2. Smooth with 3-frame moving average
+3. Detect zero-crossings around the mean (each crossing = one step)
+4. Enforce minimum 4-frame gap between steps to prevent noise</pre>
+        </div>
+
+        <h4>Metrics Extracted</h4>
+        <table class="data-table">
+          <thead><tr><th>Metric</th><th>Computation</th><th>Reference Range</th></tr></thead>
+          <tbody>
+            <tr><td>Step count</td><td>Zero-crossings of smoothed ankle separation</td><td>—</td></tr>
+            <tr><td>Cadence</td><td><code>(stepCount / durationSec) × 60</code></td><td>Healthy: 100–120 steps/min</td></tr>
+            <tr><td>Step symmetry index</td><td><code>abs(avgLeft − avgRight) / avgBoth × 100%</code></td><td>&lt;20% = normal</td></tr>
+            <tr><td>Double support ratio</td><td>Fraction of frames where both ankles move &lt;2px</td><td>Healthy: &lt;0.3</td></tr>
+            <tr><td>Gait rhythm variability</td><td>CV of inter-step intervals</td><td>Healthy: &lt;8%, At-risk: &gt;10%</td></tr>
+            <tr><td>Arm swing symmetry</td><td>Range of wrist Y positions, min/max ratio</td><td>Near 1.0 = normal</td></tr>
+            <tr><td>Knee angle range</td><td>max − min across all frames</td><td>Healthy: 60–70 range</td></tr>
+          </tbody>
+        </table>
+
+        <div class="clinical-flags">
+          <div class="clinical-flags-label">Clinical Flags</div>
+          <div class="clinical-flags-content">Asymmetric gait (&gt;20%) · Irregular rhythm (CV &gt;10%) · Low cadence (&lt;80) · High double support (&gt;40%)</div>
+        </div>
+
+        <div class="warning-box">
+          <div class="warning-box-label">Key Limitation</div>
+          <p>Step detection requires lateral camera view. Person walking toward or away from camera produces near-zero ankle X separation — steps are undetectable by MoveNet. Gemini still assesses visually.</p>
+        </div>
+
+        <div class="two-col-split">
+          <div class="split-det">
+            <div class="split-header">MoveNet Detects</div>
+            <ul class="split-list">
+              <li>Ankle X-separation oscillation (step count)</li>
+              <li>Gait rhythm variability (CV of intervals)</li>
+              <li>Arm swing from wrist Y-position range</li>
+              <li>Knee angle range during gait cycle</li>
+            </ul>
+          </div>
+          <div class="split-llm">
+            <div class="split-header">Gemini Fills In</div>
+            <ul class="split-list">
+              <li>Walking direction and turn-around</li>
+              <li>Use of assistive device</li>
+              <li>Shuffling gait pattern</li>
+              <li>Freezing of gait episodes</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Scoring</h4>
+        <table class="score-table">
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr><td class="score-4">4</td><td>Smooth confident walking, 100–120 cadence, symmetric arm swing</td></tr>
+            <tr><td class="score-3">3</td><td>Minor issues — slight asymmetry or reduced arm swing</td></tr>
+            <tr><td class="score-2">2</td><td>Noticeable difficulties — irregular rhythm, wide base, &lt;80 cadence</td></tr>
+            <tr><td class="score-1">1</td><td>Significant issues — shuffling, high double support, very slow</td></tr>
+            <tr><td class="score-0">0</td><td>Unable to complete or severe impairment observed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Test 3: Chair Stand -->
+      <div class="test-section">
+        <div class="test-title">Test 3: Chair Stand (20 seconds)</div>
+        <div class="test-goal">Goal: Can the person stand up and sit down 5 times without hands, and how consistent are they?</div>
+
+        <h4>Rep Detection Algorithm</h4>
+        <div class="code-block">
+          <pre>1. Record hipCenter.y per frame (screen coords: lower Y = standing)
+2. Smooth with 3-frame moving average
+3. Compute prominence threshold = 15% of total Y range
+4. Find valleys (standing positions) with sufficient prominence
+5. Rep count = number of valleys − 1
+
+Note: In screen coordinates Y increases downward.
+Standing moves hip UP on screen = lower Y = valley in the signal.
+Prominence-based (not threshold-based) = self-calibrating across
+different camera distances, chair heights, and user heights.</pre>
+        </div>
+
+        <h4>Metrics Extracted</h4>
+        <table class="data-table">
+          <thead><tr><th>Metric</th><th>Computation</th><th>Reference Range</th></tr></thead>
+          <tbody>
+            <tr><td>Rep count</td><td>Valley detection in hip Y signal</td><td>Target: 5</td></tr>
+            <tr><td>Avg rep time</td><td>Mean valley-to-valley interval</td><td>SPPB: &lt;2240ms=4, &lt;2720ms=3</td></tr>
+            <tr><td>Total duration</td><td>Last − first frame timestamp</td><td>&lt;11.2s=4, &lt;13.7s=3, &lt;16.7s=2</td></tr>
+            <tr><td>Peak trunk lean during rise</td><td>Max trunk lean between valley and next peak</td><td>Healthy: &lt;15, Compensatory: &gt;25</td></tr>
+            <tr><td>Rep consistency</td><td>CV of rep durations</td><td>Healthy: &lt;15%, Fatiguing: &gt;25%</td></tr>
+            <tr><td>Transition speed</td><td>Mean knee angle velocity during rising phase</td><td>Higher = stronger lower limbs</td></tr>
+          </tbody>
+        </table>
+
+        <div class="clinical-flags">
+          <div class="clinical-flags-label">Clinical Flags</div>
+          <div class="clinical-flags-content">Excessive forward lean (&gt;25°) · Inconsistent rep timing (CV &gt;25%) · Low rep count (&lt;5 completed)</div>
+        </div>
+
+        <div class="two-col-split">
+          <div class="split-det">
+            <div class="split-header">MoveNet Detects</div>
+            <ul class="split-list">
+              <li>Hip Y-trajectory (valley = standing)</li>
+              <li>Rep timing and consistency (CV)</li>
+              <li>Trunk forward lean during rise</li>
+              <li>Knee angle velocity during push phase</li>
+            </ul>
+          </div>
+          <div class="split-llm">
+            <div class="split-header">Gemini Fills In</div>
+            <ul class="split-list">
+              <li>Hands pushing off armrests or thighs</li>
+              <li>Momentum-based cheating technique</li>
+              <li>Partial completion or giving up</li>
+              <li>Safety concerns mid-test</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Scoring</h4>
+        <table class="score-table">
+          <thead><tr><th>Score</th><th>Time for 5 Reps</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr><td class="score-4">4</td><td>&lt;11.2s</td><td>Smooth, without hands, consistent rep timing</td></tr>
+            <tr><td class="score-3">3</td><td>11.2–13.6s</td><td>Minor slowness, low trunk lean, no hand use</td></tr>
+            <tr><td class="score-2">2</td><td>13.7–16.6s</td><td>Needs arms for momentum, or inconsistent reps</td></tr>
+            <tr><td class="score-1">1</td><td>&gt;16.7s</td><td>Very slow, incomplete, excessive forward lean</td></tr>
+            <tr><td class="score-0">0</td><td>—</td><td>Unable to stand without assistance</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Combined SPPB Score</h3>
+      <div class="sppb-combined">
+        <div class="sppb-tier-card sppb-tier-robust">
+          <div class="sppb-range">10–12</div>
+          <div class="sppb-tier-label">Robust</div>
+          <div class="sppb-interp">Good mobility, low fall risk. Continue preventive exercise to maintain function.</div>
+        </div>
+        <div class="sppb-tier-card sppb-tier-prefrail">
+          <div class="sppb-range">7–9</div>
+          <div class="sppb-tier-label">Pre-Frail</div>
+          <div class="sppb-interp">Some decline detected. Early intervention is beneficial — focus on balance and strength.</div>
+        </div>
+        <div class="sppb-tier-card sppb-tier-frail">
+          <div class="sppb-range">0–6</div>
+          <div class="sppb-tier-label">Frail</div>
+          <div class="sppb-interp">Significant impairment, high fall risk. Intensive intervention and caregiver involvement needed.</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 4: Aggregation Strategy                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>Aggregation Strategy</h2>
+      </div>
+
+      <p>The final <code>PoseMetricsSummary</code> contains ~30 scalar values. We chose statistical summaries over full time series because compact summaries are complementary (not redundant) to Gemini's visual analysis, and are interpretable by clinicians.</p>
+
+      <p>Gemini already sees the video — metrics provide quantified features hard to estimate visually (exact angles, variability coefficients, symmetry indices). Clinicians understand "avg knee angle: 142, trunk lean CV: 8.3" better than a 300-element array.</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Statistic</th>
+            <th>Used For</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Mean</td><td>Angles, sway velocity, trunk lean</td><td>Central tendency — typical behavior across the full test</td></tr>
+          <tr><td>Min / Max</td><td>Angles, stance width</td><td>Extremes of range of motion across the test</td></tr>
+          <tr><td>Range</td><td>Knee/hip angle</td><td>ROM in a single number — peak-to-peak excursion</td></tr>
+          <tr><td>SD</td><td>Trunk lean variability</td><td>Instability measure — high SD = inconsistent posture</td></tr>
+          <tr><td>CV</td><td>Rep duration, gait rhythm</td><td>Consistency normalized for speed differences between individuals</td></tr>
+          <tr><td>Count</td><td>Steps, reps completed</td><td>Direct SPPB sub-score mapping — most clinically meaningful</td></tr>
+          <tr><td>Total</td><td>Sway displacement</td><td>Cumulative postural excursion — integrates all instability</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="sep"></div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 5: Known Limitations                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>Known Limitations</h2>
+      </div>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="th-acc" style="width:30%">Scenario</th>
+            <th class="th-db" style="width:35%">MoveNet Impact</th>
+            <th class="th-llm" style="width:35%">Gemini Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Person walks toward camera</td>
+            <td class="td-db">Step detection fails — near-zero ankle X separation</td>
+            <td class="td-llm">Can still assess walking quality visually</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Poor lighting</td>
+            <td class="td-db">Low keypoint confidence scores, mostly null metrics</td>
+            <td class="td-llm">May struggle to see body clearly</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Loose / baggy clothing</td>
+            <td class="td-db">Noisy keypoint positions — body outline obscured</td>
+            <td class="td-llm">Generally unaffected by clothing</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Multiple people in frame</td>
+            <td class="td-db">Tracks strongest-signal person (may be wrong)</td>
+            <td class="td-llm">May be confused about which person to score</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Camera shake</td>
+            <td class="td-db">False sway motion added to all metrics</td>
+            <td class="td-llm">Negligible — holistic assessment compensates</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;color:var(--text)">Very fast movement</td>
+            <td class="td-db">15 FPS may alias rapid transitions (chair stand)</td>
+            <td class="td-llm">Video preserves full motion at native framerate</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="warning-box">
+        <div class="warning-box-label">Fundamental 2D Limitations</div>
+        <p>No real-world units (pixels only) · No depth perception · No foot/toe keypoints · No hand/finger detail · Single person only · 17 keypoints (no spine segments, no facial landmarks for orientation). These constraints are inherent to 2D monocular pose estimation and cannot be resolved without depth sensors or multi-camera setups.</p>
+      </div>
+
+      <p>Despite these limitations, the 2D pipeline provides clinically relevant <em>relative</em> metrics that, combined with Gemini's visual analysis, produce a useful SPPB approximation suitable for screening and longitudinal tracking of functional decline. For clinical diagnosis, a trained physiotherapist should administer the full SPPB.</p>
+
+      <p>For the full clinical evidence and peer-reviewed validation studies supporting each metric choice, see <a href="research.html" style="color:var(--det-s);text-decoration:none;border-bottom:1px solid var(--det-s)">research.html</a>.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  /* ── Dark mode toggle ─────────────────────────────────────── */
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    localStorage.setItem('sg-theme', html.getAttribute('data-theme'));
+  }
+
+  (function() {
+    const saved = localStorage.getItem('sg-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+
+  /* ── Progress bar ─────────────────────────────────────────── */
+  window.addEventListener('scroll', function() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  });
+
+  /* ── Scroll spy ───────────────────────────────────────────── */
+  (function() {
+    const sections = document.querySelectorAll('.section[id]');
+    const tocLinks = document.querySelectorAll('.toc-item a');
+
+    function onScroll() {
+      let current = '';
+      sections.forEach(sec => {
+        const top = sec.getBoundingClientRect().top;
+        if (top <= 80) current = sec.id;
+      });
+      tocLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

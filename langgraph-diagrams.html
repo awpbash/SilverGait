@@ -42,10 +42,16 @@
 
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased; transition:background .3s,color .3s; }
-  .page { max-width:1140px; margin:0 auto; padding:60px 40px 100px; }
+  .page { max-width:1140px; margin:0 auto; padding:104px 40px 100px; }
+
+  /* Top Nav */
+  .topnav { position:fixed; top:0; left:0; right:0; height:44px; background:var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 24px; gap:0; z-index:150; transition:background .3s,border-color .3s; }
+  .topnav a { font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); text-decoration:none; padding:0 14px; height:44px; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .2s,border-color .2s; }
+  .topnav a:hover { color:var(--accent); }
+  .topnav a.active { color:var(--accent); border-bottom-color:var(--accent); }
 
   /* Toggle */
-  .theme-toggle { position:fixed; top:20px; right:24px; z-index:100; width:44px; height:44px; border-radius:50%; border:1.5px solid var(--border); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .3s,border-color .3s,transform .15s; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+  .theme-toggle { position:fixed; top:6px; right:24px; z-index:200; width:44px; height:44px; border-radius:50%; border:1.5px solid var(--border); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .3s,border-color .3s,transform .15s; box-shadow:0 2px 8px rgba(0,0,0,.08); }
   .theme-toggle:hover { transform:scale(1.08); }
   .theme-toggle svg { width:20px; height:20px; stroke:var(--toggle-icon); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; transition:stroke .3s; }
   .theme-toggle .icon-sun { display:none; }
@@ -114,6 +120,14 @@
 </style>
 </head>
 <body>
+
+<nav class="topnav">
+  <a href="index.html">Overview</a>
+  <a href="langgraph-diagrams.html" class="active">Diagrams</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="kinematics.html">Kinematics</a>
+  <a href="research.html">Research</a>
+</nav>
 
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
   <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
