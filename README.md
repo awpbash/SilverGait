@@ -12,35 +12,33 @@ A **multimodal agentic system** for at-home elderly frailty assessment and manag
 
 ## Problem
 
-Singapore is one of the fastest-ageing societies in Asia. Frailty and mobility decline are leading predictors of falls, hospitalisation, and loss of independence among the elderly, yet clinical assessments like the SPPB require in-person visits with trained professionals, making regular screening impractical. Most seniors are unaware of their frailty status until a fall or hospitalisation occurs.
+Singapore is one of the fastest-ageing societies in Asia. Among community-dwelling seniors aged 65+, **6.2% are frail and 37% are pre-frail** -- most unaware of their status until a fall or hospitalisation occurs. Clinical assessments like the SPPB require in-person visits with trained professionals, making regular screening impractical.
 
-As AI-driven healthcare solutions gain momentum in Singapore ([NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases)), there is a clear need for tools that enable **continuous remote monitoring** and **empower patients to manage their health from home**.
+As AI-driven healthcare gains momentum in Singapore ([NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases)), there is a clear need for tools that enable **continuous remote monitoring** and **empower patients to manage their health from home**.
 
 ## Solution
 
-SilverGait enables elderly users to perform standardized SPPB assessments at home using only a smartphone camera, with no wearables or clinic visits required. The system combines **computer vision**, **deterministic clinical scoring**, and a **multilingual agentic chat system** to deliver continuous, personalized frailty management.
+SilverGait enables elderly users to perform standardized **SPPB assessments at home** using only a smartphone camera -- no wearables or clinic visits required. The system combines **computer vision**, **deterministic clinical scoring**, and a **multilingual agentic chat system** to deliver continuous, personalized frailty management.
 
-**Modalities:** Video (pose estimation + vision LLM), voice (STT/TTS in 4 languages), text (chat agent), structured health data (Katz ADL, CFS, SPPB scoring)
+**Modalities:** Video (pose estimation + vision LLM), voice (STT/TTS in 4 languages), text (chat agent), structured health data (Katz ADL, CFS, SPPB)
 
-## Features
+### Key Features
 
-- **Video-based SPPB assessment** - Phone camera records balance, gait, and chair-stand tests. MoveNet extracts 2D kinematics on-device; Gemini Vision scores each test 0-4. Combined SPPB (0-12) drives frailty classification.
+- **Video-based SPPB** -- MoveNet extracts 2D kinematics on-device; Gemini Vision scores balance, gait, and chair-stand tests (0-12)
 
   <p align="center"><img src="demo/cv.png" width="32%" /></p>
-- **Deterministic frailty pipeline** - Katz ADL (0-6), CFS (1-9), and SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts. Append-only snapshots for full audit trail.
-- **Agentic chat with sub-agents** - Gemini 2.5 Flash orchestrator with function calling dispatches to Exercise, Sleep, Education, and Monitoring sub-agents. Safety gate detects falls, emergencies, and distress in all four languages.
-- **Caregiver voice cloning** - ElevenLabs clones a caregiver's voice for all TTS output. Elderly users are more likely to engage with instructions from a familiar voice, so exercise coaching, assessment guidance, and chat responses all sound like a trusted family member.
+- **Deterministic frailty pipeline** -- Katz ADL + CFS + SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts
+- **Agentic chat** -- Gemini 2.5 Flash orchestrator dispatches to Exercise, Sleep, Education, and Monitoring sub-agents via function calling
+- **Caregiver voice cloning** -- ElevenLabs clones a familiar voice for all TTS output
 
   <p align="center"><img src="demo/voice.png" width="32%" /></p>
-- **Multilingual voice-first** - English, Mandarin, Malay, Tamil. MERaLiON AudioLLM (NUS/A*STAR) handles Singlish accents and code-switching. Voice input on every screen so users never have to type.
-- **Personalized exercise & sleep plans** - Exercise plans selected by frailty tier from a curated library, then personalized by SPPB deficits. Sleep Agent generates CBT-I plans, the recommended first-line treatment over pharmacological aids which carry fall risks.
-- **Elderly-optimized UI** - 18px+ fonts, 48px+ touch targets, high-contrast warm palette. One decision at a time, bottom nav, voice on all input screens. Clinical detail reserved for the caregiver dashboard.
+- **Multilingual voice-first** -- English, Mandarin, Malay, Tamil. MERaLiON AudioLLM handles Singlish accents
+- **Personalized plans** -- Exercise plans by frailty tier; Sleep Agent generates CBT-I plans
+- **Elderly-optimized UI** -- 18px+ fonts, 48px+ touch targets, high-contrast warm palette, voice on all screens
 
   <p align="center"><img src="demo/wearables.png" width="32%" /></p>
 
 ## Architecture
-
-Two LangGraph pipelines with management sub-agents:
 
 ```
 Assessment Graph (0 LLM calls)          Chat Graph (1-5 LLM calls)
@@ -51,11 +49,11 @@ Score -> Classify -> Tier Change?       Context Assembly -> Agent (Gemini)
          +----------> Database <--------    -> Safety Gate -> Persist
 ```
 
-Design philosophy: **LLM only where reasoning is needed.** Scoring, classification, routing, and plan selection are fully deterministic. LLM calls are reserved for video analysis, conversational reasoning, and personalized content generation.
+**LLM only where reasoning is needed.** Scoring, classification, routing, and plan selection are fully deterministic.
 
 ## Documentation
 
-Browse the **[documentation site](https://awpbash.github.io/SilverGait/)** for interactive rendered versions of all docs:
+Browse the **[documentation site](https://awpbash.github.io/SilverGait/)** for detailed specs:
 
 | Page | Description |
 |------|-------------|
@@ -64,145 +62,38 @@ Browse the **[documentation site](https://awpbash.github.io/SilverGait/)** for i
 | [Kinematics & SPPB](https://awpbash.github.io/SilverGait/kinematics.html) | CV pipeline, pose estimation, scoring algorithms |
 | [Clinical Evidence](https://awpbash.github.io/SilverGait/research.html) | 35+ peer-reviewed papers backing each design decision |
 
-Raw markdown sources are in [`docs/`](docs/).
+## Quick Start
 
-## Prerequisites
+**Prerequisites:** Python 3.10+, Node.js 18+ (with pnpm), [Gemini API key](https://aistudio.google.com/app/apikey)
 
-- **Python 3.10+** (with pip)
-- **Node.js 18+** (with pnpm - install via `npm i -g pnpm` or use Corepack)
-- **Gemini API key** - get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
+```bash
+git clone https://github.com/awpbash/SilverGait.git
+cd SilverGait
+cp .env.example .env   # add your GEMINI_API_KEY
+./run.sh               # or run.bat on Windows
+```
 
-## Setup
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/api/docs
 
-1. Clone and enter the repo:
-   ```bash
-   git clone https://github.com/awpbash/SilverGait.git
-   cd SilverGait
-   ```
-
-2. Create your `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-   Then edit `.env` and add your API keys (see [Environment Variables](#environment-variables) below).
-
-3. Run the app:
-
-   **Linux / macOS:**
-   ```bash
-   chmod +x run.sh
-   ./run.sh
-   ```
-
-   **Windows:**
-   ```cmd
-   run.bat
-   ```
-
-   The script creates a virtual environment, installs dependencies, starts the backend and frontend, and prints the URLs:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/api/docs
-
-4. Open the frontend on your phone (same network) or use `share.sh` / `share.bat` for a public URL via ngrok.
+Use `share.sh` / `share.bat` for a public URL via ngrok.
 
 ## Environment Variables
 
-Create a `.env` file in the project root (see `.env.example`):
-
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `GEMINI_API_KEY` | Yes | Video analysis (SPPB scoring), chat agent, fallback STT/TTS |
-| `mera_API_KEY` | No | MERaLiON Singlish-aware STT via cr8lab API |
+| `GEMINI_API_KEY` | Yes | Video analysis, chat agent, fallback STT/TTS |
+| `mera_API_KEY` | No | MERaLiON Singlish-aware STT (cr8lab API) |
 | `ELEVENLABS_API_KEY` | No | High-quality TTS + voice cloning |
-
-The app runs with only `GEMINI_API_KEY`. Optional keys enable higher-quality voice features.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Zustand, CSS variables |
-| Backend | FastAPI, Python 3.10+, SQLAlchemy async, SQLite (aiosqlite) |
+| Backend | FastAPI, Python 3.10+, SQLAlchemy async, SQLite |
 | AI | Gemini 2.5 Flash (chat + video), Gemini Flash Lite (sub-agents) |
-| STT | MERaLiON AudioLLM (primary, Singlish) -> Gemini (fallback) |
-| TTS | ElevenLabs (primary) -> Gemini (fallback) |
+| STT | MERaLiON AudioLLM (Singlish) -> Gemini fallback |
+| TTS | ElevenLabs -> Gemini fallback |
 | Orchestration | LangGraph (Assessment Graph + Chat Graph) |
-
-## Project Structure
-
-```
-SilverGait/
-├── .env.example              # API key template
-├── run.sh / run.bat          # Start backend + frontend
-├── share.sh / share.bat      # Public URL via ngrok
-│
-├── demo/                     # Screenshots, GIFs, demo videos
-├── docs/
-│   ├── index.html            # Documentation site hub
-│   ├── langgraph-diagrams.html  # Interactive pipeline diagrams
-│   ├── architecture.html     # System architecture (rendered)
-│   ├── kinematics.html       # CV pipeline & SPPB (rendered)
-│   ├── research.html         # Clinical evidence (rendered)
-│   ├── ARCHITECTURE.md       # Detailed specs, state schemas, DB schema
-│   ├── kinematics-and-sppb.md # CV pipeline, biomechanics, research refs
-│   └── research.md           # Clinical evidence and scientific rationale
-│
-├── backend/
-│   ├── requirements.txt
-│   └── app/
-│       ├── main.py
-│       ├── core/             # config, database
-│       ├── models/           # SQLAlchemy ORM + Pydantic schemas
-│       ├── routers/          # API endpoints
-│       └── services/
-│           ├── scoring.py          # Katz, CFS, SPPB, classify_frailty
-│           ├── content_library.py  # Curated plans by tier/risk
-│           ├── context.py          # UserContext + build_user_context()
-│           ├── gemini_vision.py    # Video -> Gemini -> SPPB scores
-│           ├── meralion.py         # MERaLiON STT (cr8lab API)
-│           └── langgraph_agents/
-│               ├── assessment_graph.py   # 6-node deterministic pipeline
-│               ├── chat_graph.py         # 4-node Gemini chat pipeline
-│               └── management_agents.py  # Exercise/Sleep/Education/Monitoring
-│
-└── frontend/
-    └── src/
-        ├── components/       # OnboardingModal, AppHeader, BottomNav, etc.
-        ├── pages/            # HomePage, AssessmentPage, ExercisesPage, etc.
-        ├── hooks/            # useAssessmentFlow, usePoseDetection, etc.
-        ├── stores/           # Zustand (user, assessment, chat)
-        ├── services/         # API client (api.ts)
-        └── i18n/             # en, zh, ms, ta translations
-```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/assessment/analyze-stream` | Video upload -> Gemini -> SPPB scores (SSE) |
-| POST | `/api/chat/stream` | Chat message -> agent response (SSE) |
-| POST | `/api/users/{id}/health-snapshot` | Save health answers, trigger assessment pipeline |
-| GET | `/api/users/{id}/context` | Full user context for frontend |
-| POST | `/api/exercises/complete` | Log completed exercise |
-| GET | `/api/exercises/personalized/{id}` | Tier-based exercise plan |
-| POST | `/api/voice/tts-stream` | Text-to-speech (ElevenLabs / Gemini) |
-| POST | `/api/voice/turn` | Speech-to-text + response |
-
-Full API docs available at http://localhost:8000/api/docs when running.
-
-## Development
-
-**Backend only:**
-```bash
-cd backend
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend only:**
-```bash
-cd frontend
-pnpm install
-pnpm run dev
-```
