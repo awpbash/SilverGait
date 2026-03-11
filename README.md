@@ -2,8 +2,13 @@
 
 A **multimodal agentic system** for at-home elderly frailty assessment and management in Singapore.
 
-<!-- App screenshots — replace with your own -->
-<!-- ![Home](demo/home.png) ![Assessment](demo/assessment.png) ![Exercises](demo/exercises.png) -->
+<p align="center">
+  <img src="demo/hero/chat.png" width="27%" />
+  &nbsp;
+  <img src="demo/hero/scoring.png" width="27%" />
+  &nbsp;
+  <img src="demo/hero/caregiver.png" width="27%" />
+</p>
 
 ## Problem
 
@@ -20,12 +25,18 @@ SilverGait enables elderly users to perform standardized SPPB assessments at hom
 ## Features
 
 - **Video-based SPPB assessment** — Phone camera records balance, gait, and chair-stand tests. MoveNet extracts 2D kinematics on-device; Gemini Vision scores each test 0-4. Combined SPPB (0-12) drives frailty classification. [How it works](docs/kinematics-and-sppb.md) | [Research](docs/research.md)
+
+  <p align="center"><img src="demo/cv.png" width="32%" /></p>
 - **Deterministic frailty pipeline** — Katz ADL (0-6), CFS (1-9), and SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts. Append-only snapshots for full audit trail.
 - **Agentic chat with sub-agents** — Gemini 2.5 Flash orchestrator with function calling dispatches to Exercise, Sleep, Education, and Monitoring sub-agents. Safety gate detects falls, emergencies, and distress in all four languages.
 - **Caregiver voice cloning** — ElevenLabs clones a caregiver's voice for all TTS output. Elderly are more likely to engage with and comply with instructions from a familiar voice — exercise coaching, assessment guidance, and chat responses all sound like a trusted family member rather than a generic AI.
+
+  <p align="center"><img src="demo/voice.png" width="32%" /></p>
 - **Multilingual voice-first** — English, Mandarin, Malay, Tamil. MERaLiON AudioLLM (NUS/A*STAR) handles Singlish accents and code-switching. Voice input on every screen so users never have to type.
 - **Personalized exercise & sleep plans** — Exercise plans selected by frailty tier from a curated library, then personalized by SPPB deficits. Sleep Agent generates CBT-I plans — the recommended first-line treatment over pharmacological aids which carry fall risks.
 - **Elderly-optimized UI** — 18px+ fonts, 48px+ touch targets, high-contrast warm palette. One decision at a time, bottom nav, voice on all input screens. Clinical detail reserved for the caregiver dashboard.
+
+  <p align="center"><img src="demo/wearables.png" width="32%" /></p>
 
 ## Architecture
 
