@@ -1,19 +1,31 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
-import { useAssessmentStore } from '../stores';
+import { useAssessmentStore, useUserStore } from '../stores';
 import { useT, tpl } from '../i18n';
 import { computeTotal } from '../utils/scoring';
 import { useExerciseStats } from '../hooks/useExerciseStats';
+import { contextApi } from '../services/api';
 
 export function ActivityPage() {
   const { latestAssessment, history } = useAssessmentStore();
+  const userId = useUserStore((s) => s.userId);
   const navigate = useNavigate();
   const t = useT();
   const exerciseStats = useExerciseStats(7);
+  const [trend, setTrend] = useState<string>('stable');
+  const [tier, setTier] = useState<string | null>(null);
+
+  useEffect(() => {
+    contextApi.get(userId).then((data) => {
+      setTrend(data.sppb_direction || 'stable');
+      setTier(data.current_tier);
+    }).catch(() => {});
+  }, [userId]);
 
   const breakdown = latestAssessment?.sppb_breakdown;
   const sppbScore = breakdown
-    ? breakdown.balance_score + breakdown.gait_score + breakdown.chair_stand_score
+    ? (breakdown.balance_score ?? 0) + (breakdown.gait_score ?? 0) + (breakdown.chair_stand_score ?? 0)
     : Math.round((latestAssessment?.score ?? 0) * 3);
 
   const balanceScore = breakdown?.balance_score ?? 0;
@@ -32,7 +44,7 @@ export function ActivityPage() {
     : tpl(t.activity.deltaFrom, { delta: `${delta > 0 ? '+' : ''}${delta}` });
 
   // Daily checklist items
-  const didAssessment = !!latestAssessment && isToday(latestAssessment.timestamp);
+  const didAssessment = !!latestAssessment?.timestamp && isToday(latestAssessment.timestamp);
   const todayCount = exerciseStats.todayCompleted.length;
   const checklist = [
     { done: didAssessment, label: t.activity.checklistAssessment, action: () => navigate('/check') },
@@ -48,8 +60,25 @@ export function ActivityPage() {
         <p className="subtitle">{t.activity.todaySubtitle}</p>
       </div>
 
+      {/* Decline warning */}
+      {trend === 'declining' && (
+        <div className="activity-decline-banner">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>{t.activity.declineWarning}</span>
+        </div>
+      )}
+
       {/* Hero Score Ring */}
       <div className="activity-hero">
+        {tier && (
+          <span className={`activity-tier-badge tier-${tier}`}>
+            {tier.replace(/_/g, ' ')}
+          </span>
+        )}
         <ScoreRing
           score={sppbScore}
           maxScore={12}
@@ -143,8 +172,10 @@ export function ActivityPage() {
   );
 }
 
-function isToday(timestamp: string): boolean {
+function isToday(timestamp: string | null | undefined): boolean {
+  if (!timestamp) return false;
   const d = new Date(timestamp);
+  if (isNaN(d.getTime())) return false;
   const now = new Date();
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }

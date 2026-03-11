@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import logging
@@ -9,7 +10,7 @@ import logging
 from ..services.gemini_vision import GeminiVisionService
 from ..models.assessment import AssessmentResult
 from ..models.db_models import Assessment as AssessmentRow
-from ..core.database import get_db
+from ..core.database import get_db, async_session
 
 router = APIRouter(prefix="/assessment", tags=["SPPB Assessment"])
 logger = logging.getLogger(__name__)
@@ -17,6 +18,42 @@ logger = logging.getLogger(__name__)
 
 def get_gemini_service() -> GeminiVisionService:
     return GeminiVisionService()
+
+
+async def _run_assessment_graph_post(
+    db: AsyncSession,
+    user_id: str,
+    assessment_row_id: int,
+    sppb_breakdown: dict | None,
+    issues: list[str] | None = None,
+) -> dict | None:
+    """Run the Assessment Graph after video analysis."""
+    if not sppb_breakdown:
+        return None
+    try:
+        from ..services.langgraph_agents.assessment_graph import run_assessment_pipeline
+        from ..models.db_models import User
+
+        # Fetch user language for localized plans
+        user_row = await db.execute(select(User).where(User.id == user_id))
+        user_obj = user_row.scalar_one_or_none()
+        lang = user_obj.language if user_obj and user_obj.language else "en"
+
+        result = await run_assessment_pipeline(
+            db=db,
+            user_id=user_id,
+            trigger="assessment",
+            sppb_balance=sppb_breakdown.get("balance_score"),
+            sppb_gait=sppb_breakdown.get("gait_score"),
+            sppb_chair=sppb_breakdown.get("chair_stand_score"),
+            issues=issues,
+            assessment_id=assessment_row_id,
+            language=lang,
+        )
+        return result
+    except Exception as e:
+        logger.warning(f"Assessment graph failed: {e}")
+        return None
 
 
 @router.post("/analyze", response_model=AssessmentResult)
@@ -32,14 +69,10 @@ async def analyze_video(
     Analyze video for SPPB gait/balance scoring.
     Accepts video blob, returns structured assessment.
     """
-    # Log received content type
     logger.info(f"Received video content type: {video.content_type}")
 
-    # Normalize content type (strip codecs info for validation)
     content_type = video.content_type or ""
     base_type = content_type.split(";")[0].strip()
-
-    # Allowed base types
     allowed_types = ["video/mp4", "video/webm", "video/quicktime"]
 
     if base_type not in allowed_types:
@@ -48,10 +81,9 @@ async def analyze_video(
             detail=f"Invalid file type '{content_type}'. Allowed: {allowed_types}",
         )
 
-    # Read video bytes
     try:
         video_bytes = await video.read()
-        if len(video_bytes) > 50 * 1024 * 1024:  # 50MB limit
+        if len(video_bytes) > 50 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Video too large (max 50MB)")
         if len(video_bytes) == 0:
             raise HTTPException(status_code=400, detail="Video file is empty")
@@ -60,7 +92,6 @@ async def analyze_video(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read video: {str(e)}")
 
-    # Validate test type
     allowed_tests = ["gait", "balance", "chair_stand"]
     if test_type not in allowed_tests:
         raise HTTPException(
@@ -68,26 +99,27 @@ async def analyze_video(
             detail=f"Invalid test type '{test_type}'. Allowed: {allowed_tests}",
         )
 
-    # Analyze via Gemini
     try:
         result = await service.analyze_video(
             video_bytes=video_bytes,
             user_id=user_id,
-            mime_type=base_type,  # Use base type without codecs
+            mime_type=base_type,
             test_type=test_type,
             pose_metrics=pose_metrics,
         )
 
-        # Persist to database
-        await _save_assessment(db, result, test_type, pose_metrics)
+        row_id = await _save_assessment(db, result, test_type, pose_metrics)
+
+        # Run Assessment Graph (deterministic, fast — no LLM)
+        sppb = result.sppb_breakdown
+        sppb_dict = sppb.model_dump() if hasattr(sppb, "model_dump") else sppb if isinstance(sppb, dict) else None
+        issues_list = result.issues if hasattr(result, "issues") else []
+        await _run_assessment_graph_post(db, user_id, row_id, sppb_dict, issues_list)
 
         return result
     except Exception as e:
         logger.error(f"Video analysis failed: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Analysis failed: {str(e)}",
-        )
+        raise HTTPException(status_code=503, detail=f"Analysis failed: {str(e)}")
 
 
 @router.post("/analyze-stream")
@@ -102,6 +134,7 @@ async def analyze_video_stream(
     """
     Analyze video with SSE progress updates.
     Streams stage events: uploading, processing, analyzing, complete.
+    LangGraph runs in background AFTER the stream completes.
     """
     content_type = video.content_type or ""
     base_type = content_type.split(";")[0].strip()
@@ -139,12 +172,28 @@ async def analyze_video_stream(
             test_type=test_type,
             pose_metrics=pose_metrics,
         ):
-            # Persist result to DB when complete
             if stage == "complete" and "result" in payload:
+                row_id = None
                 try:
-                    await _save_assessment(db, payload["result"], test_type, pose_metrics)
+                    row_id = await _save_assessment(db, payload["result"], test_type, pose_metrics)
                 except Exception as e:
                     logger.warning(f"Failed to persist assessment: {e}")
+
+                # Run Assessment Graph (deterministic, fast)
+                result_obj = payload["result"]
+                if isinstance(result_obj, dict):
+                    try:
+                        result_obj = AssessmentResult(**result_obj)
+                    except Exception:
+                        result_obj = None
+                if result_obj:
+                    sppb = result_obj.sppb_breakdown
+                    sppb_dict = sppb.model_dump() if hasattr(sppb, "model_dump") else sppb if isinstance(sppb, dict) else None
+                    issues_list = result_obj.issues if hasattr(result_obj, "issues") else []
+                    graph_result = await _run_assessment_graph_post(db, user_id, row_id, sppb_dict, issues_list)
+                    if graph_result:
+                        payload["frailty_tier"] = graph_result.get("frailty_tier")
+                        payload["tier_changed"] = graph_result.get("tier_changed")
 
             event_data = json.dumps({"stage": stage, **payload}, default=str)
             yield f"data: {event_data}\n\n"
@@ -162,9 +211,8 @@ async def analyze_video_stream(
 
 async def _save_assessment(
     db: AsyncSession, result, test_type: str, pose_metrics_json: str = ""
-):
-    """Persist an assessment result to the database."""
-    # Handle both Pydantic model and dict
+) -> int | None:
+    """Persist an assessment result to the database. Returns row ID."""
     if hasattr(result, "model_dump"):
         data = result.model_dump()
     elif hasattr(result, "dict"):
@@ -200,6 +248,7 @@ async def _save_assessment(
     db.add(row)
     await db.commit()
     logger.info(f"Assessment saved: user={row.user_id}, test={test_type}, score={row.score}")
+    return row.id
 
 
 @router.get("/status")

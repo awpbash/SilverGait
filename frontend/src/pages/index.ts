@@ -8,3 +8,4 @@ export { SafetyPage } from './SafetyPage';
 export { CommunityPage } from './CommunityPage';
 export { ReportPage } from './ReportPage';
 export { MorePage } from './MorePage';
+export { SleepPage } from './SleepPage';

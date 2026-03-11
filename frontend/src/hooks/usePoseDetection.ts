@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import * as poseDetection from '@tensorflow-models/pose-detection';
 import { getDetector } from '../lib/poseDetectorSingleton';
+import { KeypointFilterBank } from '../utils/oneEuroFilter';
 
 export interface PoseLandmarks {
   keypoints: poseDetection.Keypoint[];
@@ -39,6 +40,7 @@ export function usePoseDetection(
 
   const detectorRef = useRef<poseDetection.PoseDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const filterBankRef = useRef<KeypointFilterBank>(new KeypointFilterBank(17, 1.7, 0.01));
   const isActiveRef = useRef(isActive);
 
   // Keep isActive ref in sync
@@ -84,6 +86,7 @@ export function usePoseDetection(
         setConfidence(0);
         poseRef.current = null;
         confidenceRef.current = 0;
+        filterBankRef.current.reset();
       }
       return;
     }
@@ -126,7 +129,13 @@ export function usePoseDetection(
 
           if (poses && poses.length > 0) {
             const pose = poses[0];
-            const poseData: PoseLandmarks = { keypoints: pose.keypoints || [] };
+            // Smooth keypoints with One-Euro Filter to kill jitter
+            const smoothed = filterBankRef.current.filterKeypoints(
+              pose.keypoints || [],
+              0.3,
+              performance.now() / 1000,
+            );
+            const poseData: PoseLandmarks = { keypoints: smoothed };
 
             const visibleKeypoints = pose.keypoints.filter(
               (kp) => kp.score && kp.score > 0.3
@@ -191,6 +200,7 @@ export function usePoseDetection(
       setConfidence(0);
       poseRef.current = null;
       confidenceRef.current = 0;
+      filterBankRef.current.reset();
     };
   }, [isActive, isReady]);
 

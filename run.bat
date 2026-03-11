@@ -9,6 +9,7 @@ rem ==============================================
 set "PROJECT_ROOT=%~dp0"
 set "BACKEND_DIR=%PROJECT_ROOT%backend"
 set "FRONTEND_DIR=%PROJECT_ROOT%frontend"
+set "VENV_DIR=%BACKEND_DIR%\venv"
 set "COREPACK_HOME=%PROJECT_ROOT%.corepack"
 if not exist "%COREPACK_HOME%" mkdir "%COREPACK_HOME%" >nul 2>nul
 
@@ -18,16 +19,15 @@ echo ========================================
 
 rem Check for .env file
 if not exist "%PROJECT_ROOT%.env" (
-  echo Warning: .env file not found!
   if exist "%PROJECT_ROOT%.env.example" (
-    echo Creating from .env.example...
+    echo Warning: .env file not found! Creating from .env.example...
     copy /Y "%PROJECT_ROOT%.env.example" "%PROJECT_ROOT%.env" >nul
-    echo Please edit .env with your actual API keys before running.
-    exit /b 1
+    echo Please edit .env and add your GEMINI_API_KEY before running.
   ) else (
-    echo Error: .env.example not found!
-    exit /b 1
+    echo Error: .env file not found!
+    echo Create a .env file with at least: GEMINI_API_KEY=your_key_here
   )
+  exit /b 1
 )
 
 rem Check prerequisites
@@ -54,12 +54,6 @@ if errorlevel 1 (
   set "PNPM_CMD=corepack pnpm"
 )
 
-where conda >nul 2>nul
-if errorlevel 1 (
-  echo Error: conda not found in PATH. Open Anaconda Prompt or add conda to PATH.
-  exit /b 1
-)
-
 call %PNPM_CMD% --version >nul 2>nul
 if errorlevel 1 (
   if /I "%PNPM_CMD%"=="corepack pnpm" (
@@ -77,6 +71,17 @@ if errorlevel 1 (
 
 echo Prerequisites OK
 
+rem Setup Python virtual environment
+if not exist "%VENV_DIR%\Scripts\python.exe" (
+  echo Creating virtual environment...
+  python -m venv "%VENV_DIR%"
+)
+
+echo Installing Python dependencies...
+call "%VENV_DIR%\Scripts\pip.exe" install --upgrade pip -q
+call "%VENV_DIR%\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt" -q
+echo Python dependencies installed.
+
 rem Copy .env to backend
 copy /Y "%PROJECT_ROOT%.env" "%BACKEND_DIR%\.env" >nul
 
@@ -92,8 +97,8 @@ popd
 
 echo Starting servers in new windows...
 
-rem Backend (conda env: msba)
-start "Backend" cmd /k "call conda activate msba && cd /d ""%BACKEND_DIR%"" && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+rem Backend (using venv python)
+start "Backend" cmd /k "cd /d ""%BACKEND_DIR%"" && ""%VENV_DIR%\Scripts\python.exe"" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 rem Frontend
 start "Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && call %PNPM_CMD% run dev"

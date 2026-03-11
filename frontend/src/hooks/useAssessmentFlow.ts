@@ -5,13 +5,14 @@
 
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { AssessmentResult, GaitIssue } from '../types';
+import type { AssessmentResult, GaitIssue, InterventionAction } from '../types';
 import { useAssessmentStore } from '../stores';
 import { usePoseDetection } from './usePoseDetection';
 import { usePoseMetrics, type MetricsTimeSeries } from './usePoseMetrics';
+import type { PoseMetricsSummary } from '../utils/poseMetrics';
 import { useVoiceCoach } from './useVoiceCoach';
 import { extractFrameMetrics } from '../utils/poseMetrics';
-import { computeTotal as computeTotalScore } from '../utils/scoring';
+import { computeTotal as computeTotalScore, computeMaxScore } from '../utils/scoring';
 import { useT, tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
 
@@ -160,7 +161,7 @@ export const buildSummary = (
   };
 };
 
-export { computeTotalScore };
+export { computeTotalScore, computeMaxScore };
 
 // --- Hook ---
 export function useAssessmentFlow() {
@@ -186,6 +187,7 @@ export function useAssessmentFlow() {
   const autoStartHandledRef = useRef(false);
   const [analysisStage, setAnalysisStage] = useState<AnalysisStage>('uploading');
   const [showOverlay, setShowOverlay] = useState(true);
+  const [latestIntervention, setLatestIntervention] = useState<InterventionAction | null>(null);
 
   // Chair stand rep counter
   const chairRepRef = useRef(0);
@@ -215,6 +217,7 @@ export function useAssessmentFlow() {
   );
 
   const [testTimeSeries, setTestTimeSeries] = useState<Partial<Record<AssessmentTestId, MetricsTimeSeries>>>({});
+  const [testMetrics, setTestMetrics] = useState<Partial<Record<AssessmentTestId, PoseMetricsSummary>>>({});
 
   // Voice coach
   const [voiceCoachEnabled, setVoiceCoachEnabled] = useState(false);
@@ -435,6 +438,9 @@ export function useAssessmentFlow() {
     if (timeSeriesRef.current) {
       setTestTimeSeries((prev) => ({ ...prev, [currentTest.id]: timeSeriesRef.current! }));
     }
+    if (metricsRef.current) {
+      setTestMetrics((prev) => ({ ...prev, [currentTest.id]: metricsRef.current! }));
+    }
 
     setStep('analyzing');
     setAnalysisStage('uploading');
@@ -459,6 +465,7 @@ export function useAssessmentFlow() {
       const decoder = new TextDecoder();
       let buffer = '';
       let finalResult: AssessmentResult | null = null;
+      let intervention: InterventionAction | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -474,6 +481,7 @@ export function useAssessmentFlow() {
               const stage = event.stage as AnalysisStage;
               if (stage && STAGE_ORDER.includes(stage)) setAnalysisStage(stage);
               if (stage === 'complete' && event.result) finalResult = event.result;
+              if (stage === 'complete' && event.intervention) intervention = event.intervention;
               if (stage === 'error') throw new Error(event.detail || 'Analysis failed');
             } catch (e) {
               if (e instanceof Error && e.message !== 'Analysis failed') { /* skip */ } else throw e;
@@ -481,6 +489,8 @@ export function useAssessmentFlow() {
           }
         }
       }
+
+      if (intervention) setLatestIntervention(intervention);
 
       if (!finalResult) throw new Error(t.assessment.noResult);
 
@@ -523,6 +533,7 @@ export function useAssessmentFlow() {
     setTestIndex(0);
     setTestResults({});
     setTestTimeSeries({});
+    setTestMetrics({});
     setLastCompletedTest(null);
     setSelectedTests(ALL_TEST_IDS);
     setTestOrder(ALL_TEST_IDS);
@@ -562,11 +573,13 @@ export function useAssessmentFlow() {
 
     // Assessment data
     latestAssessment,
+    latestIntervention,
     history,
     currentTest,
     currentTestId,
     totalTests,
     testTimeSeries,
+    testMetrics,
 
     // Pose / metrics
     videoRef,

@@ -1,69 +1,74 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
 import { useT, tpl } from '../i18n';
+import type { Translations } from '../i18n/en';
 import type { SafetyRoom } from '../types';
 
-const SAFETY_ROOMS: SafetyRoom[] = [
-  {
-    id: 'bathroom',
-    name: 'Bathroom',
-    icon: '\u{1F6BF}',
-    questions: [
-      { id: 'grab-bars', text: 'Grab bars installed near toilet and shower', recommendation: 'Install grab bars near the toilet and in the shower area.' },
-      { id: 'non-slip-mat', text: 'Non-slip mat in shower or tub', recommendation: 'Place non-slip mats in wet areas to prevent falls.' },
-      { id: 'lighting', text: 'Good lighting, including a night light', recommendation: 'Add bright lighting and a night light for nighttime trips.' },
-      { id: 'raised-seat', text: 'Raised toilet seat or support rails', recommendation: 'Consider a raised toilet seat with support rails for easier use.' },
-    ],
-  },
-  {
-    id: 'bedroom',
-    name: 'Bedroom',
-    icon: '\u{1F6CF}\uFE0F',
-    questions: [
-      { id: 'bed-height', text: 'Bed is at a comfortable height to get in/out', recommendation: 'Adjust bed height so feet touch the floor when sitting on the edge.' },
-      { id: 'bedside-light', text: 'Light switch or lamp within reach from bed', recommendation: 'Place a lamp or light switch within arm\u2019s reach of the bed.' },
-      { id: 'clear-path', text: 'Clear path from bed to bathroom', recommendation: 'Remove clutter and ensure a clear, wide path to the bathroom.' },
-      { id: 'phone-reach', text: 'Phone within reach from the bed', recommendation: 'Keep a phone or emergency button near the bed.' },
-    ],
-  },
-  {
-    id: 'kitchen',
-    name: 'Kitchen',
-    icon: '\u{1F373}',
-    questions: [
-      { id: 'items-reach', text: 'Frequently used items within easy reach', recommendation: 'Move everyday items to lower shelves to avoid reaching or climbing.' },
-      { id: 'step-stool', text: 'Sturdy step stool available (not a chair)', recommendation: 'Use a sturdy step stool with a handrail instead of climbing on chairs.' },
-      { id: 'floor-dry', text: 'Floor kept dry and free of spills', recommendation: 'Wipe up spills immediately and use non-slip mats near the sink.' },
-      { id: 'fire-safety', text: 'Stove has auto-shut-off or timer', recommendation: 'Use a stove timer and consider an auto-shut-off device for safety.' },
-    ],
-  },
-  {
-    id: 'living',
-    name: 'Living Room',
-    icon: '\u{1FA91}',
-    questions: [
-      { id: 'furniture-stable', text: 'Furniture is stable and not wobbly', recommendation: 'Secure or replace any wobbly furniture that could topple.' },
-      { id: 'cords-tucked', text: 'Electrical cords are tucked away', recommendation: 'Secure loose cords along walls to prevent tripping.' },
-      { id: 'rugs-secured', text: 'Rugs are secured or removed', recommendation: 'Use non-slip backing on rugs or remove them entirely.' },
-      { id: 'chair-armrests', text: 'At least one chair with sturdy armrests', recommendation: 'Keep a chair with firm armrests for easier sitting and standing.' },
-    ],
-  },
-  {
-    id: 'walkways',
-    name: 'Walkways & Stairs',
-    icon: '\u{1F6B6}',
-    questions: [
-      { id: 'hallway-clear', text: 'Hallways are clear of clutter', recommendation: 'Remove obstacles from hallways to ensure a clear walking path.' },
-      { id: 'handrails', text: 'Handrails on both sides of stairs', recommendation: 'Install handrails on both sides of all stairways.' },
-      { id: 'stair-lighting', text: 'Stairs are well lit', recommendation: 'Add bright lighting at the top and bottom of stairs.' },
-      { id: 'outdoor-path', text: 'Outdoor paths are even and well maintained', recommendation: 'Repair uneven outdoor surfaces and keep paths clear of debris.' },
-      { id: 'doorway-width', text: 'Doorways are wide enough for easy passage', recommendation: 'Ensure doorways are at least 80cm wide for comfortable movement.' },
-    ],
-  },
-];
+function getSafetyRooms(t: Translations): SafetyRoom[] {
+  const s = t.safety;
+  return [
+    {
+      id: 'bathroom',
+      name: s.bathroom,
+      icon: '\u{1F6BF}',
+      questions: [
+        { id: 'grab-bars', text: s.bathroomQ1, recommendation: s.bathroomR1 },
+        { id: 'non-slip-mat', text: s.bathroomQ2, recommendation: s.bathroomR2 },
+        { id: 'lighting', text: s.bathroomQ3, recommendation: s.bathroomR3 },
+        { id: 'raised-seat', text: s.bathroomQ4, recommendation: s.bathroomR4 },
+      ],
+    },
+    {
+      id: 'bedroom',
+      name: s.bedroom,
+      icon: '\u{1F6CF}\uFE0F',
+      questions: [
+        { id: 'bed-height', text: s.bedroomQ1, recommendation: s.bedroomR1 },
+        { id: 'bedside-light', text: s.bedroomQ2, recommendation: s.bedroomR2 },
+        { id: 'clear-path', text: s.bedroomQ3, recommendation: s.bedroomR3 },
+        { id: 'phone-reach', text: s.bedroomQ4, recommendation: s.bedroomR4 },
+      ],
+    },
+    {
+      id: 'kitchen',
+      name: s.kitchen,
+      icon: '\u{1F373}',
+      questions: [
+        { id: 'items-reach', text: s.kitchenQ1, recommendation: s.kitchenR1 },
+        { id: 'step-stool', text: s.kitchenQ2, recommendation: s.kitchenR2 },
+        { id: 'floor-dry', text: s.kitchenQ3, recommendation: s.kitchenR3 },
+        { id: 'fire-safety', text: s.kitchenQ4, recommendation: s.kitchenR4 },
+      ],
+    },
+    {
+      id: 'living',
+      name: s.livingRoom,
+      icon: '\u{1FA91}',
+      questions: [
+        { id: 'furniture-stable', text: s.livingQ1, recommendation: s.livingR1 },
+        { id: 'cords-tucked', text: s.livingQ2, recommendation: s.livingR2 },
+        { id: 'rugs-secured', text: s.livingQ3, recommendation: s.livingR3 },
+        { id: 'chair-armrests', text: s.livingQ4, recommendation: s.livingR4 },
+      ],
+    },
+    {
+      id: 'walkways',
+      name: s.walkways,
+      icon: '\u{1F6B6}',
+      questions: [
+        { id: 'hallway-clear', text: s.walkwaysQ1, recommendation: s.walkwaysR1 },
+        { id: 'handrails', text: s.walkwaysQ2, recommendation: s.walkwaysR2 },
+        { id: 'stair-lighting', text: s.walkwaysQ3, recommendation: s.walkwaysR3 },
+        { id: 'outdoor-path', text: s.walkwaysQ4, recommendation: s.walkwaysR4 },
+        { id: 'doorway-width', text: s.walkwaysQ5, recommendation: s.walkwaysR5 },
+      ],
+    },
+  ];
+}
 
 const STORAGE_KEY = 'silvergait-safety';
+const TOTAL_QUESTIONS = 21;
 
 function loadChecked(): Record<string, boolean> {
   try {
@@ -79,24 +84,16 @@ function saveChecked(items: Record<string, boolean>) {
   }));
 }
 
-const TOTAL_QUESTIONS = SAFETY_ROOMS.reduce((sum, room) => sum + room.questions.length, 0);
-
 export function SafetyPage() {
   const navigate = useNavigate();
   const t = useT();
-  const roomNames: Record<string, string> = {
-    bathroom: t.safety.bathroom,
-    bedroom: t.safety.bedroom,
-    kitchen: t.safety.kitchen,
-    living: t.safety.livingRoom,
-    walkways: t.safety.walkways,
-  };
+  const rooms = useMemo(() => getSafetyRooms(t), [t]);
   const [checked, setChecked] = useState<Record<string, boolean>>(loadChecked);
   const [openRoom, setOpenRoom] = useState<string | null>(null);
 
   const checkedCount = Object.values(checked).filter(Boolean).length;
   const scorePercent = Math.round((checkedCount / TOTAL_QUESTIONS) * 100);
-  const riskLabel = scorePercent >= 80 ? 'Low Risk' : scorePercent >= 50 ? 'Moderate' : 'Needs Attention';
+  const riskLabel = scorePercent >= 80 ? t.safety.riskLow : scorePercent >= 50 ? t.safety.riskModerate : t.safety.riskNeedsAttention;
   const riskClass = scorePercent >= 80 ? 'low' : scorePercent >= 50 ? 'moderate' : 'high';
 
   const toggle = useCallback((key: string) => {
@@ -107,20 +104,20 @@ export function SafetyPage() {
     });
   }, []);
 
-  const uncheckedRecommendations = SAFETY_ROOMS.flatMap((room) =>
+  const uncheckedRecommendations = rooms.flatMap((room) =>
     room.questions
       .filter((q) => !checked[`${room.id}-${q.id}`])
       .map((q) => q.recommendation)
   );
 
   const handleShare = async () => {
-    const summary = `SilverGait Home Safety Check\n\nScore: ${scorePercent}% (${riskLabel})\nChecked: ${checkedCount} of ${TOTAL_QUESTIONS} items\n\n` +
+    const summary = `${t.safety.shareTitle}\n\n${tpl(t.safety.shareScore, { score: scorePercent, risk: riskLabel })}\n${tpl(t.safety.shareChecked, { done: checkedCount, total: TOTAL_QUESTIONS })}\n\n` +
       (uncheckedRecommendations.length > 0
-        ? `Recommendations:\n${uncheckedRecommendations.slice(0, 5).map((r, i) => `${i + 1}. ${r}`).join('\n')}`
-        : 'All safety items checked!');
+        ? `${t.safety.recommendations}:\n${uncheckedRecommendations.slice(0, 5).map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+        : t.safety.allChecked);
 
     if (navigator.share) {
-      try { await navigator.share({ title: 'SilverGait Safety Check', text: summary }); } catch { /* cancelled */ }
+      try { await navigator.share({ title: t.safety.shareTitle, text: summary }); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(summary);
     }
@@ -146,7 +143,7 @@ export function SafetyPage() {
 
       {/* Room accordion */}
       <div className="safety-rooms">
-        {SAFETY_ROOMS.map((room) => {
+        {rooms.map((room) => {
           const roomChecked = room.questions.filter((q) => checked[`${room.id}-${q.id}`]).length;
           const isOpen = openRoom === room.id;
           return (
@@ -156,7 +153,7 @@ export function SafetyPage() {
                 onClick={() => setOpenRoom(isOpen ? null : room.id)}
               >
                 <span className="safety-room-icon">{room.icon}</span>
-                <span className="safety-room-name">{roomNames[room.id] ?? room.name}</span>
+                <span className="safety-room-name">{room.name}</span>
                 <span className="safety-room-count">{roomChecked}/{room.questions.length}</span>
                 <span className={`faq-chevron${isOpen ? ' open' : ''}`}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

@@ -1,250 +1,200 @@
 # SilverGait
 
-> AI-powered mobility assessment and exercise platform for Singapore's elderly community
+A **multimodal agentic system** for at-home elderly frailty assessment and management in Singapore.
 
-SilverGait helps seniors maintain their mobility and independence through video-based gait analysis, activity tracking, and personalized exercise recommendations. Designed with Singapore's elderly in mind.
+<!-- App screenshots — replace with your own -->
+<!-- ![Home](demo/home.png) ![Assessment](demo/assessment.png) ![Exercises](demo/exercises.png) -->
+
+## Problem
+
+Singapore is one of the fastest-ageing societies in Asia. Frailty and mobility decline are leading predictors of falls, hospitalisation, and loss of independence among the elderly — yet clinical assessments like the SPPB require in-person visits with trained professionals, making regular screening impractical. Most seniors are unaware of their frailty status until a fall or hospitalisation occurs.
+
+As AI-driven healthcare solutions gain momentum in Singapore ([NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases)), there is a clear need for tools that enable **continuous remote monitoring** and **empower patients to manage their health from home**.
+
+## Solution
+
+SilverGait enables elderly users to perform standardized SPPB assessments at home using only a smartphone camera — no wearables, no clinic visits. The system combines **computer vision**, **deterministic clinical scoring**, and a **multilingual agentic chat system** to deliver continuous, personalized frailty management.
+
+**Modalities:** Video (pose estimation + vision LLM), voice (STT/TTS in 4 languages), text (chat agent), structured health data (Katz ADL, CFS, SPPB scoring)
 
 ## Features
 
-### Mobility Assessment (SPPB-Based)
-- Record walking videos using your mobile device
-- AI-powered gait and balance analysis using Gemini 2.0 Flash
-- Get scored assessments (0-4 scale) with detailed feedback
-- Identifies issues like shuffling, sway, and slow speed
-- Personalized recommendations based on your results
+- **Video-based SPPB assessment** — Phone camera records balance, gait, and chair-stand tests. MoveNet extracts 2D kinematics on-device; Gemini Vision scores each test 0-4. Combined SPPB (0-12) drives frailty classification. [How it works](docs/kinematics-and-sppb.md) | [Research](docs/research.md)
+- **Deterministic frailty pipeline** — Katz ADL (0-6), CFS (1-9), and SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts. Append-only snapshots for full audit trail.
+- **Agentic chat with sub-agents** — Gemini 2.5 Flash orchestrator with function calling dispatches to Exercise, Sleep, Education, and Monitoring sub-agents. Safety gate detects falls, emergencies, and distress in all four languages.
+- **Caregiver voice cloning** — ElevenLabs clones a caregiver's voice for all TTS output. Elderly are more likely to engage with and comply with instructions from a familiar voice — exercise coaching, assessment guidance, and chat responses all sound like a trusted family member rather than a generic AI.
+- **Multilingual voice-first** — English, Mandarin, Malay, Tamil. MERaLiON AudioLLM (NUS/A*STAR) handles Singlish accents and code-switching. Voice input on every screen so users never have to type.
+- **Personalized exercise & sleep plans** — Exercise plans selected by frailty tier from a curated library, then personalized by SPPB deficits. Sleep Agent generates CBT-I plans — the recommended first-line treatment over pharmacological aids which carry fall risks.
+- **Elderly-optimized UI** — 18px+ fonts, 48px+ touch targets, high-contrast warm palette. One decision at a time, bottom nav, voice on all input screens. Clinical detail reserved for the caregiver dashboard.
 
-### Activity Tracking
-- Monitor daily steps and moderate-to-vigorous physical activity (MVPA)
-- Weekly trend visualization
-- Day-by-day activity breakdown
-- Integration-ready with HPB wearables
+## Architecture
 
-### Exercise Guide
-- 5 elderly-friendly exercises with step-by-step instructions
-- Safety reminders and precautions
-- Difficulty levels for different fitness levels
-- Singapore-specific context (HDB-friendly exercises)
+Two LangGraph pipelines with management sub-agents:
 
-### Elderly-Friendly Design
-- Large fonts (18px+) for easy reading
-- Large touch targets (48px+) for easy tapping
-- High contrast colors for better visibility
-- Simple bottom navigation (no confusing menus)
-- Singapore context with Singlish tips
-
-## Quick Start
-
-### Prerequisites
-- Python 3.10 or higher
-- Node.js 18 or higher
-- pnpm (or Corepack, which ships with modern Node.js)
-- A Gemini API key (get one from [Google AI Studio](https://aistudio.google.com/app/apikey))
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <your-repo-url>
-cd silvergait
+```
+Assessment Graph (0 LLM calls)          Chat Graph (1-5 LLM calls)
+Score -> Classify -> Tier Change?       Context Assembly -> Agent (Gemini)
+  YES -> Update Plans -> Notify             | function_call |
+  NO  -> Persist                        Exercise / Sleep / Education / Monitoring
+         | writes DB                    Progress Summary / Alert Caregiver
+         +----------> Database <--------    -> Safety Gate -> Persist
 ```
 
-2. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env and add your Gemini API key:
-# GEMINI_API_KEY=your_key_here
-```
+Design philosophy: **LLM only where reasoning is needed.** Scoring, classification, routing, and plan selection are fully deterministic. LLM calls are reserved for video analysis, conversational reasoning, and personalized content generation.
 
-3. Run the application:
-```bash
-# Linux / macOS
-chmod +x run.sh
-./run.sh
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for detailed specs, state schemas, and DB schema.
+See [`docs/kinematics-and-sppb.md`](docs/kinematics-and-sppb.md) for our CV/kinematics approach and research references (35+ peer-reviewed papers).
+See [`docs/research.md`](docs/research.md) for the clinical evidence and scientific rationale behind the system.
+Open [`langgraph-diagrams.html`](langgraph-diagrams.html) in a browser for interactive flow diagrams.
 
-# Windows (Command Prompt)
-run.bat
-```
+## Prerequisites
 
-The app will start:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/api/docs
+- **Python 3.10+** (with pip)
+- **Node.js 18+** (with pnpm — install via `npm i -g pnpm` or use Corepack)
+- **Gemini API key** — get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-### Sharing Your Instance
+## Setup
 
-To share your local instance publicly (e.g., for testing on mobile devices):
+1. Clone and enter the repo:
+   ```bash
+   git clone <repo-url>
+   cd SilverGait
+   ```
 
-```bash
-chmod +x share.sh
-./share.sh
-```
+2. Create your `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit `.env` and add your API keys (see [Environment Variables](#environment-variables) below).
 
-This will create a public URL using ngrok that you can access from any device.
+3. Run the app:
+
+   **Linux / macOS:**
+   ```bash
+   chmod +x run.sh
+   ./run.sh
+   ```
+
+   **Windows:**
+   ```cmd
+   run.bat
+   ```
+
+   The script creates a virtual environment, installs dependencies, starts the backend and frontend, and prints the URLs:
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8000
+   - API Docs: http://localhost:8000/api/docs
+
+4. Open the frontend on your phone (same network) or use `share.sh` for a public URL:
+   ```bash
+   chmod +x share.sh
+   ./share.sh
+   ```
+
+## Environment Variables
+
+Create a `.env` file in the project root (see `.env.example`):
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `GEMINI_API_KEY` | Yes | Video analysis (SPPB scoring), chat agent, fallback STT/TTS |
+| `mera_API_KEY` | No | MERaLiON Singlish-aware STT via cr8lab API |
+| `ELEVENLABS_API_KEY` | No | High-quality TTS + voice cloning |
+
+The app runs with only `GEMINI_API_KEY`. Optional keys enable higher-quality voice features.
 
 ## Tech Stack
 
-### Frontend
-- **React 18** - Modern UI library
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool
-- **Tailwind CSS** - Utility-first styling
-- **Zustand** - Lightweight state management
-
-### Backend
-- **FastAPI** - High-performance Python web framework
-- **Python 3.10+** - Modern Python features
-- **Pydantic** - Data validation and settings management
-
-### AI/ML
-- **Gemini 2.0 Flash** - Google's multimodal AI for video analysis
-- **google-genai SDK** - Official Python SDK for Gemini
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript, Vite, Zustand, CSS variables |
+| Backend | FastAPI, Python 3.10+, SQLAlchemy async, SQLite (aiosqlite) |
+| AI | Gemini 2.5 Flash (chat + video), Gemini Flash Lite (sub-agents) |
+| STT | MERaLiON AudioLLM (primary, Singlish) -> Gemini (fallback) |
+| TTS | ElevenLabs (primary) -> Gemini (fallback) |
+| Orchestration | LangGraph (Assessment Graph + Chat Graph) |
 
 ## Project Structure
 
 ```
-silvergait/
-├── .env                 # Environment variables (Gemini API key)
-├── run.sh               # Start backend + frontend
-├── share.sh             # Create public ngrok URL
-├── backend/             # FastAPI backend
+SilverGait/
+├── .env.example              # API key template
+├── run.sh / run.bat          # Start backend + frontend
+├── share.sh                  # Public URL via localtunnel
+├── langgraph-diagrams.html   # Interactive architecture diagrams
+│
+├── demo/                     # Screenshots, GIFs, demo videos
+├── docs/
+│   ├── ARCHITECTURE.md       # Detailed specs, state schemas, DB schema
+│   ├── kinematics-and-sppb.md # CV pipeline, biomechanics, research refs
+│   └── research.md           # Clinical evidence and scientific rationale
+│
+├── backend/
 │   ├── requirements.txt
 │   └── app/
 │       ├── main.py
-│       ├── core/
-│       │   └── config.py        # Configuration management
-│       ├── models/              # Data models
-│       │   ├── health_metrics.py
-│       │   ├── assessment.py
-│       │   └── intervention.py
-│       ├── services/
-│       │   ├── gemini_vision.py # Video analysis
-│       │   ├── hpb_wearables.py # Activity tracking
-│       │   ├── sealion.py       # Singlish translation
-│       │   └── agent.py         # Decision logic
-│       └── routers/             # API endpoints
-│           ├── assessment.py
-│           ├── health.py
-│           └── intervention.py
-└── frontend/            # React frontend
-    ├── package.json
+│       ├── core/             # config, database
+│       ├── models/           # SQLAlchemy ORM + Pydantic schemas
+│       ├── routers/          # API endpoints
+│       └── services/
+│           ├── scoring.py          # Katz, CFS, SPPB, classify_frailty
+│           ├── content_library.py  # Curated plans by tier/risk
+│           ├── context.py          # UserContext + build_user_context()
+│           ├── gemini_vision.py    # Video -> Gemini -> SPPB scores
+│           ├── meralion.py         # MERaLiON STT (cr8lab API)
+│           └── langgraph_agents/
+│               ├── assessment_graph.py   # 6-node deterministic pipeline
+│               ├── chat_graph.py         # 4-node Gemini chat pipeline
+│               └── management_agents.py  # Exercise/Sleep/Education/Monitoring
+│
+└── frontend/
     └── src/
-        ├── types/       # TypeScript interfaces
-        ├── stores/      # Zustand state management
-        ├── services/    # API client
-        ├── components/  # Reusable components
-        └── pages/       # Main application pages
-            ├── HomePage.tsx
-            ├── AssessmentPage.tsx
-            ├── ActivityPage.tsx
-            └── ExercisesPage.tsx
+        ├── components/       # OnboardingModal, AppHeader, BottomNav, etc.
+        ├── pages/            # HomePage, AssessmentPage, ExercisesPage, etc.
+        ├── hooks/            # useAssessmentFlow, usePoseDetection, etc.
+        ├── stores/           # Zustand (user, assessment, chat)
+        ├── services/         # API client (api.ts)
+        └── i18n/             # en, zh, ms, ta translations
 ```
 
 ## API Endpoints
 
-### Assessment
-- `POST /api/assessment/analyze` - Upload and analyze walking video
-- `GET /api/assessment/history` - Get past assessments
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/assessment/analyze-stream` | Video upload -> Gemini -> SPPB scores (SSE) |
+| POST | `/api/chat/stream` | Chat message -> agent response (SSE) |
+| POST | `/api/users/{id}/health-snapshot` | Save health answers, trigger assessment pipeline |
+| GET | `/api/users/{id}/context` | Full user context for frontend |
+| POST | `/api/exercises/complete` | Log completed exercise |
+| GET | `/api/exercises/personalized/{id}` | Tier-based exercise plan |
+| POST | `/api/voice/tts-stream` | Text-to-speech (ElevenLabs / Gemini) |
+| POST | `/api/voice/turn` | Speech-to-text + response |
 
-### Health Metrics
-- `GET /api/health/steps` - Get step count data
-- `GET /api/health/mvpa` - Get MVPA data
-- `GET /api/health/summary` - Get weekly summary
+Full API docs available at http://localhost:8000/api/docs when running.
 
-### Interventions
-- `GET /api/intervention/exercises` - Get recommended exercises
-- `GET /api/intervention/actions` - Get personalized action plan
+## Demo
 
-## Environment Variables
+Place screenshots, GIFs, and demo videos in the `demo/` folder. Example usage in this README:
 
-Create a `.env` file in the root directory:
-
-```env
-# Required
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Optional (app works in demo mode without these)
-HPB_API_KEY=your_hpb_api_key         # For real wearable data
-SEALION_API_KEY=your_sealion_key     # For Singlish translation
+```markdown
+![Screenshot](demo/home.png)
+![SPPB Assessment](demo/sppb-demo.gif)
 ```
+
+Demo videos for the CV/kinematics pipeline (balance, gait, chair-stand tests) go in `demo/` as well. See [`docs/kinematics-and-sppb.md`](docs/kinematics-and-sppb.md) for what the pipeline does.
 
 ## Development
 
-### Backend Development
-
+**Backend only:**
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend Development
-
+**Frontend only:**
 ```bash
 cd frontend
 pnpm install
 pnpm run dev
 ```
-
-### Running Tests
-
-```bash
-# Backend tests
-cd backend
-pytest
-
-# Frontend checks
-cd frontend
-pnpm run lint
-```
-
-## Deployment
-
-### Local Network (for testing)
-
-Use the included `share.sh` script to create a public URL via localtunnel:
-
-```bash
-./share.sh
-```
-
-### Production Deployment
-
-1. Set up a production server (e.g., AWS, DigitalOcean, Heroku)
-2. Configure environment variables
-3. Build the frontend:
-   ```bash
-   cd frontend
-   pnpm run build
-   ```
-4. Serve the backend with a production ASGI server like gunicorn
-5. Use nginx or similar to serve the frontend static files
-
-## Contributing
-
-Contributions are welcome. Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-[Your License Here]
-
-## Acknowledgments
-
-- Built for Singapore's elderly community
-- Inspired by the Short Physical Performance Battery (SPPB)
-- Powered by Google's Gemini AI
-- Designed for accessibility and ease of use
-
-## Support
-
-For issues and questions:
-- Create an issue in the repository
-- Contact: [Your Contact Information]
-
----
-
-Made with care for Singapore's seniors.

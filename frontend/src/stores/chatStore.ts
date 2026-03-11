@@ -4,7 +4,7 @@ export interface ChatMessage {
   id: string;
   role: 'assistant' | 'user';
   text: string;
-  actions?: Array<{ label: string; route: string }>;
+  actions?: Array<{ label: string; route?: string; prompt?: string }>;
 }
 
 interface ChatState {

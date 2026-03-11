@@ -244,6 +244,9 @@ export interface PoseMetricsSummary {
   swayVelocity: number;
   swayArea: number;
   trunkLeanVariability: number;
+  swayRMS: number;
+  swayML: number;           // mediolateral (side-to-side) RMS
+  swayAP: number;           // anteroposterior (front-back) RMS
 
   // Gait-specific
   estimatedGaitSpeed: number;
@@ -284,6 +287,9 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
     swayVelocity: 0,
     swayArea: 0,
     trunkLeanVariability: 0,
+    swayRMS: 0,
+    swayML: 0,
+    swayAP: 0,
     estimatedGaitSpeed: 0,
     stepCount: 0,
     cadence: 0,
@@ -392,6 +398,20 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
 
   // Trunk lean variability: SD of trunk lean values
   const trunkLeanVariability = stdDev(trunkLeans);
+
+  // RMS sway + AP/ML decomposition
+  let swayRMS = 0;
+  let swayML = 0;
+  let swayAP = 0;
+  if (hipCenters.length > 1) {
+    const meanX = avg(hipCenters.map((p) => p.x));
+    const meanY = avg(hipCenters.map((p) => p.y));
+    const mlDeviations = hipCenters.map((p) => p.x - meanX);
+    const apDeviations = hipCenters.map((p) => p.y - meanY);
+    swayML = Math.sqrt(avg(mlDeviations.map((d) => d * d)));
+    swayAP = Math.sqrt(avg(apDeviations.map((d) => d * d)));
+    swayRMS = Math.sqrt(avg(hipCenters.map((p) => (p.x - meanX) ** 2 + (p.y - meanY) ** 2)));
+  }
 
   // ========== GAIT-SPECIFIC METRICS ==========
 
@@ -629,6 +649,9 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
     swayVelocity: r(swayVelocity),
     swayArea: r(swayArea),
     trunkLeanVariability: r(trunkLeanVariability),
+    swayRMS: r(swayRMS),
+    swayML: r(swayML),
+    swayAP: r(swayAP),
     // Gait-specific
     estimatedGaitSpeed: r(estimatedGaitSpeed),
     stepCount,

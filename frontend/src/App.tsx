@@ -16,12 +16,15 @@ import { SafetyPage } from './pages/SafetyPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { ReportPage } from './pages/ReportPage';
 import { MorePage } from './pages/MorePage';
+import { VoiceSettingsPage } from './pages/VoiceSettingsPage';
+import { WearablesPage } from './pages/WearablesPage';
+import { SleepPage } from './pages/SleepPage';
 
 // Lazy-load heavy routes (TF.js + pose detection)
 const AssessmentPage = lazy(() => import('./pages/AssessmentPage').then(m => ({ default: m.AssessmentPage })));
 const ExercisesPage = lazy(() => import('./pages/ExercisesPage').then(m => ({ default: m.ExercisesPage })));
 
-type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver' | 'safety' | 'community' | 'report' | 'more';
+type PageId = 'home' | 'activity' | 'assessment' | 'exercises' | 'help' | 'caregiver' | 'safety' | 'community' | 'report' | 'more' | 'voiceSettings' | 'wearables' | 'sleep';
 
 const ROUTES: Record<PageId, string> = {
   home: '/',
@@ -34,6 +37,9 @@ const ROUTES: Record<PageId, string> = {
   safety: '/safety',
   community: '/community',
   report: '/report',
+  voiceSettings: '/voice-settings',
+  wearables: '/wearables',
+  sleep: '/sleep',
 };
 
 
@@ -98,6 +104,9 @@ function App() {
     if (path.startsWith(ROUTES.safety)) return 'more';
     if (path.startsWith(ROUTES.community)) return 'more';
     if (path.startsWith(ROUTES.report)) return 'more';
+    if (path.startsWith(ROUTES.voiceSettings)) return 'more';
+    if (path.startsWith(ROUTES.wearables)) return 'more';
+    if (path.startsWith(ROUTES.sleep)) return 'more';
     return '';
   }, [location.pathname]);
 
@@ -152,6 +161,9 @@ function App() {
                 <Route path={ROUTES.community} element={<CommunityPage />} />
                 <Route path={ROUTES.report} element={<ReportPage />} />
                 <Route path={ROUTES.more} element={<MorePage />} />
+                <Route path={ROUTES.voiceSettings} element={<VoiceSettingsPage />} />
+                <Route path={ROUTES.wearables} element={<WearablesPage />} />
+                <Route path={ROUTES.sleep} element={<SleepPage />} />
                 <Route path="*" element={<HomePage />} />
               </Routes>
             </Suspense>

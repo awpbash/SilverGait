@@ -21,9 +21,10 @@ class HealthMetrics(BaseModel):
     user_id: str
     timestamp: datetime = Field(default_factory=datetime.now)
 
-    # Core metrics from HPB
+    # Core metrics from HPB / wearable
     mvpa_minutes: int = Field(..., ge=0, description="Daily Moderate-to-Vigorous activity minutes")
     steps: int = Field(..., ge=0, description="Daily step count")
+    sleep_hours: Optional[float] = Field(None, ge=0, le=24, description="Sleep duration in hours")
     heart_rate_variability: Optional[float] = Field(None, description="HRV if available (frailty indicator)")
     resting_heart_rate: Optional[int] = Field(None, ge=30, le=200)
 

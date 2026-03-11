@@ -7,6 +7,7 @@ from .users import router as users_router
 from .history import router as history_router
 from .chat import router as chat_router
 from .exercises import router as exercises_router
+from .agent import router as agent_router
 
 __all__ = [
     "health_router",
@@ -17,4 +18,5 @@ __all__ = [
     "history_router",
     "chat_router",
     "exercises_router",
+    "agent_router",
 ]

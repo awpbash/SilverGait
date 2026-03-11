@@ -6,11 +6,14 @@ import asyncio
 import base64
 import json
 import logging
+import struct
+import wave
 from dataclasses import dataclass, field
 from io import BytesIO
 import re
-from typing import Dict, Optional
+from typing import AsyncIterator, Dict, Optional
 
+import httpx
 from google import genai
 from google.genai import types
 
@@ -34,12 +37,13 @@ class LanguageResult:
 
 
 class GeminiVoiceService:
-    """Gemini Native Audio STT + TTS."""
+    """Gemini STT (gemini-2.5-flash) + TTS (gemini-2.5-flash-preview-tts)."""
 
     def __init__(self) -> None:
         settings = get_settings()
         self.client = genai.Client(api_key=settings.gemini_api_key)
-        self.audio_model = settings.voice_audio_model
+        self.stt_model = settings.voice_stt_model
+        self.tts_model = settings.voice_tts_model
         self.enabled = bool(settings.gemini_api_key)
 
     async def transcribe(self, audio_bytes: bytes, filename: str) -> Optional[str]:
@@ -57,12 +61,10 @@ class GeminiVoiceService:
 
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.audio_model,
+                model=self.stt_model,
                 contents=[
-                    types.Content(parts=[
-                        types.Part.from_bytes(data=audio_bytes, mime_type=mime),
-                        types.Part.from_text("Transcribe this audio exactly as spoken. Return only the transcription text, nothing else."),
-                    ]),
+                    types.Part.from_bytes(data=audio_bytes, mime_type=mime),
+                    "Transcribe this audio exactly as spoken. Return only the transcription text, nothing else.",
                 ],
             )
             return (response.text or "").strip()
@@ -70,14 +72,25 @@ class GeminiVoiceService:
             logger.error(f"Gemini STT failed: {exc}")
             return None
 
+    @staticmethod
+    def _pcm_to_wav(pcm: bytes, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:
+        """Wrap raw PCM bytes in a WAV header so browsers can play it."""
+        buf = BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(sample_width)
+            wf.setframerate(rate)
+            wf.writeframes(pcm)
+        return buf.getvalue()
+
     async def synthesize(self, text: str) -> Optional[bytes]:
         if not self.enabled:
             return None
         try:
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.audio_model,
-                contents=f"Read aloud the following text in a warm, friendly voice: {text}",
+                model=self.tts_model,
+                contents=text,
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(
@@ -87,11 +100,14 @@ class GeminiVoiceService:
                     ),
                 ),
             )
-            # Extract audio bytes from response
+            # Extract raw PCM audio bytes from response
             if response.candidates and response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
                     if part.inline_data and part.inline_data.data:
-                        return part.inline_data.data
+                        pcm = part.inline_data.data
+                        logger.info(f"TTS synthesized {len(pcm)} bytes PCM, wrapping as WAV")
+                        return self._pcm_to_wav(pcm)
+            logger.warning("TTS: no audio data in response")
             return None
         except Exception as exc:
             logger.error(f"Gemini TTS failed: {exc}")
@@ -108,6 +124,184 @@ class GeminiVoiceService:
         if not audio_bytes:
             return None
         return base64.b64encode(audio_bytes).decode("ascii")
+
+
+class ElevenLabsTTSService:
+    """ElevenLabs TTS — high-quality, multilingual, streaming, voice cloning."""
+
+    BASE_URL = "https://api.elevenlabs.io/v1"
+
+    def __init__(self) -> None:
+        settings = get_settings()
+        self.api_key = settings.elevenlabs_api_key
+        self.default_voice_id = settings.elevenlabs_voice_id
+        self.model_id = settings.elevenlabs_model_id
+        self.output_format = settings.elevenlabs_output_format
+        self.optimize_latency = settings.elevenlabs_optimize_latency
+        self.enabled = bool(self.api_key)
+        # Voice settings — controls warmth, expressiveness, clarity
+        self.voice_settings = {
+            "stability": settings.elevenlabs_stability,
+            "similarity_boost": settings.elevenlabs_similarity_boost,
+            "style": settings.elevenlabs_style,
+            "use_speaker_boost": settings.elevenlabs_speaker_boost,
+        }
+
+    def _headers(self) -> dict:
+        return {"xi-api-key": self.api_key}
+
+    def _resolve_voice(self, voice_id: Optional[str] = None) -> str:
+        return voice_id or self.default_voice_id
+
+    def _tts_payload(self, text: str) -> dict:
+        """Build the JSON payload for TTS requests."""
+        return {
+            "text": text,
+            "model_id": self.model_id,
+            "voice_settings": self.voice_settings,
+        }
+
+    def _query_params(self) -> dict:
+        return {
+            "output_format": self.output_format,
+            "optimize_streaming_latency": self.optimize_latency,
+        }
+
+    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> Optional[bytes]:
+        """Full synthesis — returns MP3 bytes."""
+        if not self.enabled:
+            return None
+        vid = self._resolve_voice(voice_id)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"{self.BASE_URL}/text-to-speech/{vid}",
+                    headers={**self._headers(), "Content-Type": "application/json"},
+                    json=self._tts_payload(text),
+                    params=self._query_params(),
+                )
+                if resp.status_code != 200:
+                    logger.error(f"ElevenLabs TTS failed: {resp.status_code} {resp.text[:200]}")
+                    return None
+                logger.info(f"ElevenLabs TTS: {len(resp.content)} bytes MP3")
+                return resp.content
+        except Exception as exc:
+            logger.error(f"ElevenLabs TTS error: {exc}")
+            return None
+
+    async def stream_speech(self, text: str, voice_id: Optional[str] = None) -> AsyncIterator[bytes]:
+        """Stream audio chunks as they're generated."""
+        if not self.enabled:
+            return
+        vid = self._resolve_voice(voice_id)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.BASE_URL}/text-to-speech/{vid}/stream",
+                    headers={**self._headers(), "Content-Type": "application/json"},
+                    json=self._tts_payload(text),
+                    params=self._query_params(),
+                ) as resp:
+                    if resp.status_code != 200:
+                        logger.error(f"ElevenLabs stream failed: {resp.status_code}")
+                        return
+                    async for chunk in resp.aiter_bytes(1024):
+                        yield chunk
+        except Exception as exc:
+            logger.error(f"ElevenLabs stream error: {exc}")
+
+    # Curated default voices — warm, calm, multilingual-friendly for elderly care
+    CURATED_VOICE_IDS = {
+        "JBFqnCBsd6RMkjVDRZzb",  # George — warm storyteller (default)
+        "Xb7hH8MSUJpSbSDYk0k2",  # Alice — clear educator
+        "nPczCjzI2devNBz1zQrb",  # Brian — deep, comforting
+        "pFZP5JQG7iQjIQuC4Bku",  # Lily — velvety, confident
+    }
+
+    async def list_voices(self) -> list[dict]:
+        """List cloned voices + curated defaults (not the full ElevenLabs library)."""
+        if not self.enabled:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self.BASE_URL}/voices",
+                    headers=self._headers(),
+                )
+                if resp.status_code != 200:
+                    logger.error(f"ElevenLabs list voices failed: {resp.status_code}")
+                    return []
+                data = resp.json()
+                return [
+                    {
+                        "voice_id": v["voice_id"],
+                        "name": v.get("name", ""),
+                        "category": v.get("category", ""),
+                        "preview_url": v.get("preview_url"),
+                        "labels": v.get("labels", {}),
+                    }
+                    for v in data.get("voices", [])
+                    if v.get("category") == "cloned" or v["voice_id"] in self.CURATED_VOICE_IDS
+                ]
+        except Exception as exc:
+            logger.error(f"ElevenLabs list voices error: {exc}")
+            return []
+
+    async def clone_voice(self, name: str, audio_bytes: bytes, filename: str, description: str = "") -> Optional[dict]:
+        """Clone a voice from an audio sample. Returns {voice_id, name} or None."""
+        if not self.enabled:
+            return None
+        try:
+            # Determine mime type from filename
+            mime = "audio/mpeg"
+            if filename.endswith(".webm"):
+                mime = "audio/webm"
+            elif filename.endswith(".wav"):
+                mime = "audio/wav"
+            elif filename.endswith(".m4a") or filename.endswith(".mp4"):
+                mime = "audio/mp4"
+            elif filename.endswith(".ogg"):
+                mime = "audio/ogg"
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{self.BASE_URL}/voices/add",
+                    headers=self._headers(),
+                    data={
+                        "name": name,
+                        "description": description or f"Cloned voice: {name}",
+                    },
+                    files=[("files", (filename, audio_bytes, mime))],
+                )
+                if resp.status_code != 200:
+                    logger.error(f"ElevenLabs clone failed: {resp.status_code} {resp.text[:500]}")
+                    return None
+                data = resp.json()
+                logger.info(f"ElevenLabs voice cloned: {data.get('voice_id')}")
+                return {"voice_id": data["voice_id"], "name": name}
+        except Exception as exc:
+            logger.error(f"ElevenLabs clone error: {exc}")
+            return None
+
+    async def delete_voice(self, voice_id: str) -> bool:
+        """Delete a cloned voice."""
+        if not self.enabled:
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.delete(
+                    f"{self.BASE_URL}/voices/{voice_id}",
+                    headers=self._headers(),
+                )
+                if resp.status_code != 200:
+                    logger.error(f"ElevenLabs delete voice failed: {resp.status_code}")
+                    return False
+                logger.info(f"ElevenLabs voice deleted: {voice_id}")
+                return True
+        except Exception as exc:
+            logger.error(f"ElevenLabs delete voice error: {exc}")
+            return False
 
 
 class VoiceIntentService:

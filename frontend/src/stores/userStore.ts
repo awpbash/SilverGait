@@ -11,11 +11,15 @@ interface UserState {
   // User identity
   userId: string;
   displayName: string;
+  gender: string | null;
   setDisplayName: (name: string) => void;
+  setGender: (gender: string | null) => void;
 
   // Preferences
   preferredLanguage: 'en' | 'mandarin' | 'malay' | 'tamil';
   setPreferredLanguage: (lang: UserState['preferredLanguage']) => void;
+  voiceId: string | null;
+  setVoiceId: (id: string | null) => void;
 
   // Onboarding
   hasOnboarded: boolean;
@@ -48,7 +52,9 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       userId: generateUserId(),
       displayName: '',
+      gender: null,
       preferredLanguage: 'en',
+      voiceId: null,
       hasOnboarded: false,
       synced: false,
 
@@ -58,7 +64,9 @@ export const useUserStore = create<UserState>()(
       error: null,
 
       setDisplayName: (displayName) => set({ displayName }),
+      setGender: (gender) => set({ gender }),
       setPreferredLanguage: (preferredLanguage) => set({ preferredLanguage }),
+      setVoiceId: (voiceId) => set({ voiceId }),
       setHasOnboarded: (hasOnboarded) => set({ hasOnboarded }),
       setSynced: (synced) => set({ synced }),
       setTodayMetrics: (metrics) => set({ todayMetrics: metrics }),
@@ -72,7 +80,9 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({
         userId: state.userId,
         displayName: state.displayName,
+        gender: state.gender,
         preferredLanguage: state.preferredLanguage,
+        voiceId: state.voiceId,
         hasOnboarded: state.hasOnboarded,
         synced: state.synced,
       }),

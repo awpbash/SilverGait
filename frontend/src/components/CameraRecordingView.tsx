@@ -107,7 +107,7 @@ export function CameraRecordingView({
               <line x1="10" y1="22" x2="12" y2="16" />
               <line x1="14" y1="22" x2="12" y2="16" />
             </svg>
-            {showOverlay ? 'Body On' : 'Body Off'}
+            {showOverlay ? t.exercises.bodyOn : t.exercises.bodyOff}
           </button>
         )}
 

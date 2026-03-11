@@ -17,9 +17,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Error handler with graceful "Retrying..." as per CLAUDE.md
@@ -83,7 +80,6 @@ export const assessmentApi = {
       formData.append('test_type', testType);
 
       const response = await api.post('/assessment/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000, // 2 min for video processing
       });
       return response.data;
@@ -136,6 +132,34 @@ export const interventionApi = {
       return false;
     }
   },
+
+  getLatest: async (userId: string): Promise<InterventionAction | null> => {
+    try {
+      const response = await api.get(`/intervention/latest/${userId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  getAlerts: async (userId: string): Promise<{
+    alerts: Array<{
+      type: string;
+      severity: 'info' | 'warning' | 'urgent';
+      message: string;
+      priority: number;
+    }>;
+    trend: 'improving' | 'stable' | 'declining';
+    total_assessments: number;
+    active_days_this_week: number;
+  }> => {
+    try {
+      const response = await api.get(`/intervention/alerts/${userId}`);
+      return response.data;
+    } catch {
+      return { alerts: [], trend: 'stable', total_assessments: 0, active_days_this_week: 0 };
+    }
+  },
 };
 
 // User API
@@ -143,13 +167,15 @@ export const userApi = {
   ensureUser: async (
     userId: string,
     displayName?: string,
-    language?: string
-  ): Promise<{ id: string; display_name: string; language: string; created_at: string }> => {
+    language?: string,
+    gender?: string | null,
+  ): Promise<{ id: string; display_name: string; language: string; gender: string | null; created_at: string }> => {
     try {
       const response = await api.post('/users', {
         id: userId,
         display_name: displayName || '',
         language: language || 'en',
+        gender: gender || null,
       });
       return response.data;
     } catch (error) {
@@ -159,8 +185,8 @@ export const userApi = {
 
   updateUser: async (
     userId: string,
-    updates: { display_name?: string; language?: string }
-  ): Promise<{ id: string; display_name: string; language: string; created_at: string }> => {
+    updates: { display_name?: string; language?: string; gender?: string | null }
+  ): Promise<{ id: string; display_name: string; language: string; gender: string | null; created_at: string }> => {
     try {
       const response = await api.patch(`/users/${userId}`, updates);
       return response.data;
@@ -245,6 +271,307 @@ export const exerciseApi = {
       throw handleApiError(error);
     }
   },
+
+  getPersonalized: async (
+    userId: string
+  ): Promise<{
+    exercises: Array<{
+      id: string;
+      category: string;
+      recommended: boolean;
+      completed: boolean;
+      intensity_minutes: number;
+    }>;
+    tier: string;
+    sppb_total: number;
+    focus_area: string | null;
+    daily_target: number;
+    issues: string[];
+    completed_count: number;
+  }> => {
+    try {
+      const response = await api.get(`/exercises/personalized/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+};
+
+// LangGraph Agent API
+export interface AgentRunResult {
+  frailty_tier: string | null;
+  risk_explanation: string | null;
+  education_plan: string | null;
+  exercise_plan: string | null;
+  sleep_plan: string | null;
+  monitoring_notes: string | null;
+  management_routes: string[] | null;
+  management_rationale: string | null;
+  cfs_score: number | null;
+  cfs_label: string | null;
+  katz_total: number | null;
+  sppb_total: number | null;
+  contributing: Record<string, string> | null;
+  completed_nodes: string[];
+  elapsed_seconds: number;
+}
+
+export const agentApi = {
+  runWorkflow: async (
+    userId: string,
+    opts?: {
+      patientName?: string;
+      patientAge?: number;
+      sppbBalance?: number;
+      sppbGait?: number;
+      sppbChair?: number;
+    }
+  ): Promise<AgentRunResult> => {
+    try {
+      const response = await api.post('/agent/run', {
+        user_id: userId,
+        patient_name: opts?.patientName || userId,
+        patient_age: opts?.patientAge || 70,
+        sppb_balance: opts?.sppbBalance,
+        sppb_gait: opts?.sppbGait,
+        sppb_chair: opts?.sppbChair,
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  getLatest: async (userId: string): Promise<AgentRunResult | null> => {
+    try {
+      const response = await api.get(`/agent/latest/${userId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+};
+
+// Health Snapshot API (onboarding + profile updates)
+export const healthSnapshotApi = {
+  create: async (
+    userId: string,
+    data: {
+      trigger: string;
+      katz_bathing?: boolean;
+      katz_dressing?: boolean;
+      katz_toileting?: boolean;
+      katz_transferring?: boolean;
+      katz_continence?: boolean;
+      katz_feeding?: boolean;
+      cognitive_risk?: string;
+      mood_risk?: string;
+      sleep_risk?: string;
+      social_isolation_risk?: string;
+    }
+  ): Promise<{
+    snapshot_id: number;
+    katz_total: number | null;
+    cfs_score: number | null;
+    frailty_tier: string;
+    risk_explanation: string;
+    tier_changed: boolean;
+    new_plans: Array<{ plan_type: string; content: string }>;
+  }> => {
+    try {
+      const response = await api.post(`/users/${userId}/health-snapshot`, data);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+};
+
+// User Context API
+export const contextApi = {
+  get: async (userId: string): Promise<{
+    user_id: string;
+    display_name: string;
+    language: string;
+    voice_id: string | null;
+    onboarded: boolean;
+    current_tier: string | null;
+    cfs_score: number | null;
+    katz_total: number | null;
+    sppb_total: number | null;
+    balance_score: number | null;
+    gait_score: number | null;
+    chair_score: number | null;
+    sppb_trend: number[];
+    sppb_direction: string;
+    katz_trend: number[];
+    tier_history: string[];
+    exercise_streak: number;
+    exercises_this_week: number;
+    exercises_today: string[];
+    days_since_last_assessment: number | null;
+    recheck_due: boolean;
+    sleep_risk: string;
+    mood_risk: string;
+    cognitive_risk: string;
+    social_isolation_risk: string;
+    active_plans: Record<string, unknown>;
+    unread_alerts: Array<unknown>;
+    recent_issues: string[];
+  }> => {
+    try {
+      const response = await api.get(`/users/${userId}/context`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+};
+
+// Alerts API
+export const alertsApi = {
+  getAll: async (userId: string): Promise<Array<{
+    id: number;
+    user_id: string;
+    timestamp: string;
+    alert_type: string;
+    severity: string;
+    message: string;
+    source: string;
+    read: boolean;
+  }>> => {
+    try {
+      const response = await api.get(`/users/${userId}/alerts`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+};
+
+// Frailty History API
+export const frailtyApi = {
+  getHistory: async (userId: string): Promise<Array<{
+    id: number;
+    timestamp: string;
+    trigger: string;
+    cfs_score: number | null;
+    katz_total: number | null;
+    sppb_total: number | null;
+    frailty_tier: string;
+    risk_explanation: string;
+    tier_changed: boolean;
+    previous_tier: string | null;
+  }>> => {
+    try {
+      const response = await api.get(`/users/${userId}/frailty-history`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+};
+
+// Care Plans API
+export const carePlanApi = {
+  getActive: async (userId: string): Promise<Array<{
+    id: number;
+    plan_type: string;
+    content: string;
+    created_at: string;
+    status: string;
+    trigger: string;
+  }>> => {
+    try {
+      const response = await api.get(`/users/${userId}/care-plans`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+};
+
+// Voice API (ElevenLabs TTS, voice management)
+export const voiceApi = {
+  /** Get TTS status and provider info */
+  getStatus: async (): Promise<{
+    enabled: boolean;
+    tts_ready: boolean;
+    tts_provider: string;
+    tts_format: string;
+    sealion_ready: boolean;
+    stream_tts: boolean;
+  }> => {
+    try {
+      const response = await api.get('/voice/status');
+      return response.data;
+    } catch {
+      return { enabled: false, tts_ready: false, tts_provider: 'none', tts_format: 'wav', sealion_ready: false, stream_tts: false };
+    }
+  },
+
+  /** List all available ElevenLabs voices */
+  listVoices: async (): Promise<{
+    voices: Array<{
+      voice_id: string;
+      name: string;
+      category: string;
+      preview_url: string | null;
+      labels: Record<string, string>;
+    }>;
+    default_voice_id: string;
+  }> => {
+    try {
+      const response = await api.get('/voice/voices');
+      return response.data;
+    } catch {
+      return { voices: [], default_voice_id: '' };
+    }
+  },
+
+  /** Clone a voice from an audio sample */
+  cloneVoice: async (
+    name: string,
+    audioFile: File,
+    description?: string,
+  ): Promise<{ voice_id: string; name: string } | null> => {
+    try {
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('audio', audioFile);
+      if (description) fd.append('description', description);
+      const response = await api.post('/voice/voices/clone', fd, {
+        timeout: 60000,
+      });
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  /** Delete a cloned voice */
+  deleteVoice: async (voiceId: string): Promise<boolean> => {
+    try {
+      await api.delete(`/voice/voices/${voiceId}`);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  /** Set a user's preferred voice */
+  selectVoice: async (userId: string, voiceId: string): Promise<boolean> => {
+    try {
+      const fd = new FormData();
+      fd.append('user_id', userId);
+      fd.append('voice_id', voiceId);
+      await api.patch('/voice/voices/select', fd);
+      return true;
+    } catch {
+      return false;
+    }
+  },
 };
 
 // Chat API (streaming)
@@ -258,7 +585,7 @@ export const chatApi = {
     message: string,
     onChunk: (text: string) => void,
     language: string = 'en',
-  ): Promise<{ actions: Array<{ label: string; route: string }> }> => {
+  ): Promise<{ actions: Array<{ label: string; route?: string; prompt?: string }> }> => {
     const res = await fetch(`${API_BASE}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -269,7 +596,7 @@ export const chatApi = {
 
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
-    let actions: Array<{ label: string; route: string }> = [];
+    let actions: Array<{ label: string; route?: string; prompt?: string }> = [];
     let buffer = '';
 
     while (true) {

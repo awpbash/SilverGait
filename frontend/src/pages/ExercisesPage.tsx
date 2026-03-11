@@ -6,7 +6,7 @@ import { extractFrameMetrics } from '../utils/poseMetrics';
 import { useExerciseFormFeedback, FORM_FEEDBACK_EXERCISES } from '../hooks/useExerciseFormFeedback';
 import { useT, tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
-import { exerciseApi } from '../services/api';
+import { exerciseApi, contextApi } from '../services/api';
 import { useUserStore } from '../stores';
 
 interface Exercise {
@@ -181,12 +181,77 @@ function saveCompleted(completed: Set<string>) {
 export function ExercisesPage() {
   const t = useT();
   const userId = useUserStore((s) => s.userId);
-  const EXERCISES = useMemo(() => getExercises(t), [t]);
+  const RAW_EXERCISES = useMemo(() => getExercises(t), [t]);
+  const [exerciseOrder, setExerciseOrder] = useState<string[]>([]);
+  const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());
+  const [dailyTarget, setDailyTarget] = useState(8);
+  const [focusArea, setFocusArea] = useState<string | null>(null);
+  const [aiExercisePlan, setAiExercisePlan] = useState<{
+    title?: string;
+    frequency?: string;
+    exercises?: string[];
+    description?: string;
+    notes?: string;
+  } | null>(null);
+  const [showAiPlan, setShowAiPlan] = useState(false);
+  const [userTier, setUserTier] = useState<string | null>(null);
+
+  // Fetch personalized exercise order
+  useEffect(() => {
+    exerciseApi.getPersonalized(userId).then((data) => {
+      setExerciseOrder(data.exercises.map((e) => e.id));
+      setRecommendedIds(new Set(data.exercises.filter((e) => e.recommended).map((e) => e.id)));
+      setDailyTarget(data.daily_target);
+      setFocusArea(data.focus_area);
+    }).catch(() => {
+      // Fallback to default order
+      setExerciseOrder(RAW_EXERCISES.map((e) => e.id));
+    });
+    // Fetch exercise plan from user context
+    contextApi.get(userId).then((ctx) => {
+      setUserTier(ctx.current_tier || null);
+      const plan = ctx.active_plans?.exercise;
+      if (plan && typeof plan === 'object' && 'content' in (plan as Record<string, unknown>)) {
+        const raw = (plan as Record<string, unknown>).content;
+        if (typeof raw === 'string') {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              setAiExercisePlan(parsed);
+            }
+          } catch {
+            // Not JSON — wrap raw text as description
+            setAiExercisePlan({ description: raw });
+          }
+        } else if (raw && typeof raw === 'object') {
+          setAiExercisePlan(raw as typeof aiExercisePlan);
+        }
+      }
+    }).catch(() => {});
+  }, [userId]);
+
+  // Reorder exercises based on personalized order
+  const EXERCISES = useMemo(() => {
+    if (exerciseOrder.length === 0) return RAW_EXERCISES;
+    const map = new Map(RAW_EXERCISES.map((e) => [e.id, e]));
+    const ordered: Exercise[] = [];
+    for (const id of exerciseOrder) {
+      const ex = map.get(id);
+      if (ex) ordered.push(ex);
+    }
+    // Add any not in the order
+    for (const ex of RAW_EXERCISES) {
+      if (!ordered.find((o) => o.id === ex.id)) ordered.push(ex);
+    }
+    return ordered;
+  }, [RAW_EXERCISES, exerciseOrder]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completed, setCompleted] = useState<Set<string>>(loadCompleted);
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [showPainModal, setShowPainModal] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [searchParams] = useSearchParams();
@@ -217,6 +282,22 @@ export function ExercisesPage() {
     if (matchIndex >= 0) setCurrentIndex(matchIndex);
     consumedRef.current = true;
   }, [searchParams]);
+
+  // Map exercise IDs to translated names
+  const exerciseNameMap = useMemo(() =>
+    new Map(RAW_EXERCISES.map((e) => [e.id, e.title])), [RAW_EXERCISES]);
+
+  // Get translated plan metadata based on user tier
+  const translatedPlan = useMemo(() => {
+    const ex = t.exercises;
+    const tierMap: Record<string, { title: string; frequency: string; description: string; notes: string }> = {
+      robust: { title: ex.planRobustTitle, frequency: ex.planRobustFreq, description: ex.planRobustDesc, notes: ex.planRobustNotes },
+      pre_frail: { title: ex.planPreFrailTitle, frequency: ex.planPreFrailFreq, description: ex.planPreFrailDesc, notes: ex.planPreFrailNotes },
+      frail: { title: ex.planFrailTitle, frequency: ex.planFrailFreq, description: ex.planFrailDesc, notes: ex.planFrailNotes },
+      severely_frail: { title: ex.planSevereTitle, frequency: ex.planSevereFreq, description: ex.planSevereDesc, notes: ex.planSevereNotes },
+    };
+    return userTier ? tierMap[userTier] ?? null : null;
+  }, [t, userTier]);
 
   const exercise = EXERCISES[currentIndex];
   const hasFormFeedback = FORM_FEEDBACK_EXERCISES.has(exercise.id);
@@ -331,8 +412,8 @@ export function ExercisesPage() {
   };
 
   const completedCount = completed.size;
-  const totalCount = EXERCISES.length;
-  const progressPct = (completedCount / totalCount) * 100;
+  const totalCount = dailyTarget;
+  const progressPct = Math.min((completedCount / totalCount) * 100, 100);
 
   return (
     <div className="page">
@@ -353,31 +434,106 @@ export function ExercisesPage() {
         </div>
       </div>
 
-      {/* Exercise dots */}
-      <div className="exercise-dots">
+      {/* Exercise pill navigation */}
+      <div className="exercise-pill-nav">
         {EXERCISES.map((e, i) => (
           <button
             key={e.id}
-            className={`exercise-dot${i === currentIndex ? ' active' : ''}${completed.has(e.id) ? ' completed' : ''}`}
-            onClick={() => { setTimerActive(false); setCurrentIndex(i); }}
-            aria-label={`${e.title}${completed.has(e.id) ? ' (completed)' : ''}`}
-          />
+            className={`exercise-pill${i === currentIndex ? ' active' : ''}${completed.has(e.id) ? ' completed' : ''}`}
+            onClick={() => { setTimerActive(false); setShowSteps(false); setCurrentIndex(i); }}
+          >
+            <span className="exercise-pill-num">{completed.has(e.id) ? '✓' : i + 1}</span>
+            <span className="exercise-pill-name">{e.title}</span>
+          </button>
         ))}
       </div>
 
+      {/* Focus area banner */}
+      {focusArea && (
+        <div className="exercise-focus-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+          </svg>
+          <span>{t.exercises.focusToday}: <strong>{
+            focusArea === 'balance' ? t.exercises.focusBalance
+            : focusArea === 'gait' ? t.exercises.focusGait
+            : focusArea === 'strength' ? t.exercises.focusStrength
+            : focusArea
+          }</strong></span>
+        </div>
+      )}
+
+      {/* Personalized Exercise Plan */}
+      {aiExercisePlan && (
+        <div className="plan-card">
+          <button
+            type="button"
+            className="result-detail-toggle"
+            onClick={() => setShowAiPlan((v) => !v)}
+            style={{ width: '100%' }}
+          >
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+              {t.exercises.personalizedPlan}
+            </span>
+            <svg viewBox="0 0 20 20" width="16" height="16" style={{ transform: showAiPlan ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M5 7l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+          {showAiPlan && (
+            <div className="plan-content">
+              <div className="plan-header">
+                <h3 className="plan-title">{translatedPlan?.title ?? aiExercisePlan.title}</h3>
+                {(translatedPlan?.frequency ?? aiExercisePlan.frequency) && (
+                  <span className="plan-freq">{translatedPlan?.frequency ?? aiExercisePlan.frequency}</span>
+                )}
+              </div>
+              {(translatedPlan?.description ?? aiExercisePlan.description) && (
+                <p className="plan-desc">{translatedPlan?.description ?? aiExercisePlan.description}</p>
+              )}
+              {aiExercisePlan.exercises && aiExercisePlan.exercises.length > 0 && (
+                <div className="plan-exercises">
+                  {aiExercisePlan.exercises.map((exId, i) => (
+                    <span key={i} className="plan-exercise-chip">
+                      {exerciseNameMap.get(exId) ?? exId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(translatedPlan?.notes ?? aiExercisePlan.notes) && (
+                <div className="plan-notes">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                  <span>{translatedPlan?.notes ?? aiExercisePlan.notes}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Exercise card */}
       <div className="exercise-nav-card">
-        <span className="exercise-emoji">{exercise.icon}</span>
-        <h2>{exercise.title}</h2>
-        <div className="exercise-meta">
-          <span className="exercise-category">{exercise.category}</span>
-          <span className="exercise-duration">{exercise.duration}</span>
+        <div className="exercise-card-header">
+          <span className="exercise-emoji">{exercise.icon}</span>
+          <div className="exercise-card-info">
+            <h2>{exercise.title}</h2>
+            <p className="exercise-desc">{exercise.description}</p>
+            <div className="exercise-meta">
+              <span className="exercise-category">{exercise.category}</span>
+              <span className="exercise-duration">{exercise.duration}</span>
+              {recommendedIds.has(exercise.id) && !completed.has(exercise.id) && (
+                <span className="exercise-recommended-badge">{t.exercises.recommended}</span>
+              )}
+              {completed.has(exercise.id) && (
+                <span className="exercise-completed-badge">{t.exercises.completed}</span>
+              )}
+            </div>
+          </div>
         </div>
-        {completed.has(exercise.id) && (
-          <span className="exercise-category" style={{ background: '#e8f5e9', color: '#1b8a3e' }}>
-            {t.exercises.completed}
-          </span>
-        )}
       </div>
 
       {/* Form Feedback Camera */}
@@ -409,7 +565,7 @@ export function ExercisesPage() {
                     <line x1="10" y1="22" x2="12" y2="16" />
                     <line x1="14" y1="22" x2="12" y2="16" />
                   </svg>
-                  {showOverlay ? 'Body On' : 'Body Off'}
+                  {showOverlay ? t.exercises.bodyOn : t.exercises.bodyOff}
                 </button>
               )}
             </div>
@@ -440,71 +596,76 @@ export function ExercisesPage() {
         </div>
       )}
 
-      {/* Steps */}
-      <div className="exercise-steps">
-        <h3>{t.exercises.howToDo}</h3>
-        <ol>
-          {exercise.steps.map((step, idx) => (
-            <li key={idx}>{step}</li>
-          ))}
-        </ol>
-      </div>
-
-      {/* Safety */}
-      <div className="safety-notice">
-        <span className="safety-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
+      {/* Steps — collapsible */}
+      <div className="exercise-steps-section">
+        <button className="exercise-steps-toggle" onClick={() => setShowSteps(v => !v)}>
+          <h3>{t.exercises.howToDo}</h3>
+          <svg viewBox="0 0 20 20" width="16" height="16" style={{ transform: showSteps ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+            <path d="M5 7l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-        </span>
-        <p>{exercise.safety}</p>
+        </button>
+        {showSteps && (
+          <div className="exercise-steps">
+            <ol>
+              {exercise.steps.map((step, idx) => (
+                <li key={idx}>
+                  <span className="step-num">{idx + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="safety-notice">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <p>{exercise.safety}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}
       <div className="exercise-actions">
-        {!timerActive && timerSeconds === 0 && (
-          <button className="btn-secondary" onClick={startTimer}>
-            {t.exercises.startTimer}
-          </button>
-        )}
-
-        {timerActive && (
-          <button className="btn-secondary" onClick={() => setTimerActive(false)}>
-            {t.exercises.pauseTimer}
-          </button>
-        )}
-
-        {!timerActive && timerSeconds > 0 && (
-          <button className="btn-secondary" onClick={() => setTimerActive(true)}>
-            {t.exercises.resumeTimer}
-          </button>
-        )}
-
-        <button
-          className="btn-primary"
-          onClick={markComplete}
-          disabled={completed.has(exercise.id)}
-        >
-          {completed.has(exercise.id) ? t.exercises.completed : t.exercises.markComplete}
-        </button>
-
         <div className="exercise-btn-row">
-          <button className="btn-ghost" onClick={goToPrev}>
-            {t.common.previous}
-          </button>
-          <button className="btn-ghost" onClick={skip}>
-            {t.common.skip}
+          {!timerActive && timerSeconds === 0 && (
+            <button className="btn-secondary" onClick={startTimer}>
+              {t.exercises.startTimer}
+            </button>
+          )}
+          {timerActive && (
+            <button className="btn-secondary" onClick={() => setTimerActive(false)}>
+              {t.exercises.pauseTimer}
+            </button>
+          )}
+          {!timerActive && timerSeconds > 0 && (
+            <button className="btn-secondary" onClick={() => setTimerActive(true)}>
+              {t.exercises.resumeTimer}
+            </button>
+          )}
+          <button
+            className="btn-primary"
+            onClick={markComplete}
+            disabled={completed.has(exercise.id)}
+          >
+            {completed.has(exercise.id) ? t.exercises.completed : t.exercises.markComplete}
           </button>
         </div>
 
-        <button
-          className="btn-outline-danger"
-          onClick={() => setShowPainModal(true)}
-        >
-          {t.exercises.iFeelPain}
-        </button>
+        <div className="exercise-nav-row">
+          <button className="btn-ghost" onClick={goToPrev}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+            {t.common.previous}
+          </button>
+          <button className="exercise-pain-link" onClick={() => setShowPainModal(true)}>
+            {t.exercises.iFeelPain}
+          </button>
+          <button className="btn-ghost" onClick={skip}>
+            {t.common.skip}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Pain Modal */}

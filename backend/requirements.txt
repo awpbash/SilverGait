@@ -18,5 +18,7 @@ aiosqlite
 # HTTP Client
 httpx==0.26.0
 
-# OpenAI (Voice STT/TTS)
-openai>=1.0.0
+# LangGraph Agent System
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0

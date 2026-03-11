@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '../components';
+import { Markdown } from '../components/Markdown';
 import { useUserStore, useChatStore } from '../stores';
 import type { ChatMessage } from '../stores';
 import { userApi, chatApi } from '../services/api';
 import { useT } from '../i18n';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+
 
 const QUICK_PROMPT_ICONS = ['\u{1F972}', '\u{2753}', '\u{1F6E1}', '\u{1F9B5}'];
 const MAX_RECORD_MS = 6000;
@@ -38,21 +42,18 @@ export function HomePage() {
     userApi.ensureUser(userId, displayName).then(() => setSynced(true)).catch(() => {});
   }, [userId, displayName, synced, setSynced]);
 
-  // Initial greeting — only when store is empty or language changes
+  // Reset chat when language changes — fresh conversation in new language
   useEffect(() => {
     const name = displayName || '';
     const hour = new Date().getHours();
     const greeting = hour < 12 ? t.chat.greeting_morning : hour < 17 ? t.chat.greeting_afternoon : t.chat.greeting_evening;
     const nameStr = name ? `, ${name}` : '';
 
-    // Only set welcome if no messages yet
-    if (messages.length === 0) {
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        text: `${greeting}${nameStr}! ${t.chat.welcome}`,
-      }]);
-    }
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      text: `${greeting}${nameStr}! ${t.chat.welcome}`,
+    }]);
   }, [lang, displayName, t]);
 
   // Auto-record when arriving via voice FAB (?mic=1)
@@ -87,6 +88,8 @@ export function HomePage() {
     return () => {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       if (autoStopRef.current) window.clearTimeout(autoStopRef.current);
+      if (recognitionRef.current) try { recognitionRef.current.abort(); } catch { /* ignore */ }
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
@@ -126,9 +129,11 @@ export function HomePage() {
     }
   }, [userId, loading, lang, t, addMessage, appendToMessage, updateMessage, setLoading]);
 
-  // --- Read Aloud (TTS) ---
+  // --- Read Aloud (TTS) — ElevenLabs first (via backend), browser fallback ---
   const readAloud = useCallback(async (msgId: string, text: string) => {
     if (speakingId === msgId) {
+      // Stop current playback
+      window.speechSynthesis?.cancel();
       audioRef.current?.pause();
       setSpeakingId(null);
       return;
@@ -136,112 +141,87 @@ export function HomePage() {
 
     setSpeakingId(msgId);
 
+    // Try ElevenLabs / backend TTS first (high quality, uses user's voice)
     try {
       const formData = new FormData();
       formData.append('text', text);
-
-      const res = await fetch('/api/voice/tts-stream', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok || !res.body) {
-        setSpeakingId(null);
-        return;
+      formData.append('user_id', userId);
+      const storeVoiceId = useUserStore.getState().voiceId;
+      if (storeVoiceId) formData.append('voice_id', storeVoiceId);
+      const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: formData });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          if (!audioRef.current) audioRef.current = new Audio();
+          audioRef.current.src = url;
+          audioRef.current.onended = () => { URL.revokeObjectURL(url); setSpeakingId(null); };
+          audioRef.current.onerror = () => { URL.revokeObjectURL(url); setSpeakingId(null); };
+          audioRef.current.play().catch(() => setSpeakingId(null));
+          return;
+        }
       }
+    } catch { /* fall through to browser TTS */ }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (!audioRef.current) audioRef.current = new Audio();
-      audioRef.current.src = url;
-      audioRef.current.onended = () => {
-        URL.revokeObjectURL(url);
-        setSpeakingId(null);
-      };
-      audioRef.current.play().catch(() => setSpeakingId(null));
-    } catch {
-      setSpeakingId(null);
+    // Browser TTS fallback (instant, no network)
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const bcp47 = { en: 'en-SG', mandarin: 'zh-CN', malay: 'ms-MY', tamil: 'ta-IN' }[lang] || 'en-SG';
+      utterance.lang = bcp47;
+      utterance.rate = 0.9;
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find((v) => v.lang.startsWith(bcp47.split('-')[0]));
+      if (match) utterance.voice = match;
+      utterance.onend = () => setSpeakingId(null);
+      utterance.onerror = () => setSpeakingId(null);
+      window.speechSynthesis.speak(utterance);
+      return;
     }
-  }, [speakingId]);
 
-  // --- Voice (STT) ---
-  const mapDialect = (l: string) => {
-    if (l === 'mandarin') return 'mandarin';
-    if (l === 'malay') return 'malay';
-    if (l === 'tamil') return 'tamil';
-    return 'en';
-  };
+    setSpeakingId(null);
+  }, [speakingId, lang, userId]);
 
-  const handleVoiceResult = useCallback(async (blob: Blob) => {
-    if (!blob.size) return;
+  // --- Voice (STT) — Browser SpeechRecognition, Gemini fallback ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const SpeechRecognitionAPI: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const LANG_BCP47: Record<string, string> = { en: 'en-SG', mandarin: 'zh-CN', malay: 'ms-MY', tamil: 'ta-IN' };
 
-    const listenId = `v-${Date.now()}`;
-    addMessage({ id: listenId, role: 'user', text: '...' });
-    setLoading(true);
+  const recognitionRef = useRef<any>(null);
+
+  const handleBrowserSTTResult = useCallback((transcript: string) => {
+    if (!transcript.trim()) return;
+    sendMessage(transcript.trim());
+  }, [sendMessage]);
+
+  const startBrowserSTT = useCallback(() => {
+    if (!SpeechRecognitionAPI) return false;
+    const recognition = new SpeechRecognitionAPI();
+    recognitionRef.current = recognition;
+    recognition.lang = LANG_BCP47[lang] || 'en-SG';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onresult = (event: any) => {
+      setIsRecording(false);
+      const transcript = event.results?.[0]?.[0]?.transcript || '';
+      handleBrowserSTTResult(transcript);
+    };
+    recognition.onerror = () => setIsRecording(false);
+    recognition.onend = () => setIsRecording(false);
 
     try {
-      const formData = new FormData();
-      formData.append('audio', blob, 'voice.webm');
-      formData.append('dialect', mapDialect(lang));
-      formData.append('last_prompt', '');
-      formData.append('use_detected_language', 'false');
-
-      const response = await fetch('/api/voice/turn', { method: 'POST', body: formData });
-      if (!response.ok) throw new Error('Voice request failed');
-
-      const data = await response.json();
-      const transcript = data?.transcript || '';
-
-      updateMessage(listenId, { text: transcript || '(...)' });
-
-      if (data?.reply_audio) {
-        playBase64Audio(data.reply_audio, data.audio_mime_type);
-      }
-
-      if (transcript) {
-        setLoading(false);
-        await new Promise(r => setTimeout(r, 300));
-        sendMessage(transcript);
-      } else {
-        setLoading(false);
-      }
-
-      if (data?.action?.type === 'navigate' && data.action.target) {
-        const routeMap: Record<string, string> = {
-          assessment: '/check', exercises: '/exercises', activity: '/progress', home: '/',
-        };
-        const route = routeMap[data.action.target];
-        if (route) navigate(route);
-      }
+      recognition.start();
+      return true;
     } catch {
-      updateMessage(listenId, { text: t.chat.couldNotHear });
-      setLoading(false);
+      return false;
     }
-  }, [lang, sendMessage, navigate, addMessage, updateMessage, setLoading]);
+  }, [lang, handleBrowserSTTResult]);
 
-  const playBase64Audio = (base64: string, mimeType = 'audio/mpeg') => {
-    try {
-      const byteChars = atob(base64);
-      const bytes = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      if (!audioRef.current) audioRef.current = new Audio();
-      audioRef.current.src = url;
-      audioRef.current.onended = () => URL.revokeObjectURL(url);
-      audioRef.current.play().catch(() => {});
-    } catch { /* silent */ }
-  };
-
-  const stopRecording = useCallback(() => {
-    if (autoStopRef.current) { window.clearTimeout(autoStopRef.current); autoStopRef.current = null; }
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-    setIsRecording(false);
-  }, []);
-
-  const startRecording = useCallback(async () => {
-    if (isRecording || loading) return;
+  // Gemini fallback for browsers without SpeechRecognition
+  const startGeminiFallbackSTT = useCallback(async () => {
     try {
       setIsRecording(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -249,16 +229,66 @@ export function HomePage() {
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
-        handleVoiceResult(new Blob(chunksRef.current, { type: 'audio/webm' }));
+        setIsRecording(false);
+
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (!blob.size) return;
+
+        const listenId = `v-${Date.now()}`;
+        addMessage({ id: listenId, role: 'user', text: '...' });
+        setLoading(true);
+
+        try {
+          const fd = new FormData();
+          fd.append('audio', blob, 'voice.webm');
+          const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd });
+          if (!res.ok) throw new Error('Transcription failed');
+          const data = await res.json();
+          const transcript = data?.transcript || '';
+          updateMessage(listenId, { text: transcript || '(...)' });
+          if (transcript) {
+            setLoading(false);
+            sendMessage(transcript);
+          } else {
+            setLoading(false);
+          }
+        } catch {
+          updateMessage(listenId, { text: t.chat.couldNotHear });
+          setLoading(false);
+        }
       };
       recorderRef.current = recorder;
       recorder.start();
-      autoStopRef.current = window.setTimeout(stopRecording, MAX_RECORD_MS);
+      autoStopRef.current = window.setTimeout(stopGeminiRecording, MAX_RECORD_MS);
     } catch { setIsRecording(false); }
-  }, [isRecording, loading, handleVoiceResult, stopRecording]);
+  }, [sendMessage, addMessage, updateMessage, setLoading, t]);
+
+  const stopGeminiRecording = useCallback(() => {
+    if (autoStopRef.current) { window.clearTimeout(autoStopRef.current); autoStopRef.current = null; }
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(() => {
+    if (isRecording || loading) return;
+    // Try browser STT first (instant), fall back to Gemini
+    if (!startBrowserSTT()) {
+      startGeminiFallbackSTT();
+    }
+  }, [isRecording, loading, startBrowserSTT, startGeminiFallbackSTT]);
+
+  const stopRecording = useCallback(() => {
+    // Stop browser STT
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+    }
+    // Stop Gemini fallback
+    stopGeminiRecording();
+  }, [stopGeminiRecording]);
 
   const handleSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
@@ -289,9 +319,7 @@ export function HomePage() {
               )}
               <div className="chat-content">
                 <div className="chat-text">
-                  {msg.text ? msg.text.split('\n').map((line, i) => (
-                    <p key={i}>{line || '\u00A0'}</p>
-                  )) : (
+                  {msg.text ? <Markdown text={msg.text} /> : (
                     loading && msg.id === streamMsgId.current && (
                       <div className="chat-typing-row">
                         <div className="chat-typing"><span /><span /><span /></div>
@@ -322,11 +350,11 @@ export function HomePage() {
 
                 {msg.actions && msg.actions.length > 0 && (
                   <div className="chat-actions">
-                    {msg.actions.map((action) => (
+                    {msg.actions.map((action, i) => (
                       <button
-                        key={action.route}
+                        key={action.route || action.prompt || i}
                         className="chat-action-btn"
-                        onClick={() => navigate(action.route)}
+                        onClick={() => action.prompt ? sendMessage(action.prompt) : action.route ? navigate(action.route) : null}
                       >
                         {action.label}
                       </button>

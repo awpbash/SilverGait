@@ -33,6 +33,31 @@ export function MorePage() {
       accent: 'var(--olive-700)',
     },
     {
+      id: 'sleep',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+      label: (t as any).more?.sleep || 'Sleep & Wellness',
+      description: (t as any).more?.sleepDesc || 'Personalized sleep advice',
+      route: '/sleep',
+      accent: '#5e5ce6',
+    },
+    {
+      id: 'wearables',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <rect x="3" y="6" width="18" height="12" rx="3" />
+          <path d="M7 12h2l2-3 2 6 2-3h2" />
+        </svg>
+      ),
+      label: (t as any).more?.wearables || 'Wearables',
+      description: (t as any).more?.wearablesDesc || 'Sync steps & sleep from your device',
+      route: '/wearables',
+      accent: '#30d158',
+    },
+    {
       id: 'community',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -58,6 +83,20 @@ export function MorePage() {
       description: t.more.caregiverDesc,
       route: '/caregiver',
       accent: '#e8475f',
+    },
+    {
+      id: 'voice',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3z" />
+          <path d="M19 11a7 7 0 0 1-14 0" />
+          <path d="M12 18v3" />
+        </svg>
+      ),
+      label: t.more.voiceSettings || 'Voice Settings',
+      description: t.more.voiceSettingsDesc || 'Choose or clone a voice',
+      route: '/voice-settings',
+      accent: '#8b5cf6',
     },
     {
       id: 'help',

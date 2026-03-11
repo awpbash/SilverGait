@@ -3,18 +3,21 @@
  * Extracted from AssessmentPage.
  */
 
+import { useState } from 'react';
 import { AppHeader, ScoreRing, MovementGraph } from './index';
 import { tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
 import type { AssessmentResult } from '../types';
 import type { MetricsTimeSeries } from '../hooks/usePoseMetrics';
-import { computeTotalScore, ALL_TEST_IDS, type AssessmentTestId } from '../hooks/useAssessmentFlow';
+import type { PoseMetricsSummary } from '../utils/poseMetrics';
+import { computeTotalScore, computeMaxScore, ALL_TEST_IDS, type AssessmentTestId } from '../hooks/useAssessmentFlow';
 
 interface AssessmentResultViewProps {
   t: Translations;
   assessment: AssessmentResult;
   history: AssessmentResult[];
   testTimeSeries: Partial<Record<AssessmentTestId, MetricsTimeSeries>>;
+  testMetrics?: Partial<Record<AssessmentTestId, PoseMetricsSummary>>;
   showDetails: boolean;
   onSetShowDetails: (fn: (v: boolean) => boolean) => void;
   onReset: () => void;
@@ -26,12 +29,14 @@ export function AssessmentResultView({
   assessment,
   history,
   testTimeSeries,
+  testMetrics,
   showDetails,
   onSetShowDetails,
   onReset,
   onNavigateExercises,
 }: AssessmentResultViewProps) {
   const totalScore = computeTotalScore(assessment);
+  const maxScore = computeMaxScore(assessment);
   const breakdown = assessment.sppb_breakdown;
   const balanceScore = breakdown?.balance_score ?? Math.round(assessment.score / 3);
   const gaitScore = breakdown?.gait_score ?? Math.round(assessment.score / 3);
@@ -46,17 +51,18 @@ export function AssessmentResultView({
   const previousTotal = previous ? computeTotalScore(previous) : null;
   const delta = previousTotal !== null ? totalScore - previousTotal : null;
 
-  const scoreLabel = totalScore >= 10 ? t.activity.good : totalScore >= 6 ? t.activity.fair : t.activity.needsWork;
+  const ratio = maxScore > 0 ? totalScore / maxScore : 0;
+  const scoreLabel = ratio >= 0.75 ? t.activity.good : ratio >= 0.5 ? t.activity.fair : t.activity.needsWork;
   const resultEncouragement =
-    totalScore >= 10
+    ratio >= 0.75
       ? t.assessment.greatJob + ' ' + t.assessment.defaultRec1
-      : totalScore >= 6
+      : ratio >= 0.5
       ? t.assessment.defaultRec1 + ' ' + t.assessment.defaultRec2
       : t.assessment.defaultRec3 + ' ' + t.assessment.defaultRec2;
-  const showDoctorNote = totalScore < 6;
+  const showDoctorNote = ratio < 0.5;
 
   const testEmoji = (score: number) =>
-    score >= 4 ? 'Excellent' : score >= 3 ? 'Good' : score >= 2 ? 'Fair' : 'Practice';
+    score >= 4 ? t.assessment.badgeExcellent : score >= 3 ? t.assessment.badgeGood : score >= 2 ? t.assessment.badgeFair : t.assessment.badgePractice;
 
   const testCards: { id: AssessmentTestId; label: string; score: number }[] = [];
   if (showBalance) testCards.push({ id: 'balance', label: t.activity.balance, score: balanceScore });
@@ -64,6 +70,8 @@ export function AssessmentResultView({
   if (showChair) testCards.push({ id: 'chair_stand', label: t.activity.chair, score: chairScore });
 
   const hasGraphs = Object.keys(testTimeSeries).length > 0;
+  const hasMetrics = testMetrics && Object.keys(testMetrics).length > 0;
+  const [showClinical, setShowClinical] = useState(false);
 
   return (
     <div className="page result-page">
@@ -79,7 +87,7 @@ export function AssessmentResultView({
         )}
 
         <div className="result-score-ring">
-          <ScoreRing score={totalScore} maxScore={12} size="lg" label={scoreLabel} />
+          <ScoreRing score={totalScore} maxScore={maxScore} size="lg" label={scoreLabel} />
         </div>
 
         {delta !== null && (
@@ -101,7 +109,7 @@ export function AssessmentResultView({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--danger)">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
             </svg>
-            <span>Please talk to your doctor about this result.</span>
+            <span>{t.assessment.talkToDoctor}</span>
           </div>
         )}
 
@@ -193,6 +201,77 @@ export function AssessmentResultView({
         </div>
       )}
 
+      {/* Clinical Details — hidden by default, for medical professionals */}
+      {hasMetrics && (
+        <>
+          <button
+            type="button"
+            className="result-detail-toggle clinical-toggle"
+            onClick={() => setShowClinical((prev) => !prev)}
+          >
+            <span>{showClinical ? t.assessment.hideClinical : t.assessment.showClinical}</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" style={{ transform: showClinical ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M5 7l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          {showClinical && (
+            <div className="clinical-details">
+              <p className="clinical-disclaimer">{t.assessment.clinicalDisclaimer}</p>
+
+              {showBalance && testMetrics?.balance && (
+                <div className="clinical-section">
+                  <h4>{t.assessment.balance} — {t.assessment.clinicalPostural}</h4>
+                  <ClinicalTable rows={[
+                    [t.assessment.clinicalSwayRMS, testMetrics.balance.swayRMS, 'px'],
+                    [t.assessment.clinicalSwayML, testMetrics.balance.swayML, 'px'],
+                    [t.assessment.clinicalSwayAP, testMetrics.balance.swayAP, 'px'],
+                    [t.assessment.clinicalSwayVelocity, testMetrics.balance.swayVelocity, 'px/frame'],
+                    [t.assessment.clinicalSwayArea, testMetrics.balance.swayArea, 'px\u00B2'],
+                    [t.assessment.clinicalTrunkLean, testMetrics.balance.trunkLean.avg, '\u00B0'],
+                    [t.assessment.clinicalTrunkLeanMax, testMetrics.balance.trunkLean.max, '\u00B0'],
+                    [t.assessment.clinicalTrunkVar, testMetrics.balance.trunkLeanVariability, '\u00B0'],
+                    [t.assessment.clinicalStanceWidth, testMetrics.balance.stanceWidth.avg, 'px'],
+                  ]} />
+                </div>
+              )}
+
+              {showGait && testMetrics?.gait && (
+                <div className="clinical-section">
+                  <h4>{t.assessment.gait} — {t.assessment.clinicalMobility}</h4>
+                  <ClinicalTable rows={[
+                    [t.assessment.clinicalGaitSpeed, testMetrics.gait.estimatedGaitSpeed, 'px/s'],
+                    [t.assessment.clinicalStepCount, testMetrics.gait.stepCount, ''],
+                    [t.assessment.clinicalCadence, testMetrics.gait.cadence, 'steps/min'],
+                    [t.assessment.clinicalStepSymmetry, testMetrics.gait.stepSymmetryIndex, '%'],
+                    [t.assessment.clinicalRhythmVar, testMetrics.gait.gaitRhythmVariability, '% CV'],
+                    [t.assessment.clinicalDoubleSupport, Math.round(testMetrics.gait.doubleSupportRatio * 100), '%'],
+                    [t.assessment.clinicalArmSymmetry, Math.round(testMetrics.gait.armSwing.symmetry * 100), '%'],
+                    [t.assessment.clinicalTrunkLean, testMetrics.gait.trunkLean.avg, '\u00B0'],
+                  ]} />
+                </div>
+              )}
+
+              {showChair && testMetrics?.chair_stand && (
+                <div className="clinical-section">
+                  <h4>{t.assessment.chairStand} — {t.assessment.clinicalStrength}</h4>
+                  <ClinicalTable rows={[
+                    [t.assessment.clinicalRepCount, testMetrics.chair_stand.refinedRepCount, ''],
+                    [t.assessment.clinicalAvgRepTime, testMetrics.chair_stand.avgRepTime > 0 ? (testMetrics.chair_stand.avgRepTime / 1000).toFixed(1) : '—', 's'],
+                    [t.assessment.clinicalRepConsistency, testMetrics.chair_stand.repConsistency, '% CV'],
+                    [t.assessment.clinicalPeakTrunkLean, testMetrics.chair_stand.peakTrunkLeanDuringRise, '\u00B0'],
+                    [t.assessment.clinicalTransitionSpeed, testMetrics.chair_stand.transitionSpeed, '\u00B0/frame'],
+                    [t.assessment.clinicalKneeRange, testMetrics.chair_stand.kneeAngle.range, '\u00B0'],
+                  ]} />
+                </div>
+              )}
+
+              <p className="clinical-footnote">{t.assessment.clinicalFootnote}</p>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Actions */}
       <div className="result-actions">
         <button type="button" className="btn-primary" onClick={onNavigateExercises}>
@@ -203,5 +282,21 @@ export function AssessmentResultView({
         </button>
       </div>
     </div>
+  );
+}
+
+/** Simple metric table for clinical section */
+function ClinicalTable({ rows }: { rows: [string, number | string, string][] }) {
+  return (
+    <table className="clinical-table">
+      <tbody>
+        {rows.map(([label, value, unit]) => (
+          <tr key={label}>
+            <td className="clinical-label">{label}</td>
+            <td className="clinical-value">{value}{unit ? <span className="clinical-unit"> {unit}</span> : null}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

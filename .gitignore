@@ -44,7 +44,6 @@ backend/.env
 *.swp
 *.swo
 *~
-.DS_Store
 *.code-workspace
 
 # Build outputs
@@ -79,7 +78,6 @@ coverage.xml
 *.temp
 .cache/
 *.bak
-*.swp
 
 # OS files
 Thumbs.db
@@ -98,6 +96,10 @@ uploads/
 *.avi
 *.mkv
 
+# Allow demo assets (override video/media ignores above)
+!demo/
+!demo/**
+
 # Secrets (never commit)
 *.pem
 *.key
@@ -106,22 +108,33 @@ secrets.json
 *.pfx
 *.p12
 
-# Claude AI files
+# Claude AI
 claude_history.json
-.claude
+.claude/
+CLAUDE.md
 
 # Database files
-*.db
+backend/data/*.db
+backend/data/*.log*
 *.sqlite
 *.sqlite3
 
 # Compiled files
 *.pyc
 *.pyo
-*.so
 *.dll
 *.dylib
 
 # Package manager lock files
 package-lock.json
 yarn.lock
+
+# Corepack cache
+.corepack/
+
+# Nested repos / experiments
+/SilverGaitAgent
+/skills/
+
+# Jupyter notebooks
+*.ipynb

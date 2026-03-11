@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, ScoreRing } from '../components';
-import { useAssessmentStore } from '../stores';
-import { useT } from '../i18n';
+import { useAssessmentStore, useUserStore } from '../stores';
+import { useT, tpl } from '../i18n';
 import { computeTotal } from '../utils/scoring';
 import { formatShortDate } from '../utils/formatting';
 import { useExerciseStats } from '../hooks/useExerciseStats';
@@ -16,18 +16,22 @@ function getMonday(d: Date): Date {
   return date;
 }
 
-function formatWeekLabel(monday: Date): string {
+function formatWeekLabel(monday: Date, locale: string): string {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+  const fmt = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   return `${fmt(monday)} \u2013 ${fmt(sunday)}`;
 }
+
+const localeMap: Record<string, string> = { en: 'en-SG', zh: 'zh-SG', ms: 'ms-SG', ta: 'ta-SG' };
 
 export function ReportPage() {
   const navigate = useNavigate();
   const { history } = useAssessmentStore();
+  const { preferredLanguage } = useUserStore();
   const t = useT();
   const exerciseStats = useExerciseStats(7);
+  const locale = localeMap[preferredLanguage || 'en'] || 'en-SG';
 
   const report = useMemo(() => {
     const monday = getMonday(new Date());
@@ -92,13 +96,13 @@ export function ReportPage() {
       insights.push(t.report.exerciseMore);
     }
     if (exerciseStats.streak >= 3) {
-      insights.push(`${exerciseStats.streak}-day exercise streak! Keep it up.`);
+      insights.push(tpl(t.report.exerciseStreak, { count: exerciseStats.streak }));
     }
 
     const delta = prevAvg !== null ? avgScore - prevAvg : null;
 
     return {
-      weekLabel: formatWeekLabel(monday),
+      weekLabel: formatWeekLabel(monday, locale),
       avgScore,
       prevAvg,
       delta,
@@ -109,23 +113,23 @@ export function ReportPage() {
       chartData,
       insights: insights.slice(0, 3),
     };
-  }, [history, exerciseStats, t]);
+  }, [history, exerciseStats, t, locale]);
 
   const deltaText = report.delta !== null
-    ? `${report.delta >= 0 ? '+' : ''}${report.delta} from last week`
+    ? tpl(t.report.deltaFromLast, { delta: `${report.delta >= 0 ? '+' : ''}${report.delta}` })
     : t.report.firstWeek;
 
   const handleShare = async () => {
-    const text = `SilverGait Weekly Report (${report.weekLabel})\n\n` +
-      `SPPB Score: ${report.avgScore}/12\n` +
-      `Assessments: ${report.weekAssessments}\n` +
-      `Exercise Days: ${report.exerciseDays}/7\n` +
-      `Total Exercises: ${report.totalWeekExercises}\n` +
-      `Streak: ${report.streak} days\n\n` +
-      `Insights:\n${report.insights.map((ins, i) => `${i + 1}. ${ins}`).join('\n')}`;
+    const text = `${t.report.shareTitle} (${report.weekLabel})\n\n` +
+      `${tpl(t.report.shareSppb, { score: report.avgScore })}\n` +
+      `${tpl(t.report.shareAssessments, { count: report.weekAssessments })}\n` +
+      `${tpl(t.report.shareExDays, { count: report.exerciseDays })}\n` +
+      `${tpl(t.report.shareTotalEx, { count: report.totalWeekExercises })}\n` +
+      `${tpl(t.report.shareStreak, { count: report.streak })}\n\n` +
+      `${t.report.shareInsights}\n${report.insights.map((ins, i) => `${i + 1}. ${ins}`).join('\n')}`;
 
     if (navigator.share) {
-      try { await navigator.share({ title: 'SilverGait Weekly Report', text }); } catch { /* cancelled */ }
+      try { await navigator.share({ title: t.report.shareTitle, text }); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(text);
     }
@@ -160,11 +164,11 @@ export function ReportPage() {
         </div>
         <div className="report-stat-card">
           <strong>{report.totalWeekExercises}</strong>
-          <span>Exercises</span>
+          <span>{t.report.exercises}</span>
         </div>
         <div className="report-stat-card">
           <strong>{report.streak}d</strong>
-          <span>Streak</span>
+          <span>{t.report.streak}</span>
         </div>
       </div>
 

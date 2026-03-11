@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SilverGait — LangGraph Pipeline Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root, [data-theme="light"] {
+    --bg: #f5f4f0;
+    --card: #ffffff;
+    --text: #111;
+    --text-secondary: #333;
+    --text-muted: #555;
+    --border: #ccc9c2;
+    --border-light: #dddad4;
+    --det: #e8eef4; --det-s: #5a7a96; --det-t: #1e3a54;
+    --llm: #fdf3e4; --llm-s: #b87830; --llm-t: #6b3d0a;
+    --dec: #ede6f6; --dec-s: #7550a0; --dec-t: #3e2068;
+    --trg: #e4f5ea; --trg-s: #4a9060; --trg-t: #1a4028;
+    --db: #f5e8e8; --db-s: #9e5050; --db-t: #5a1a1a;
+    --api: #e2f1f5; --api-s: #3a8898; --api-t: #1a4852;
+    --edge: #666; --e-ch: #b87830; --e-un: #5a7a96; --e-fn: #7550a0; --e-fr: #4a9060;
+    --accent: #1a2a3a;
+    --toggle-icon: #555;
+  }
+  [data-theme="dark"] {
+    --bg: #121418; --card: #1a1d24;
+    --text: #e8e6e1; --text-secondary: #b8b4ad; --text-muted: #8a8680;
+    --border: #2e3038; --border-light: #252830;
+    --det: #1a2230; --det-s: #5a8ab0; --det-t: #a0c4e0;
+    --llm: #2a2010; --llm-s: #d09040; --llm-t: #e8b868;
+    --dec: #201830; --dec-s: #9070c0; --dec-t: #c0a8e0;
+    --trg: #142818; --trg-s: #60b070; --trg-t: #90d8a0;
+    --db: #281818; --db-s: #c06060; --db-t: #e09090;
+    --api: #142830; --api-s: #50a8b8; --api-t: #88d0e0;
+    --edge: #888; --e-ch: #d09040; --e-un: #5a8ab0; --e-fn: #9070c0; --e-fr: #60b070;
+    --accent: #e0dcd6;
+    --toggle-icon: #b8b4ad;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased; transition:background .3s,color .3s; }
+  .page { max-width:1140px; margin:0 auto; padding:60px 40px 100px; }
+
+  /* Toggle */
+  .theme-toggle { position:fixed; top:20px; right:24px; z-index:100; width:44px; height:44px; border-radius:50%; border:1.5px solid var(--border); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .3s,border-color .3s,transform .15s; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+  .theme-toggle:hover { transform:scale(1.08); }
+  .theme-toggle svg { width:20px; height:20px; stroke:var(--toggle-icon); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; transition:stroke .3s; }
+  .theme-toggle .icon-sun { display:none; }
+  .theme-toggle .icon-moon { display:block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display:block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display:none; }
+
+  /* Header */
+  .page-header { text-align:center; margin-bottom:72px; opacity:0; animation:fadeUp .8s ease forwards; }
+  .page-header .kicker { font-family:'IBM Plex Mono',monospace; font-size:.8rem; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; }
+  .page-header h1 { font-family:'DM Serif Display',serif; font-size:clamp(2.2rem,4.5vw,3.2rem); font-weight:400; color:var(--accent); letter-spacing:-.02em; line-height:1.15; margin-bottom:16px; }
+  .page-header .subtitle { font-size:1.05rem; font-weight:400; color:var(--text-secondary); max-width:640px; margin:0 auto; }
+
+  /* Section */
+  .section { margin-bottom:80px; opacity:0; animation:fadeUp .8s ease forwards; }
+  .section:nth-child(2) { animation-delay:.12s; }
+  .section:nth-child(3) { animation-delay:.24s; }
+  .section:nth-child(4) { animation-delay:.36s; }
+  .section:nth-child(5) { animation-delay:.48s; }
+  .section-number { font-family:'DM Serif Display',serif; font-size:.95rem; color:var(--text-muted); margin-bottom:6px; }
+  .section h2 { font-family:'DM Serif Display',serif; font-size:clamp(1.6rem,2.8vw,2rem); font-weight:400; color:var(--accent); margin-bottom:6px; }
+  .section .section-meta { font-family:'IBM Plex Mono',monospace; font-size:.82rem; color:var(--text-muted); margin-bottom:24px; letter-spacing:.04em; }
+  .section-desc { font-size:1rem; font-weight:400; color:var(--text-secondary); margin-bottom:32px; max-width:740px; line-height:1.75; }
+
+  /* Diagram */
+  .diagram-wrap { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:40px 24px; overflow-x:auto; margin-bottom:24px; transition:background .3s,border-color .3s; }
+  .diagram-wrap svg { display:block; margin:0 auto; }
+
+  /* Legend */
+  .legend { display:flex; flex-wrap:wrap; gap:20px; margin-top:16px; padding:16px 20px; background:var(--card); border:1px solid var(--border-light); border-radius:6px; transition:background .3s,border-color .3s; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--text-secondary); }
+  .legend-swatch { width:20px; height:14px; border-radius:3px; border:1.5px solid; flex-shrink:0; }
+  .legend-line { width:24px; height:2px; flex-shrink:0; border-radius:1px; }
+
+  /* Triggers */
+  .triggers { margin-bottom:32px; }
+  .triggers h3 { font-family:'IBM Plex Mono',monospace; font-size:.8rem; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px; }
+  .trigger-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .trigger-tag { font-family:'IBM Plex Mono',monospace; font-size:.8rem; font-weight:500; padding:5px 14px; border-radius:20px; background:var(--trg); border:1px solid var(--trg-s); color:var(--trg-t); transition:background .3s,border-color .3s,color .3s; }
+
+  /* Data flow grid */
+  .data-flow-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px; }
+  .flow-card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:24px; transition:background .3s,border-color .3s; }
+  .flow-card h3 { font-family:'IBM Plex Mono',monospace; font-size:.82rem; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px; }
+  .flow-card .arrow-label { font-family:'IBM Plex Mono',monospace; font-size:.78rem; font-weight:500; display:inline-block; padding:3px 10px; border-radius:3px; margin-bottom:10px; }
+  .arrow-writes { background:var(--llm); color:var(--llm-t); }
+  .arrow-reads { background:var(--det); color:var(--det-t); }
+  .flow-tables { font-family:'IBM Plex Mono',monospace; font-size:.82rem; color:var(--text-secondary); line-height:1.9; }
+  .flow-tables span { display:inline-block; background:var(--bg); padding:2px 8px; border-radius:3px; margin:2px 4px 2px 0; border:1px solid var(--border-light); transition:background .3s,border-color .3s; }
+  .flow-card p { font-size:.92rem; color:var(--text-secondary); line-height:1.75; }
+  .flow-card code { font-family:'IBM Plex Mono',monospace; font-size:.84rem; background:var(--bg); padding:1px 6px; border-radius:2px; transition:background .3s; }
+
+  /* API card grid */
+  .api-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:28px; }
+  .api-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:24px; transition:background .3s,border-color .3s; }
+  .api-card .api-badge { font-family:'IBM Plex Mono',monospace; font-size:.7rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; display:inline-block; padding:3px 10px; border-radius:12px; margin-bottom:12px; }
+  .api-card h3 { font-family:'IBM Plex Mono',monospace; font-size:1rem; font-weight:600; margin-bottom:4px; }
+  .api-card .api-model { font-size:.82rem; color:var(--text-muted); margin-bottom:12px; }
+  .api-card ul { list-style:none; padding:0; }
+  .api-card li { font-size:.88rem; color:var(--text-secondary); line-height:1.7; padding-left:16px; position:relative; }
+  .api-card li::before { content:''; position:absolute; left:0; top:9px; width:6px; height:6px; border-radius:50%; }
+
+  .sep { height:1px; background:var(--border); margin:64px 0; transition:background .3s; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @media(max-width:768px) { .page{padding:32px 16px 60px} .diagram-wrap{padding:20px 8px} .data-flow-grid,.api-grid{grid-template-columns:1fr} .theme-toggle{top:12px;right:12px;width:38px;height:38px} }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<div class="page">
+
+  <header class="page-header">
+    <div class="kicker">SilverGait Technical Reference</div>
+    <h1>LangGraph Pipeline Architecture</h1>
+    <p class="subtitle">Two-graph system for elderly frailty management. Assessment is fully deterministic. Chat orchestrates LLM sub-agents via Gemini function calling.</p>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: Assessment Graph                 -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-number">01</div>
+    <h2>Assessment Graph</h2>
+    <div class="section-meta">0 LLM calls &middot; Fully deterministic &middot; assessment_graph.py</div>
+    <p class="section-desc">Scores raw health inputs, classifies frailty tier, and conditionally updates care plans and alerts. Every node is deterministic&mdash;no LLM variance in critical clinical classification.</p>
+
+    <div class="triggers">
+      <h3>Triggers</h3>
+      <div class="trigger-list">
+        <span class="trigger-tag">Onboarding</span>
+        <span class="trigger-tag">Video Assessment</span>
+        <span class="trigger-tag">Profile Update</span>
+        <span class="trigger-tag">Biweekly Recheck</span>
+      </div>
+    </div>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 960 640" width="960" height="640" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+        <defs>
+          <marker id="a1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--edge)" stroke-width="1.2"/></marker>
+          <marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--e-ch)" stroke-width="1.2"/></marker>
+          <marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--e-un)" stroke-width="1.2"/></marker>
+          <marker id="a4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--trg-s)" stroke-width="1.2"/></marker>
+          <marker id="a5" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--db-s)" stroke-width="1.2"/></marker>
+        </defs>
+
+        <!-- Trigger -->
+        <line x1="20" y1="80" x2="72" y2="80" stroke="var(--trg-s)" stroke-width="1.5" marker-end="url(#a4)" stroke-dasharray="4,3"/>
+        <text x="8" y="62" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--trg-t)" font-weight="500">triggers</text>
+
+        <!-- score_node -->
+        <rect x="78" y="52" width="170" height="62" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="163" y="77" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">score_node</text>
+        <text x="163" y="98" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="11" fill="var(--text-muted)">Katz ADL, CFS, SPPB</text>
+        <!-- annotations -->
+        <text x="163" y="142" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">score_katz() &rarr; 0-6</text>
+        <text x="163" y="158" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">score_cfs() &rarr; 1-9</text>
+        <text x="163" y="174" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">score_sppb() &rarr; 0-12</text>
+
+        <!-- edge -->
+        <line x1="248" y1="83" x2="308" y2="83" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#a1)"/>
+
+        <!-- classify_node -->
+        <rect x="314" y="52" width="170" height="62" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="399" y="77" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">classify_node</text>
+        <text x="399" y="98" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="11" fill="var(--text-muted)">classify_frailty() &rarr; tier</text>
+        <text x="399" y="142" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">robust | pre_frail</text>
+        <text x="399" y="158" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">frail | severely_frail</text>
+
+        <!-- edge -->
+        <line x1="484" y1="83" x2="530" y2="83" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#a1)"/>
+
+        <!-- tier_change_router diamond -->
+        <polygon points="590,38 655,83 590,128 525,83" fill="var(--dec)" stroke="var(--dec-s)" stroke-width="1.5"/>
+        <text x="590" y="79" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="600" fill="var(--dec-t)">tier_change</text>
+        <text x="590" y="94" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="600" fill="var(--dec-t)">_router</text>
+
+        <!-- CHANGED path down -->
+        <line x1="590" y1="128" x2="590" y2="230" stroke="var(--e-ch)" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="602" y="165" width="70" height="22" rx="4" fill="var(--llm)" stroke="var(--e-ch)" stroke-width="1"/>
+        <text x="637" y="180" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="500" fill="var(--llm-t)">changed</text>
+
+        <!-- update_plans_node -->
+        <rect x="480" y="236" width="220" height="62" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="590" y="261" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--det-t)">update_plans_node</text>
+        <text x="590" y="283" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">route_care() &rarr; build CarePlans</text>
+        <text x="448" y="258" text-anchor="end" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">Supersedes old</text>
+        <text x="448" y="274" text-anchor="end" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">CarePlans in DB</text>
+
+        <!-- edge -->
+        <line x1="590" y1="298" x2="590" y2="370" stroke="var(--e-ch)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+        <!-- notify_node -->
+        <rect x="480" y="376" width="220" height="62" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="590" y="401" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">notify_node</text>
+        <text x="590" y="423" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">Alert if tier declined / improved</text>
+        <text x="448" y="398" text-anchor="end" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">No alert on</text>
+        <text x="448" y="414" text-anchor="end" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">first evaluation</text>
+
+        <!-- edge: notify → persist -->
+        <line x1="700" y1="407" x2="750" y2="407" stroke="var(--e-ch)" stroke-width="1.5"/>
+        <line x1="750" y1="407" x2="750" y2="536" stroke="var(--e-ch)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+        <!-- UNCHANGED path (dashed, right + down) -->
+        <line x1="655" y1="83" x2="750" y2="83" stroke="var(--e-un)" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <line x1="750" y1="83" x2="750" y2="536" stroke="var(--e-un)" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#a3)"/>
+        <rect x="758" y="130" width="86" height="22" rx="4" fill="var(--det)" stroke="var(--e-un)" stroke-width="1"/>
+        <text x="801" y="145" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--det-t)">unchanged</text>
+
+        <!-- persist_node -->
+        <rect x="660" y="542" width="180" height="62" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="750" y="567" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">persist_node</text>
+        <text x="750" y="589" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">FrailtyEvaluation + AgentRun</text>
+
+        <!-- DB cylinder -->
+        <ellipse cx="900" cy="562" rx="32" ry="11" fill="var(--db)" stroke="var(--db-s)" stroke-width="1.2"/>
+        <rect x="868" y="562" width="64" height="26" fill="var(--db)" stroke="none"/>
+        <line x1="868" y1="562" x2="868" y2="588" stroke="var(--db-s)" stroke-width="1.2"/>
+        <line x1="932" y1="562" x2="932" y2="588" stroke="var(--db-s)" stroke-width="1.2"/>
+        <ellipse cx="900" cy="588" rx="32" ry="11" fill="var(--db)" stroke="var(--db-s)" stroke-width="1.2"/>
+        <text x="900" y="580" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="500" fill="var(--db-t)">SQLite</text>
+        <line x1="840" y1="573" x2="866" y2="573" stroke="var(--db-s)" stroke-width="1.2" marker-end="url(#a5)"/>
+        <text x="853" y="564" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--db-t)">write</text>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--det);border-color:var(--det-s)"></div>Deterministic node</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--dec);border-color:var(--dec-s);border-radius:2px;transform:rotate(45deg);width:14px;height:14px"></div>Decision router</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--trg);border-color:var(--trg-s)"></div>Trigger</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--e-ch)"></div>Changed path</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--e-un);background-image:repeating-linear-gradient(90deg,var(--e-un) 0 6px,transparent 6px 9px)"></div>Unchanged (skip)</div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2: Chat Graph                       -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-number">02</div>
+    <h2>Chat Graph</h2>
+    <div class="section-meta">1&ndash;5 LLM calls &middot; Gemini function calling &middot; chat_graph.py</div>
+    <p class="section-desc">Assembles full user context from the database, invokes Gemini 2.5 Flash with function calling, optionally dispatches to management sub-agents, then applies safety pattern matching before persisting.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 960 640" width="960" height="640" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+        <defs>
+          <marker id="c1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--edge)" stroke-width="1.2"/></marker>
+          <marker id="c2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--e-fn)" stroke-width="1.2"/></marker>
+          <marker id="c3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--e-fr)" stroke-width="1.2"/></marker>
+        </defs>
+
+        <!-- Entry -->
+        <text x="8" y="53" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-muted)" font-weight="500">user message</text>
+        <line x1="20" y1="70" x2="72" y2="70" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#c1)"/>
+
+        <!-- context_assembly -->
+        <rect x="78" y="42" width="210" height="60" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="183" y="67" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">context_assembly</text>
+        <text x="183" y="87" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">build_user_context() &rarr; prompt</text>
+        <!-- DB icon -->
+        <ellipse cx="183" cy="135" rx="24" ry="7" fill="var(--db)" stroke="var(--db-s)" stroke-width="1"/>
+        <rect x="159" y="135" width="48" height="16" fill="var(--db)" stroke="none"/>
+        <line x1="159" y1="135" x2="159" y2="151" stroke="var(--db-s)" stroke-width="1"/>
+        <line x1="207" y1="135" x2="207" y2="151" stroke="var(--db-s)" stroke-width="1"/>
+        <ellipse cx="183" cy="151" rx="24" ry="7" fill="var(--db)" stroke="var(--db-s)" stroke-width="1"/>
+        <text x="183" y="147" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="8" fill="var(--db-t)">DB</text>
+        <line x1="183" y1="102" x2="183" y2="126" stroke="var(--db-s)" stroke-width="1" stroke-dasharray="3,2"/>
+        <text x="218" y="118" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--db-t)">10+ queries</text>
+
+        <!-- edge -->
+        <line x1="288" y1="72" x2="354" y2="72" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#c1)"/>
+
+        <!-- agent_node (LLM) -->
+        <rect x="360" y="38" width="200" height="68" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.5"/>
+        <text x="460" y="62" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--llm-t)">agent_node</text>
+        <text x="460" y="80" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="11" fill="var(--text-muted)">Gemini 2.5 Flash</text>
+        <text x="460" y="96" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--llm-t)">1st call &rarr; [tool?] &rarr; 2nd call</text>
+
+        <!-- edge -->
+        <line x1="560" y1="72" x2="630" y2="72" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#c1)"/>
+        <text x="595" y="60" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--text-muted)">streams SSE</text>
+
+        <!-- safety_gate -->
+        <rect x="636" y="42" width="170" height="60" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="721" y="67" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">safety_gate</text>
+        <text x="721" y="87" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">falls, emergency, distress</text>
+        <!-- annotations -->
+        <text x="721" y="124" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">fell / chest pain / want to die</text>
+        <text x="721" y="140" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">jatuh / &#x8DCC;&#x5012; / &#xB935;&#xBA34;&#xBC1;&#xBA4;</text>
+        <text x="721" y="156" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">&rarr; Alert + safety info appended</text>
+
+        <!-- edge -->
+        <line x1="806" y1="72" x2="858" y2="72" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#c1)"/>
+
+        <!-- persist -->
+        <rect x="864" y="42" width="86" height="60" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="907" y="67" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--det-t)">persist</text>
+        <text x="907" y="85" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">save msgs</text>
+
+        <!-- ── Function calling branch ── -->
+        <line x1="460" y1="106" x2="460" y2="198" stroke="var(--e-fn)" stroke-width="1.5" marker-end="url(#c2)"/>
+        <rect x="468" y="145" width="96" height="22" rx="4" fill="var(--dec)" stroke="var(--e-fn)" stroke-width="1"/>
+        <text x="516" y="160" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--dec-t)">function_call</text>
+
+        <!-- Sub-agent container -->
+        <rect x="80" y="204" width="740" height="240" rx="8" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="96" y="224" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="500" fill="var(--text-muted)" letter-spacing=".06em">SUB-AGENTS (invoked via Gemini function calling)</text>
+
+        <!-- LLM sub-agents -->
+        <rect x="100" y="242" width="158" height="58" rx="5" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2"/>
+        <text x="179" y="263" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Exercise Agent</text>
+        <text x="179" y="279" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">Flash Lite &middot; 1 LLM</text>
+        <text x="179" y="293" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="8.5" fill="var(--llm-t)">4-week program</text>
+
+        <rect x="274" y="242" width="158" height="58" rx="5" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2"/>
+        <text x="353" y="263" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Sleep Agent</text>
+        <text x="353" y="279" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">Flash Lite &middot; 1 LLM</text>
+        <text x="353" y="293" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="8.5" fill="var(--llm-t)">CBT-I + sleep hygiene</text>
+
+        <rect x="448" y="242" width="158" height="58" rx="5" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2"/>
+        <text x="527" y="263" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Education Agent</text>
+        <text x="527" y="279" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">Flash Lite &middot; 1 LLM</text>
+        <text x="527" y="293" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="8.5" fill="var(--llm-t)">Frailty / nutrition</text>
+
+        <rect x="622" y="242" width="158" height="58" rx="5" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2"/>
+        <text x="701" y="263" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Monitoring Agent</text>
+        <text x="701" y="279" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">Flash Lite &middot; 1 LLM</text>
+        <text x="701" y="293" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="8.5" fill="var(--llm-t)">Trend analysis</text>
+
+        <!-- Deterministic sub-agents -->
+        <rect x="200" y="320" width="212" height="46" rx="5" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.2"/>
+        <text x="306" y="340" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" font-weight="600" fill="var(--det-t)">get_progress_summary</text>
+        <text x="306" y="357" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">SPPB/Katz trends &middot; 0 LLM</text>
+
+        <rect x="440" y="320" width="212" height="46" rx="5" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.2"/>
+        <text x="546" y="340" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" font-weight="600" fill="var(--det-t)">alert_caregiver</text>
+        <text x="546" y="357" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">Caregiver notification &middot; 0 LLM</text>
+
+        <!-- Fan lines -->
+        <line x1="460" y1="198" x2="179" y2="242" stroke="var(--e-fn)" stroke-width="1" opacity=".4"/>
+        <line x1="460" y1="198" x2="353" y2="242" stroke="var(--e-fn)" stroke-width="1" opacity=".4"/>
+        <line x1="460" y1="198" x2="527" y2="242" stroke="var(--e-fn)" stroke-width="1" opacity=".4"/>
+        <line x1="460" y1="198" x2="701" y2="242" stroke="var(--e-fn)" stroke-width="1" opacity=".4"/>
+        <line x1="460" y1="198" x2="306" y2="320" stroke="var(--e-fn)" stroke-width="1" opacity=".25"/>
+        <line x1="460" y1="198" x2="546" y2="320" stroke="var(--e-fn)" stroke-width="1" opacity=".25"/>
+
+        <!-- Return path (outside container) -->
+        <path d="M450,444 L450,478 L60,478 L60,72 L78,72" fill="none" stroke="var(--e-fr)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#c3)"/>
+
+        <!-- Labels on return path -->
+        <rect x="170" y="466" width="120" height="22" rx="4" fill="var(--trg)" stroke="var(--e-fr)" stroke-width="1"/>
+        <text x="230" y="481" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--trg-t)">function_response</text>
+
+        <!-- 2nd call annotation (left side, clear of other elements) -->
+        <text x="80" y="508" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--llm-t)" font-weight="500">2nd Gemini call &rarr; synthesize tool results into response</text>
+
+        <!-- LLM budget -->
+        <rect x="80" y="530" width="100" height="26" rx="4" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1"/>
+        <text x="130" y="547" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--llm-t)">1&ndash;5 LLM total</text>
+
+        <!-- Note -->
+        <text x="460" y="620" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="11" fill="var(--text-muted)">Sub-agents receive UserContext from context_assembly_node. No direct DB access.</text>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--det);border-color:var(--det-s)"></div>Deterministic (0 LLM)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--llm);border-color:var(--llm-s)"></div>LLM node (Gemini)</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--e-fn)"></div>function_call</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--e-fr);background-image:repeating-linear-gradient(90deg,var(--e-fr) 0 5px,transparent 5px 8px)"></div>function_response</div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 3: Vision & Voice Pipelines         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-number">03</div>
+    <h2>Vision &amp; Voice Pipelines</h2>
+    <div class="section-meta">Gemini Vision &middot; MERaLiON STT &middot; ElevenLabs TTS &middot; fallback chains</div>
+    <p class="section-desc">Three external API pipelines handle video analysis, speech recognition (with Singlish awareness), and text-to-speech with voice cloning. Each has a cascading fallback to Gemini.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 920 520" width="920" height="520" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+        <defs>
+          <marker id="v1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--edge)" stroke-width="1.2"/></marker>
+          <marker id="v2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--llm-s)" stroke-width="1.2"/></marker>
+          <marker id="v3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--api-s)" stroke-width="1.2"/></marker>
+          <marker id="v4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--det-s)" stroke-width="1.2"/></marker>
+        </defs>
+
+        <!-- ── LANE 1: Vision ── -->
+        <text x="16" y="24" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--text-muted)" letter-spacing=".06em">VISION PIPELINE</text>
+        <rect x="16" y="30" width="888" height="2" rx="1" fill="var(--border-light)"/>
+
+        <!-- Camera -->
+        <rect x="16" y="48" width="110" height="54" rx="6" fill="var(--trg)" stroke="var(--trg-s)" stroke-width="1.2"/>
+        <text x="71" y="70" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--trg-t)">Phone Camera</text>
+        <text x="71" y="88" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--trg-t)">WebM / MP4</text>
+
+        <line x1="126" y1="75" x2="174" y2="75" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#v1)"/>
+        <text x="150" y="66" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--text-muted)">video</text>
+
+        <!-- Gemini File API -->
+        <rect x="180" y="48" width="160" height="54" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2"/>
+        <text x="260" y="70" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Gemini File API</text>
+        <text x="260" y="88" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">upload &amp; process video</text>
+
+        <line x1="340" y1="75" x2="388" y2="75" stroke="var(--llm-s)" stroke-width="1.5" marker-end="url(#v2)"/>
+        <text x="364" y="66" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--llm-t)">analyze</text>
+
+        <!-- Gemini 2.5 Flash Lite (Vision) -->
+        <rect x="394" y="42" width="220" height="66" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.5"/>
+        <text x="504" y="64" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--llm-t)">Gemini 2.5 Flash Lite</text>
+        <text x="504" y="82" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">Video &rarr; SPPB sub-scores (0-4 each)</text>
+        <text x="504" y="99" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--llm-t)">gait + balance + chair stand analysis</text>
+
+        <line x1="614" y1="75" x2="662" y2="75" stroke="var(--det-s)" stroke-width="1.5" marker-end="url(#v4)"/>
+        <text x="638" y="66" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--det-t)">scores</text>
+
+        <!-- Assessment Graph -->
+        <rect x="668" y="48" width="220" height="54" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="778" y="70" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--det-t)">Assessment Graph</text>
+        <text x="778" y="88" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">0 LLM &middot; score &rarr; classify &rarr; persist</text>
+
+        <!-- ── LANE 2: STT ── -->
+        <text x="16" y="148" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--text-muted)" letter-spacing=".06em">SPEECH-TO-TEXT PIPELINE</text>
+        <rect x="16" y="154" width="888" height="2" rx="1" fill="var(--border-light)"/>
+
+        <!-- Microphone -->
+        <rect x="16" y="172" width="110" height="54" rx="6" fill="var(--trg)" stroke="var(--trg-s)" stroke-width="1.2"/>
+        <text x="71" y="194" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--trg-t)">Microphone</text>
+        <text x="71" y="212" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--trg-t)">WAV / WebM</text>
+
+        <line x1="126" y1="199" x2="174" y2="199" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#v1)"/>
+        <text x="150" y="190" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--text-muted)">audio</text>
+
+        <!-- MERaLiON (primary) -->
+        <rect x="180" y="166" width="280" height="66" rx="6" fill="var(--api)" stroke="var(--api-s)" stroke-width="1.5"/>
+        <text x="320" y="188" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--api-t)">MERaLiON AudioLLM</text>
+        <text x="320" y="206" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">cr8lab API &middot; Singlish-aware &middot; code-switching</text>
+        <text x="320" y="224" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--api-t)">EN / ZH / MS / TA &middot; tuned for elderly speech</text>
+
+        <line x1="460" y1="199" x2="560" y2="199" stroke="var(--api-s)" stroke-width="1.5" marker-end="url(#v3)"/>
+        <text x="510" y="190" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--api-t)">transcription</text>
+
+        <!-- Output -->
+        <rect x="566" y="172" width="110" height="54" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.2"/>
+        <text x="621" y="196" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--det-t)">Text Output</text>
+        <text x="621" y="212" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">+ language ID</text>
+
+        <!-- Fallback: Gemini STT -->
+        <rect x="220" y="258" width="200" height="48" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <text x="320" y="278" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="500" fill="var(--llm-t)">Gemini STT</text>
+        <text x="320" y="296" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">fallback if MERaLiON unavailable</text>
+
+        <!-- fallback arrow -->
+        <path d="M320,232 L320,258" fill="none" stroke="var(--edge)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="340" y="248" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--text-muted)">fallback</text>
+        <path d="M420,282 L566,204" fill="none" stroke="var(--llm-s)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#v2)"/>
+
+        <!-- ── LANE 3: TTS ── -->
+        <text x="16" y="340" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--text-muted)" letter-spacing=".06em">TEXT-TO-SPEECH PIPELINE</text>
+        <rect x="16" y="346" width="888" height="2" rx="1" fill="var(--border-light)"/>
+
+        <!-- Text input -->
+        <rect x="16" y="364" width="110" height="54" rx="6" fill="var(--trg)" stroke="var(--trg-s)" stroke-width="1.2"/>
+        <text x="71" y="386" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--trg-t)">Agent Reply</text>
+        <text x="71" y="404" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--trg-t)">text to speak</text>
+
+        <line x1="126" y1="391" x2="174" y2="391" stroke="var(--edge)" stroke-width="1.5" marker-end="url(#v1)"/>
+
+        <!-- ElevenLabs (primary) -->
+        <rect x="180" y="358" width="280" height="66" rx="6" fill="var(--api)" stroke="var(--api-s)" stroke-width="1.5"/>
+        <text x="320" y="380" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="12" font-weight="600" fill="var(--api-t)">ElevenLabs</text>
+        <text x="320" y="398" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">Streaming MP3 &middot; expressive &middot; low latency</text>
+        <text x="320" y="416" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--api-t)">Voice cloning from caregiver audio sample</text>
+
+        <line x1="460" y1="391" x2="560" y2="391" stroke="var(--api-s)" stroke-width="1.5" marker-end="url(#v3)"/>
+        <text x="510" y="382" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--api-t)">MP3 stream</text>
+
+        <!-- Speaker output -->
+        <rect x="566" y="364" width="110" height="54" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.2"/>
+        <text x="621" y="388" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--det-t)">Speaker</text>
+        <text x="621" y="404" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">audio playback</text>
+
+        <!-- Fallback: Gemini TTS -->
+        <rect x="220" y="450" width="200" height="48" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <text x="320" y="470" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="500" fill="var(--llm-t)">Gemini TTS</text>
+        <text x="320" y="488" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="9" fill="var(--text-muted)">fallback WAV &middot; if ElevenLabs unavailable</text>
+
+        <!-- fallback arrow -->
+        <path d="M320,424 L320,450" fill="none" stroke="var(--edge)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="340" y="440" font-family="'IBM Plex Mono',monospace" font-size="9" fill="var(--text-muted)">fallback</text>
+        <path d="M420,474 L566,398" fill="none" stroke="var(--llm-s)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#v2)"/>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--trg);border-color:var(--trg-s)"></div>User input / output</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--llm);border-color:var(--llm-s)"></div>Gemini API</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--api);border-color:var(--api-s)"></div>Third-party API</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--det);border-color:var(--det-s)"></div>Internal component</div>
+      <div class="legend-item"><div class="legend-line" style="background:var(--edge);background-image:repeating-linear-gradient(90deg,var(--edge) 0 4px,transparent 4px 7px)"></div>Fallback path</div>
+    </div>
+
+    <!-- API summary cards -->
+    <div class="api-grid" style="margin-top:32px;">
+      <div class="api-card">
+        <div class="api-badge" style="background:var(--llm);color:var(--llm-t);">Google AI</div>
+        <h3 style="color:var(--llm-t);">Gemini</h3>
+        <p class="api-model">2.5 Flash &middot; 2.5 Flash Lite</p>
+        <ul>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--llm-s)"></span><strong>Vision</strong> &mdash; Video SPPB scoring (Flash Lite)</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--llm-s)"></span><strong>Chat Agent</strong> &mdash; Orchestrator + function calling (Flash)</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--llm-s)"></span><strong>Sub-Agents</strong> &mdash; 4 management agents (Flash Lite)</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--llm-s)"></span><strong>STT fallback</strong> &mdash; If MERaLiON unavailable</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--llm-s)"></span><strong>TTS fallback</strong> &mdash; WAV output if ElevenLabs down</li>
+        </ul>
+      </div>
+      <div class="api-card">
+        <div class="api-badge" style="background:var(--api);color:var(--api-t);">cr8lab</div>
+        <h3 style="color:var(--api-t);">MERaLiON AudioLLM</h3>
+        <p class="api-model">Singlish-aware speech model</p>
+        <ul>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Primary STT</strong> &mdash; Transcription with Singlish accents</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Code-switching</strong> &mdash; EN/ZH/MS/TA mixed speech</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Translation</strong> &mdash; Audio &rarr; target language text</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Elderly-tuned</strong> &mdash; Low temp, conservative decoding</li>
+        </ul>
+      </div>
+      <div class="api-card">
+        <div class="api-badge" style="background:var(--api);color:var(--api-t);">ElevenLabs</div>
+        <h3 style="color:var(--api-t);">ElevenLabs</h3>
+        <p class="api-model">Neural text-to-speech</p>
+        <ul>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Primary TTS</strong> &mdash; Streaming MP3 audio</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Voice cloning</strong> &mdash; Clone caregiver's voice</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Expressive</strong> &mdash; Tunable stability &amp; style</li>
+          <li style="color:var(--text-secondary)"><span style="position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--api-s)"></span><strong>Low latency</strong> &mdash; Real-time streaming playback</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 4: Data Flow                        -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-number">04</div>
+    <h2>Data Flow</h2>
+    <div class="section-meta">Assessment writes &middot; Chat reads &amp; writes &middot; SQLite (append-only snapshots)</div>
+    <p class="section-desc">The Assessment Graph populates the database with evaluations and care plans. The Chat Graph reads this context to personalize every conversation, and writes back chat history and safety alerts.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 840 340" width="840" height="340" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+        <defs>
+          <marker id="d1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--llm-s)" stroke-width="1.2"/></marker>
+          <marker id="d2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--det-s)" stroke-width="1.2"/></marker>
+        </defs>
+
+        <!-- Assessment Graph -->
+        <rect x="30" y="30" width="230" height="84" rx="6" fill="var(--det)" stroke="var(--det-s)" stroke-width="1.5"/>
+        <text x="145" y="58" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--det-t)">Assessment Graph</text>
+        <text x="145" y="78" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="11" fill="var(--text-muted)">0 LLM &middot; deterministic</text>
+        <text x="145" y="100" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">score &rarr; classify &rarr; plans &rarr; persist</text>
+
+        <!-- Chat Graph -->
+        <rect x="30" y="210" width="230" height="84" rx="6" fill="var(--llm)" stroke="var(--llm-s)" stroke-width="1.5"/>
+        <text x="145" y="238" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--llm-t)">Chat Graph</text>
+        <text x="145" y="258" text-anchor="middle" font-family="'IBM Plex Sans',sans-serif" font-size="10" fill="var(--text-muted)">1-5 LLM &middot; Gemini function calling</text>
+        <text x="145" y="278" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--text-muted)">context &rarr; agent &rarr; safety &rarr; persist</text>
+
+        <!-- DB cylinder -->
+        <ellipse cx="510" cy="148" rx="64" ry="20" fill="var(--db)" stroke="var(--db-s)" stroke-width="1.5"/>
+        <rect x="446" y="148" width="128" height="50" fill="var(--db)" stroke="none"/>
+        <line x1="446" y1="148" x2="446" y2="198" stroke="var(--db-s)" stroke-width="1.5"/>
+        <line x1="574" y1="148" x2="574" y2="198" stroke="var(--db-s)" stroke-width="1.5"/>
+        <ellipse cx="510" cy="198" rx="64" ry="20" fill="var(--db)" stroke="var(--db-s)" stroke-width="1.5"/>
+        <text x="510" y="170" text-anchor="middle" font-family="'DM Serif Display',serif" font-size="16" fill="var(--db-t)">SQLite</text>
+        <text x="510" y="190" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" fill="var(--db-t)">silvergait.db</text>
+
+        <!-- Assessment → DB WRITES -->
+        <path d="M260,72 L442,150" fill="none" stroke="var(--llm-s)" stroke-width="1.5" marker-end="url(#d1)"/>
+        <rect x="310" y="86" width="64" height="20" rx="4" fill="var(--llm)" stroke="var(--llm-s)" stroke-width=".8"/>
+        <text x="342" y="100" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--llm-t)">WRITES</text>
+
+        <!-- Chat ← DB READS -->
+        <path d="M442,178 L260,238" fill="none" stroke="var(--det-s)" stroke-width="1.5" marker-end="url(#d2)"/>
+        <rect x="306" y="200" width="60" height="20" rx="4" fill="var(--det)" stroke="var(--det-s)" stroke-width=".8"/>
+        <text x="336" y="214" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--det-t)">READS</text>
+
+        <!-- Chat → DB WRITES -->
+        <path d="M260,265 L442,195" fill="none" stroke="var(--llm-s)" stroke-width="1.5" marker-end="url(#d1)" stroke-dasharray="5,3"/>
+        <rect x="316" y="225" width="64" height="20" rx="4" fill="var(--llm)" stroke="var(--llm-s)" stroke-width=".8"/>
+        <text x="348" y="239" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" font-weight="500" fill="var(--llm-t)">WRITES</text>
+
+        <!-- Table lists -->
+        <text x="630" y="56" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--det-t)">Assessment Graph writes:</text>
+        <text x="630" y="78" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">health_snapshots</text>
+        <text x="630" y="96" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">frailty_evaluations</text>
+        <text x="630" y="114" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">care_plans, alerts, agent_runs</text>
+
+        <text x="630" y="152" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Chat Graph reads:</text>
+        <text x="630" y="174" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">all above + users + assessments</text>
+        <text x="630" y="192" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">+ exercise_logs + chat_messages</text>
+
+        <text x="630" y="230" font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="var(--llm-t)">Chat Graph writes:</text>
+        <text x="630" y="252" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--text-secondary)">chat_messages, alerts</text>
+      </svg>
+    </div>
+
+    <div class="data-flow-grid">
+      <div class="flow-card">
+        <h3>Assessment Graph &rarr; Database</h3>
+        <div class="arrow-label arrow-writes">WRITES</div>
+        <div class="flow-tables">
+          <span>health_snapshots</span> <span>frailty_evaluations</span> <span>care_plans</span> <span>alerts</span> <span>agent_runs</span>
+        </div>
+      </div>
+      <div class="flow-card">
+        <h3>Chat Graph &larr; Database</h3>
+        <div class="arrow-label arrow-reads">READS (build_user_context)</div>
+        <div class="flow-tables">
+          <span>users</span> <span>health_snapshots</span> <span>assessments</span> <span>frailty_evaluations</span> <span>care_plans</span> <span>exercise_logs</span> <span>chat_messages</span> <span>alerts</span>
+        </div>
+      </div>
+      <div class="flow-card">
+        <h3>Chat Graph &rarr; Database</h3>
+        <div class="arrow-label arrow-writes">WRITES</div>
+        <div class="flow-tables">
+          <span>chat_messages</span> <span>alerts</span>
+        </div>
+      </div>
+      <div class="flow-card">
+        <h3>Key Constraint</h3>
+        <p style="margin-top:4px;">Management sub-agents have <strong>no direct DB access</strong>. They receive a <code>UserContext</code> dataclass assembled by <code>context_assembly_node</code> and return plain text.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center;margin-top:64px;padding-top:32px;border-top:1px solid var(--border);">
+    <p style="font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text-muted);letter-spacing:.06em;">
+      SilverGait &middot; DBA5102 &middot; Two-Graph LangGraph Architecture &middot; Generated March 2026
+    </p>
+  </div>
+
+</div>
+
+<script>
+function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('sg-theme',n)}
+(function(){const s=localStorage.getItem('sg-theme');if(s)document.documentElement.setAttribute('data-theme',s);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.setAttribute('data-theme','dark')})();
+</script>
+</body>
+</html>

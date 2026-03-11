@@ -25,16 +25,15 @@ echo -e "${GREEN}========================================${NC}"
 
 # Check for .env file
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
-    echo -e "${YELLOW}Warning: .env file not found!${NC}"
-    echo -e "Creating from .env.example..."
     if [ -f "$PROJECT_ROOT/.env.example" ]; then
+        echo -e "${YELLOW}Warning: .env file not found! Creating from .env.example...${NC}"
         cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
-        echo -e "${YELLOW}Please edit .env with your actual API keys before running.${NC}"
-        exit 1
+        echo -e "${YELLOW}Please edit .env and add your GEMINI_API_KEY before running.${NC}"
     else
-        echo -e "${RED}Error: .env.example not found!${NC}"
-        exit 1
+        echo -e "${RED}Error: .env file not found!${NC}"
+        echo -e "Create a .env file with at least: GEMINI_API_KEY=your_key_here"
     fi
+    exit 1
 fi
 
 # Function to check if command exists

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useUserStore } from '../stores';
 
 type AssessmentTestId = 'balance' | 'gait' | 'chair_stand';
 
@@ -70,10 +71,14 @@ export function useVoiceCoach(config: VoiceCoachConfig): {
         setCurrentCue(cue.text);
 
         // Try TTS, fall back to just showing text
+        const { userId, voiceId } = useUserStore.getState();
+        const ttsBody = new FormData();
+        ttsBody.append('text', cue.text);
+        if (userId) ttsBody.append('user_id', userId);
+        if (voiceId) ttsBody.append('voice_id', voiceId);
         fetch('/api/voice/tts-stream', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ text: cue.text }),
+          body: ttsBody,
         })
           .then((res) => {
             if (!res.ok) throw new Error('TTS failed');
