@@ -1,4 +1,4 @@
-# SilverGait — Clinical Evidence & Design Rationale
+# SilverGait  - Clinical Evidence & Design Rationale
 
 The scientific basis for SilverGait: why frailty screening matters, why SPPB is the right instrument, and why each metric and design decision we made is backed by peer-reviewed research.
 
@@ -11,13 +11,13 @@ For system architecture (LangGraph, DB schema, API flow), see [`ARCHITECTURE.md`
 
 ### Frailty Prevalence in Singapore
 
-Among community-dwelling Singaporeans aged 65+, **6.2% are frail and 37% are pre-frail** — most unaware of their status until a fall or hospitalisation occurs.
+Among community-dwelling Singaporeans aged 65+, **6.2% are frail and 37% are pre-frail**  - most unaware of their status until a fall or hospitalisation occurs.
 
 > Merchant RA, Chen MZ, Tan LWL, et al. "Singapore Healthy Older People Everyday (HOPE) Study: Prevalence of Frailty and Associated Factors in Older Adults." *J Am Med Dir Assoc.* 2017. [PMID 28623152](https://pubmed.ncbi.nlm.nih.gov/28623152/)
 
 ### What Frailty Predicts
 
-Frailty — defined by unintentional weight loss, exhaustion, weakness, slow walking speed, and low physical activity — **independently predicts falls, disability, hospitalisation, and mortality** over 3 years. It operates independently from comorbidity.
+Frailty  - defined by unintentional weight loss, exhaustion, weakness, slow walking speed, and low physical activity  - **independently predicts falls, disability, hospitalisation, and mortality** over 3 years. It operates independently from comorbidity.
 
 > Fried LP, Tangen CM, Walston J, et al. "Frailty in Older Adults: Evidence for a Phenotype." *J Gerontol A Biol Sci Med Sci.* 2001;56(3):M146-56. [PMID 11253156](https://pubmed.ncbi.nlm.nih.gov/11253156/)
 
@@ -29,7 +29,7 @@ Globally, **684,000 fatal falls** occur annually, with adults over 60 at the hig
 
 ### The Screening Gap
 
-Clinical frailty screening requires trained professionals and in-person visits, limiting frequency. Singapore's push for AI-driven healthcare — including the [NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases) — calls for solutions enabling continuous remote monitoring and empowering patients to manage health from home.
+Clinical frailty screening requires trained professionals and in-person visits, limiting frequency. Singapore's push for AI-driven healthcare  - including the [NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases)  - calls for solutions enabling continuous remote monitoring and empowering patients to manage health from home.
 
 ---
 
@@ -41,11 +41,11 @@ We chose SPPB because:
 
 | Reason | Evidence |
 |--------|----------|
-| **Predicts disability and mortality** | Guralnik et al. (1994) — 5,000+ subjects, strong predictive validity. [PMID 8126356](https://pubmed.ncbi.nlm.nih.gov/8126356/) |
-| **Predicts disability onset** | Guralnik et al. (1995) — SPPB predicts disability over 4 years in persons 70+. [NEJM](https://www.nejm.org/doi/full/10.1056/NEJM199503023320902) |
-| **Predicts falls** | Lauretani et al. (2019) — SPPB ≤6 independently associated with falls; non-inferior to POMA. [PMID 30515724](https://pubmed.ncbi.nlm.nih.gov/30515724/) |
-| **Quick and useful for stratification** | Treacy & Hassett (2020) — Effective risk stratification over 1- and 4-year follow-up. [PMID 33191134](https://pubmed.ncbi.nlm.nih.gov/33191134/) |
-| **All 3 sub-tests are observable via video** | Balance (sway), gait (cadence/symmetry), chair-stand (rep timing) — all have quantifiable biomechanical markers extractable from 2D pose estimation |
+| **Predicts disability and mortality** | Guralnik et al. (1994)  - 5,000+ subjects, strong predictive validity. [PMID 8126356](https://pubmed.ncbi.nlm.nih.gov/8126356/) |
+| **Predicts disability onset** | Guralnik et al. (1995)  - SPPB predicts disability over 4 years in persons 70+. [NEJM](https://www.nejm.org/doi/full/10.1056/NEJM199503023320902) |
+| **Predicts falls** | Lauretani et al. (2019)  - SPPB ≤6 independently associated with falls; non-inferior to POMA. [PMID 30515724](https://pubmed.ncbi.nlm.nih.gov/30515724/) |
+| **Quick and useful for stratification** | Treacy & Hassett (2020)  - Effective risk stratification over 1- and 4-year follow-up. [PMID 33191134](https://pubmed.ncbi.nlm.nih.gov/33191134/) |
+| **All 3 sub-tests are observable via video** | Balance (sway), gait (cadence/symmetry), chair-stand (rep timing)  - all have quantifiable biomechanical markers extractable from 2D pose estimation |
 
 ---
 
@@ -86,7 +86,7 @@ Every biomechanical metric SilverGait extracts is grounded in clinical fall-risk
 
 ### Joint Angles (Three-Point Dot-Product Formula)
 
-We compute knee, hip, and elbow angles using the three-point dot-product formula: `angle_at_B = arccos((BA · BC) / (|BA| × |BC|))`. This is **view-invariant in the sagittal plane** — unlike raw pixel coordinates, joint angles don't change with camera distance or position.
+We compute knee, hip, and elbow angles using the three-point dot-product formula: `angle_at_B = arccos((BA · BC) / (|BA| × |BC|))`. This is **view-invariant in the sagittal plane**  - unlike raw pixel coordinates, joint angles don't change with camera distance or position.
 
 - **Why knee angle**: Knee flexion/extension range is a key descriptor of sit-to-stand ability and gait phase. Roebroeck et al. (2007) identify knee extension velocity as a primary STS descriptor. [Link](https://biomedical-engineering-online.biomedcentral.com/articles/10.1186/1475-925X-6-26)
 - **Why hip angle**: Trunk-to-thigh flexion during sit-to-stand is a compensatory movement indicator. Excessive forward lean signals lower-limb weakness.
@@ -96,38 +96,38 @@ We compute knee, hip, and elbow angles using the three-point dot-product formula
 
 We track the midpoint of left/right hip keypoints as a center-of-mass proxy and compute frame-to-frame displacement (sway velocity) and bounding-box area (sway area).
 
-- **Why this predicts falls**: Melzer et al. (2019) — highest postural sway quintile: **75-90% increased fall risk**. Sway velocity is a validated clinical metric. [PMID 30981147](https://pubmed.ncbi.nlm.nih.gov/30981147/)
+- **Why this predicts falls**: Melzer et al. (2019)  - highest postural sway quintile: **75-90% increased fall risk**. Sway velocity is a validated clinical metric. [PMID 30981147](https://pubmed.ncbi.nlm.nih.gov/30981147/)
 - **Why hip center, not nose or shoulders**: Nose is affected by head turns; shoulder midpoint is affected by arm movement. Hip center is the most stable CoM proxy from 2D keypoints.
 
 ### Trunk Lean Variability (SD of Trunk Angle)
 
 We compute trunk lean as the angle between the shoulder-hip line and vertical, then track its standard deviation over time.
 
-- **Why this matters**: Gill et al. (2001) — elderly show significantly greater trunk sway during clinical balance tests. Trunk lean variability captures **postural instability** that mean values miss. [Link](https://academic.oup.com/biomedgerontology/article/56/7/M438/559181)
+- **Why this matters**: Gill et al. (2001)  - elderly show significantly greater trunk sway during clinical balance tests. Trunk lean variability captures **postural instability** that mean values miss. [Link](https://academic.oup.com/biomedgerontology/article/56/7/M438/559181)
 
 ### Gait Rhythm Variability (CV of Inter-Step Intervals)
 
 We detect steps via zero-crossings of smoothed ankle X separation, then compute the coefficient of variation of inter-step intervals.
 
-- **Why this is the strongest gait predictor**: Hausdorff et al. (2001) — stride time variability was **106ms in fallers vs 49ms in non-fallers**, the strongest gait-based fall predictor in a 1-year prospective study. [PMID 11494184](https://pubmed.ncbi.nlm.nih.gov/11494184/)
+- **Why this is the strongest gait predictor**: Hausdorff et al. (2001)  - stride time variability was **106ms in fallers vs 49ms in non-fallers**, the strongest gait-based fall predictor in a 1-year prospective study. [PMID 11494184](https://pubmed.ncbi.nlm.nih.gov/11494184/)
 
 ### Step Symmetry Index
 
 We compute `abs(avgLeft - avgRight) / avgBoth × 100%` from inter-step intervals.
 
-- **Why asymmetry matters**: Chen et al. (2024) — gait asymmetry combined with cadence and double stance time predicts falls with **AUC 0.845**. [PMC11323353](https://pmc.ncbi.nlm.nih.gov/articles/PMC11323353/)
+- **Why asymmetry matters**: Chen et al. (2024)  - gait asymmetry combined with cadence and double stance time predicts falls with **AUC 0.845**. [PMC11323353](https://pmc.ncbi.nlm.nih.gov/articles/PMC11323353/)
 
 ### Cadence and Normative Ranges
 
 We compute cadence as `(stepCount / durationSec) × 60`.
 
-- **Reference ranges**: Hollman et al. (2011) — normative spatiotemporal gait parameters in older adults provide our healthy/at-risk thresholds. [PMC3104090](https://pmc.ncbi.nlm.nih.gov/articles/PMC3104090/)
+- **Reference ranges**: Hollman et al. (2011)  - normative spatiotemporal gait parameters in older adults provide our healthy/at-risk thresholds. [PMC3104090](https://pmc.ncbi.nlm.nih.gov/articles/PMC3104090/)
 
 ### Chair-Stand Rep Time Consistency (CV of Rep Durations)
 
 We detect reps via prominence-based valley detection in the hip Y signal, then compute the CV of rep-to-rep durations.
 
-- **Why rep timing reliability matters**: Bohannon (2021) — high ICC for 5xSTS timing validates that rep time consistency is a reliable, reproducible measure. [PMC8228261](https://pmc.ncbi.nlm.nih.gov/articles/PMC8228261/)
+- **Why rep timing reliability matters**: Bohannon (2021)  - high ICC for 5xSTS timing validates that rep time consistency is a reliable, reproducible measure. [PMC8228261](https://pmc.ncbi.nlm.nih.gov/articles/PMC8228261/)
 - **Why prominence-based detection**: Fixed Y-thresholds fail because camera distance, chair height, and user height change absolute values. Prominence detection is self-calibrating.
 
 ### Derived Metrics Over Raw Coordinates
@@ -148,7 +148,7 @@ SilverGait includes a Sleep Agent that generates personalized CBT-I (Cognitive B
 
 ### Sleep and Frailty Are Bidirectional
 
-Poor sleep accelerates muscle loss and frailty progression, while frailty itself worsens sleep quality — creating a vicious cycle.
+Poor sleep accelerates muscle loss and frailty progression, while frailty itself worsens sleep quality  - creating a vicious cycle.
 
 | Paper | Key Finding |
 |-------|-------------|
@@ -190,7 +190,7 @@ SilverGait provides tier-based exercise plans from a curated content library and
 
 ### Our Approach
 
-Exercise plans are selected deterministically from a curated content library by frailty tier — not LLM-generated — ensuring safety-appropriate intensity:
+Exercise plans are selected deterministically from a curated content library by frailty tier  - not LLM-generated  - ensuring safety-appropriate intensity:
 - **Robust**: Moderate intensity maintenance (20-30 min daily)
 - **Pre-frail**: Strengthening focus on balance and leg power (15-20 min)
 - **Frail**: Gentle seated/supported exercises (10-15 min)

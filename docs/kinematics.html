@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SilverGait — Kinematics Pipeline &amp; SPPB Assessment</title>
+<title>SilverGait  - Kinematics Pipeline &amp; SPPB Assessment</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -935,11 +935,11 @@
         <h2>System Architecture</h2>
       </div>
 
-      <p>SilverGait uses two parallel analysis systems for each SPPB test — a real-time quantitative pipeline and a post-hoc visual intelligence layer that cross-references it.</p>
+      <p>SilverGait uses two parallel analysis systems for each SPPB test  - a real-time quantitative pipeline and a post-hoc visual intelligence layer that cross-references it.</p>
 
       <div class="system-compare">
         <div class="system-card">
-          <div class="system-card-header det-header">MoveNet — Frontend, Real-Time</div>
+          <div class="system-card-header det-header">MoveNet  - Frontend, Real-Time</div>
           <div class="system-card-body">
             <div class="system-card-row"><span class="system-card-label">Role</span><span class="system-card-val">17 body keypoints at ~15 FPS, computes biomechanical metrics per frame</span></div>
             <div class="system-card-row"><span class="system-card-label">Strengths</span><span class="system-card-val">Quantitative, frame-level precision, reproducible, runs on-device</span></div>
@@ -947,7 +947,7 @@
           </div>
         </div>
         <div class="system-card">
-          <div class="system-card-header llm-header">Gemini Vision — Backend, Post-Hoc</div>
+          <div class="system-card-header llm-header">Gemini Vision  - Backend, Post-Hoc</div>
           <div class="system-card-body">
             <div class="system-card-row"><span class="system-card-label">Role</span><span class="system-card-val">Watches full video, scores holistically with clinical context</span></div>
             <div class="system-card-row"><span class="system-card-label">Strengths</span><span class="system-card-val">Context-aware, detects qualitative issues, robust to camera angle</span></div>
@@ -962,23 +962,23 @@
       <div class="flow-pipeline">
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
-          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">input</span><strong>Camera (15 FPS)</strong> — smartphone video capture</div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">input</span><strong>Camera (15 FPS)</strong>  - smartphone video capture</div></div>
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
-          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>MoveNet</strong> — 17 keypoints per frame (x, y, confidence 0–1)</div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>MoveNet</strong>  - 17 keypoints per frame (x, y, confidence 0–1)</div></div>
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
-          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>Per-frame FrameMetrics</strong> — angles, positions, velocities computed and coordinates discarded</div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>Per-frame FrameMetrics</strong>  - angles, positions, velocities computed and coordinates discarded</div></div>
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
-          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>aggregateMetrics()</strong> on recording stop — reduces ~300 frames to summary statistics</div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>aggregateMetrics()</strong> on recording stop  - reduces ~300 frames to summary statistics</div></div>
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
-          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>PoseMetricsSummary</strong> — ~30 scalar values (mean, min, max, SD, CV, count)</div></div>
+          <div class="flow-content"><div class="flow-content-inner"><span class="flow-arrow-label">→</span><strong>PoseMetricsSummary</strong>  - ~30 scalar values (mean, min, max, SD, CV, count)</div></div>
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot"></div><div class="flow-line"></div></div>
@@ -986,7 +986,7 @@
         </div>
         <div class="flow-step">
           <div class="flow-step-connector"><div class="flow-dot" style="background:var(--llm-s);box-shadow:0 0 0 1.5px var(--llm-s)"></div></div>
-          <div class="flow-content" style="background:var(--llm);border-color:var(--llm-s)"><div class="flow-content-inner" style="color:var(--llm-t)"><span class="flow-arrow-label" style="color:var(--llm-s)">→</span><strong>Gemini returns</strong> — score (0–4), issues[], confidence, recommendations[]</div></div>
+          <div class="flow-content" style="background:var(--llm);border-color:var(--llm-s)"><div class="flow-content-inner" style="color:var(--llm-t)"><span class="flow-arrow-label" style="color:var(--llm-s)">→</span><strong>Gemini returns</strong>  - score (0–4), issues[], confidence, recommendations[]</div></div>
         </div>
       </div>
 
@@ -1036,15 +1036,15 @@
         </thead>
         <tbody>
           <tr>
-            <td class="td-db">Camera distance changes pixel values — same person at different distances gets different absolute coordinates</td>
-            <td class="td-trg">Joint angles are view-invariant in the sagittal plane — independent of camera distance</td>
+            <td class="td-db">Camera distance changes pixel values  - same person at different distances gets different absolute coordinates</td>
+            <td class="td-trg">Joint angles are view-invariant in the sagittal plane  - independent of camera distance</td>
           </tr>
           <tr>
-            <td class="td-db">MoveNet jitters several pixels frame-to-frame — raw data is noisy at individual frame level</td>
-            <td class="td-trg">Temporal aggregation (mean, CV) filters noise — individual jitter averages out over ~300 frames</td>
+            <td class="td-db">MoveNet jitters several pixels frame-to-frame  - raw data is noisy at individual frame level</td>
+            <td class="td-trg">Temporal aggregation (mean, CV) filters noise  - individual jitter averages out over ~300 frames</td>
           </tr>
           <tr>
-            <td class="td-db">15K values bloat the Gemini prompt — thousands of tokens consumed before any context can be given</td>
+            <td class="td-db">15K values bloat the Gemini prompt  - thousands of tokens consumed before any context can be given</td>
             <td class="td-trg">~30 scalar summary (~200 tokens) leaves context budget for video analysis and clinical reasoning</td>
           </tr>
         </tbody>
@@ -1099,7 +1099,7 @@ where A, B, C are three consecutive keypoints:
         </div>
         <div class="metric-block">
           <div class="metric-block-name">Trunk Lean</div>
-          <div class="metric-block-desc">Angle between the shoulder–hip line and the vertical axis, via <code>atan2(|dx|, dy)</code>. Measures lean relative to gravity, not relative to thigh angle. Temporal SD captures instability — higher variability = less postural control.</div>
+          <div class="metric-block-desc">Angle between the shoulder–hip line and the vertical axis, via <code>atan2(|dx|, dy)</code>. Measures lean relative to gravity, not relative to thigh angle. Temporal SD captures instability  - higher variability = less postural control.</div>
         </div>
         <div class="metric-block">
           <div class="metric-block-name">Confidence Threshold: 0.3</div>
@@ -1130,7 +1130,7 @@ where A, B, C are three consecutive keypoints:
           <tbody>
             <tr><td>Sway velocity</td><td>Mean frame-to-frame hip center displacement</td><td>Healthy: &lt;2.0 px/frame</td></tr>
             <tr><td>Sway area</td><td>Bounding box of hip center path</td><td>Lower = better</td></tr>
-            <tr><td>Max sway deviation</td><td>Max distance from mean hip center</td><td>—</td></tr>
+            <tr><td>Max sway deviation</td><td>Max distance from mean hip center</td><td> -</td></tr>
             <tr><td>Trunk lean avg/max</td><td><code>angleFromVertical(shoulderMid, hipMid)</code></td><td>Healthy: &lt;5 avg, &lt;10 max</td></tr>
             <tr><td>Trunk lean variability</td><td>SD of trunk lean across all frames</td><td>Healthy: &lt;3.0, At-risk: &gt;4.0</td></tr>
             <tr><td>Stance width</td><td><code>distance(leftAnkle, rightAnkle)</code></td><td>Wider = less stable</td></tr>
@@ -1193,7 +1193,7 @@ where A, B, C are three consecutive keypoints:
         <table class="data-table">
           <thead><tr><th>Metric</th><th>Computation</th><th>Reference Range</th></tr></thead>
           <tbody>
-            <tr><td>Step count</td><td>Zero-crossings of smoothed ankle separation</td><td>—</td></tr>
+            <tr><td>Step count</td><td>Zero-crossings of smoothed ankle separation</td><td> -</td></tr>
             <tr><td>Cadence</td><td><code>(stepCount / durationSec) × 60</code></td><td>Healthy: 100–120 steps/min</td></tr>
             <tr><td>Step symmetry index</td><td><code>abs(avgLeft − avgRight) / avgBoth × 100%</code></td><td>&lt;20% = normal</td></tr>
             <tr><td>Double support ratio</td><td>Fraction of frames where both ankles move &lt;2px</td><td>Healthy: &lt;0.3</td></tr>
@@ -1210,7 +1210,7 @@ where A, B, C are three consecutive keypoints:
 
         <div class="warning-box">
           <div class="warning-box-label">Key Limitation</div>
-          <p>Step detection requires lateral camera view. Person walking toward or away from camera produces near-zero ankle X separation — steps are undetectable by MoveNet. Gemini still assesses visually.</p>
+          <p>Step detection requires lateral camera view. Person walking toward or away from camera produces near-zero ankle X separation  - steps are undetectable by MoveNet. Gemini still assesses visually.</p>
         </div>
 
         <div class="two-col-split">
@@ -1239,9 +1239,9 @@ where A, B, C are three consecutive keypoints:
           <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
           <tbody>
             <tr><td class="score-4">4</td><td>Smooth confident walking, 100–120 cadence, symmetric arm swing</td></tr>
-            <tr><td class="score-3">3</td><td>Minor issues — slight asymmetry or reduced arm swing</td></tr>
-            <tr><td class="score-2">2</td><td>Noticeable difficulties — irregular rhythm, wide base, &lt;80 cadence</td></tr>
-            <tr><td class="score-1">1</td><td>Significant issues — shuffling, high double support, very slow</td></tr>
+            <tr><td class="score-3">3</td><td>Minor issues  - slight asymmetry or reduced arm swing</td></tr>
+            <tr><td class="score-2">2</td><td>Noticeable difficulties  - irregular rhythm, wide base, &lt;80 cadence</td></tr>
+            <tr><td class="score-1">1</td><td>Significant issues  - shuffling, high double support, very slow</td></tr>
             <tr><td class="score-0">0</td><td>Unable to complete or severe impairment observed</td></tr>
           </tbody>
         </table>
@@ -1313,7 +1313,7 @@ different camera distances, chair heights, and user heights.</pre>
             <tr><td class="score-3">3</td><td>11.2–13.6s</td><td>Minor slowness, low trunk lean, no hand use</td></tr>
             <tr><td class="score-2">2</td><td>13.7–16.6s</td><td>Needs arms for momentum, or inconsistent reps</td></tr>
             <tr><td class="score-1">1</td><td>&gt;16.7s</td><td>Very slow, incomplete, excessive forward lean</td></tr>
-            <tr><td class="score-0">0</td><td>—</td><td>Unable to stand without assistance</td></tr>
+            <tr><td class="score-0">0</td><td> -</td><td>Unable to stand without assistance</td></tr>
           </tbody>
         </table>
       </div>
@@ -1328,7 +1328,7 @@ different camera distances, chair heights, and user heights.</pre>
         <div class="sppb-tier-card sppb-tier-prefrail">
           <div class="sppb-range">7–9</div>
           <div class="sppb-tier-label">Pre-Frail</div>
-          <div class="sppb-interp">Some decline detected. Early intervention is beneficial — focus on balance and strength.</div>
+          <div class="sppb-interp">Some decline detected. Early intervention is beneficial  - focus on balance and strength.</div>
         </div>
         <div class="sppb-tier-card sppb-tier-frail">
           <div class="sppb-range">0–6</div>
@@ -1351,7 +1351,7 @@ different camera distances, chair heights, and user heights.</pre>
 
       <p>The final <code>PoseMetricsSummary</code> contains ~30 scalar values. We chose statistical summaries over full time series because compact summaries are complementary (not redundant) to Gemini's visual analysis, and are interpretable by clinicians.</p>
 
-      <p>Gemini already sees the video — metrics provide quantified features hard to estimate visually (exact angles, variability coefficients, symmetry indices). Clinicians understand "avg knee angle: 142, trunk lean CV: 8.3" better than a 300-element array.</p>
+      <p>Gemini already sees the video  - metrics provide quantified features hard to estimate visually (exact angles, variability coefficients, symmetry indices). Clinicians understand "avg knee angle: 142, trunk lean CV: 8.3" better than a 300-element array.</p>
 
       <table class="data-table">
         <thead>
@@ -1362,13 +1362,13 @@ different camera distances, chair heights, and user heights.</pre>
           </tr>
         </thead>
         <tbody>
-          <tr><td>Mean</td><td>Angles, sway velocity, trunk lean</td><td>Central tendency — typical behavior across the full test</td></tr>
+          <tr><td>Mean</td><td>Angles, sway velocity, trunk lean</td><td>Central tendency  - typical behavior across the full test</td></tr>
           <tr><td>Min / Max</td><td>Angles, stance width</td><td>Extremes of range of motion across the test</td></tr>
-          <tr><td>Range</td><td>Knee/hip angle</td><td>ROM in a single number — peak-to-peak excursion</td></tr>
-          <tr><td>SD</td><td>Trunk lean variability</td><td>Instability measure — high SD = inconsistent posture</td></tr>
+          <tr><td>Range</td><td>Knee/hip angle</td><td>ROM in a single number  - peak-to-peak excursion</td></tr>
+          <tr><td>SD</td><td>Trunk lean variability</td><td>Instability measure  - high SD = inconsistent posture</td></tr>
           <tr><td>CV</td><td>Rep duration, gait rhythm</td><td>Consistency normalized for speed differences between individuals</td></tr>
-          <tr><td>Count</td><td>Steps, reps completed</td><td>Direct SPPB sub-score mapping — most clinically meaningful</td></tr>
-          <tr><td>Total</td><td>Sway displacement</td><td>Cumulative postural excursion — integrates all instability</td></tr>
+          <tr><td>Count</td><td>Steps, reps completed</td><td>Direct SPPB sub-score mapping  - most clinically meaningful</td></tr>
+          <tr><td>Total</td><td>Sway displacement</td><td>Cumulative postural excursion  - integrates all instability</td></tr>
         </tbody>
       </table>
     </section>
@@ -1395,7 +1395,7 @@ different camera distances, chair heights, and user heights.</pre>
         <tbody>
           <tr>
             <td style="font-weight:600;color:var(--text)">Person walks toward camera</td>
-            <td class="td-db">Step detection fails — near-zero ankle X separation</td>
+            <td class="td-db">Step detection fails  - near-zero ankle X separation</td>
             <td class="td-llm">Can still assess walking quality visually</td>
           </tr>
           <tr>
@@ -1405,7 +1405,7 @@ different camera distances, chair heights, and user heights.</pre>
           </tr>
           <tr>
             <td style="font-weight:600;color:var(--text)">Loose / baggy clothing</td>
-            <td class="td-db">Noisy keypoint positions — body outline obscured</td>
+            <td class="td-db">Noisy keypoint positions  - body outline obscured</td>
             <td class="td-llm">Generally unaffected by clothing</td>
           </tr>
           <tr>
@@ -1416,7 +1416,7 @@ different camera distances, chair heights, and user heights.</pre>
           <tr>
             <td style="font-weight:600;color:var(--text)">Camera shake</td>
             <td class="td-db">False sway motion added to all metrics</td>
-            <td class="td-llm">Negligible — holistic assessment compensates</td>
+            <td class="td-llm">Negligible  - holistic assessment compensates</td>
           </tr>
           <tr>
             <td style="font-weight:600;color:var(--text)">Very fast movement</td>

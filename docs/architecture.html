@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SilverGait — System Architecture</title>
+<title>SilverGait  - System Architecture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -811,7 +811,7 @@
 
     <section id="hero">
       <div class="hero-eyebrow">Technical Reference</div>
-      <h1>SilverGait — System Architecture</h1>
+      <h1>SilverGait  - System Architecture</h1>
       <p class="hero-sub">Detailed node-level specs, state schemas, and database design for the two-graph LangGraph system.</p>
     </section>
 
@@ -826,7 +826,7 @@
 
       <div class="file-badge">backend/app/services/langgraph_agents/assessment_graph.py</div>
 
-      <p class="section-intro">Six-node pipeline that scores raw health inputs, classifies frailty tier, and conditionally updates care plans. All nodes are deterministic — zero LLM calls.</p>
+      <p class="section-intro">Six-node pipeline that scores raw health inputs, classifies frailty tier, and conditionally updates care plans. All nodes are deterministic  - zero LLM calls.</p>
 
       <div class="node-grid">
         <div class="node-card">
@@ -841,7 +841,7 @@
             <span class="node-name">classify_node</span>
             <span class="node-badge badge-det">deterministic</span>
           </div>
-          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">classify_frailty(cfs, katz, sppb)</code> — pure rule-based logic → <em>robust / pre_frail / frail / severely_frail</em>. Generates templated risk_explanation.</div>
+          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">classify_frailty(cfs, katz, sppb)</code>  - pure rule-based logic → <em>robust / pre_frail / frail / severely_frail</em>. Generates templated risk_explanation.</div>
         </div>
         <div class="node-card">
           <div class="node-card-header">
@@ -933,7 +933,7 @@ else:
             <span class="node-name">context_assembly</span>
             <span class="node-badge badge-det">deterministic</span>
           </div>
-          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">build_user_context()</code> — 10+ DB queries across health_snapshots, frailty_evaluations, care_plans, assessments, exercise_logs, alerts. Serializes via <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">to_system_prompt_context()</code> into Gemini system prompt.</div>
+          <div class="node-desc">Calls <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">build_user_context()</code>  - 10+ DB queries across health_snapshots, frailty_evaluations, care_plans, assessments, exercise_logs, alerts. Serializes via <code style="font-family:var(--font-mono);font-size:0.8em;background:var(--bg);padding:1px 5px;border-radius:3px">to_system_prompt_context()</code> into Gemini system prompt.</div>
         </div>
         <div class="node-card">
           <div class="node-card-header">
@@ -958,7 +958,7 @@ else:
         </div>
       </div>
 
-      <h3>Chat Tools — Gemini Function Calling</h3>
+      <h3>Chat Tools  - Gemini Function Calling</h3>
       <table class="data-table">
         <thead>
           <tr>
@@ -1035,7 +1035,7 @@ else:
         <h2>Deterministic Services</h2>
       </div>
 
-      <p class="section-intro">Core services that underpin both graphs. Zero LLM calls — all logic is rule-based or database-driven.</p>
+      <p class="section-intro">Core services that underpin both graphs. Zero LLM calls  - all logic is rule-based or database-driven.</p>
 
       <div class="service-grid">
         <div class="service-card">
@@ -1124,7 +1124,7 @@ else:
           <div class="phase-num">Phase 6</div>
           <div class="phase-name">Caregiver View</div>
           <span class="phase-llm-badge llm-zero">0 LLM calls</span>
-          <div class="phase-desc">CaregiverPage shows clinical detail: frailty tier, CFS, Katz total, SPPB sub-scores, risk explanation, active care plans, unread alerts. No sensitive medication info — referral pathway for clinical follow-up.</div>
+          <div class="phase-desc">CaregiverPage shows clinical detail: frailty tier, CFS, Katz total, SPPB sub-scores, risk explanation, active care plans, unread alerts. No sensitive medication info  - referral pathway for clinical follow-up.</div>
         </div>
       </div>
     </section>
@@ -1304,12 +1304,12 @@ else:
 
       <h3>Key Design Decisions</h3>
       <ol class="numbered-list">
-        <li><span class="list-num">1</span><div><strong>health_snapshots is append-only</strong> — never UPDATE, always INSERT. Enables diffs, trends, and full audit trail across sessions.</div></li>
-        <li><span class="list-num">2</span><div><strong>frailty_evaluations links its inputs</strong> — FK to both health_snapshot_id and assessment_id provides complete input traceability for each evaluation.</div></li>
-        <li><span class="list-num">3</span><div><strong>care_plans have lifecycle</strong> — status transitions from active → superseded, with superseded_by_id pointer to the replacement plan.</div></li>
-        <li><span class="list-num">4</span><div><strong>care_plans content is NOT LLM-generated</strong> — selected from content_library.py (expert-reviewed, curated content). LLM sub-agents personalize on top of these templates.</div></li>
-        <li><span class="list-num">5</span><div><strong>agent_runs tracks graph executions</strong> — graph_type, trigger, nodes executed, elapsed time. Essential for debugging and auditability.</div></li>
-        <li><span class="list-num">6</span><div><strong>alerts have source field</strong> — distinguishes assessment_graph vs chat_safety_gate vs system alerts for triage and display logic.</div></li>
+        <li><span class="list-num">1</span><div><strong>health_snapshots is append-only</strong>  - never UPDATE, always INSERT. Enables diffs, trends, and full audit trail across sessions.</div></li>
+        <li><span class="list-num">2</span><div><strong>frailty_evaluations links its inputs</strong>  - FK to both health_snapshot_id and assessment_id provides complete input traceability for each evaluation.</div></li>
+        <li><span class="list-num">3</span><div><strong>care_plans have lifecycle</strong>  - status transitions from active → superseded, with superseded_by_id pointer to the replacement plan.</div></li>
+        <li><span class="list-num">4</span><div><strong>care_plans content is NOT LLM-generated</strong>  - selected from content_library.py (expert-reviewed, curated content). LLM sub-agents personalize on top of these templates.</div></li>
+        <li><span class="list-num">5</span><div><strong>agent_runs tracks graph executions</strong>  - graph_type, trigger, nodes executed, elapsed time. Essential for debugging and auditability.</div></li>
+        <li><span class="list-num">6</span><div><strong>alerts have source field</strong>  - distinguishes assessment_graph vs chat_safety_gate vs system alerts for triage and display logic.</div></li>
       </ol>
     </section>
 

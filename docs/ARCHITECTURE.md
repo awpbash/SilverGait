@@ -1,4 +1,4 @@
-# SilverGait — Detailed Architecture
+# SilverGait  - Detailed Architecture
 
 > Detailed node-level specs, state schemas, and database design for SilverGait's two-graph LangGraph system. For the project overview, see [`../README.md`](../README.md).
 
@@ -8,7 +8,7 @@
 
 **File:** `backend/app/services/langgraph_agents/assessment_graph.py`
 
-### Nodes (all deterministic — no LLM)
+### Nodes (all deterministic  - no LLM)
 
 #### 1. Score Node
 - **After onboarding:** `score_katz(answers)` → 0-6, `score_cfs(katz_total)` → 1-9
@@ -16,7 +16,7 @@
 - **After profile update:** re-compute Katz + CFS from new answers
 
 #### 2. Classify Node
-- Uses `classify_frailty(cfs, katz, sppb)` — pure rule-based:
+- Uses `classify_frailty(cfs, katz, sppb)`  - pure rule-based:
   ```
   if cfs >= 7 or (katz <= 2 and sppb is not None and sppb <= 3): tier = "severely_frail"
   elif cfs >= 5 or (katz <= 4 and sppb is not None and sppb <= 6): tier = "frail"
@@ -78,7 +78,7 @@ class AssessmentState(TypedDict, total=False):
 - Calls `build_user_context()` → queries health_snapshots, frailty_evaluations, care_plans, assessments, exercise_logs, alerts
 - Serializes via `to_system_prompt_context()` into Gemini system prompt
 
-#### 2. Agent Node (LLM — 1-5 LLM calls)
+#### 2. Agent Node (LLM  - 1-5 LLM calls)
 - Model: `gemini-2.5-flash` (orchestrator), `gemini-2.5-flash-lite` (sub-agents)
 - System prompt includes full UserContext
 - Loads last 10 chat messages for conversation history
@@ -146,11 +146,11 @@ generate_narrative(tier, cfs, katz, sppb, ...) -> str # human-readable explanati
 
 Pre-written, expert-reviewed content. NOT LLM-generated.
 
-- `EXERCISE_PLANS` — by tier (robust/pre_frail/frail/severely_frail)
-- `DEFICIT_EXERCISES` — by deficit (low_balance/slow_gait/weak_chair_stand)
-- `SLEEP_CONTENT` — by risk level (low/moderate/high)
-- `EDUCATION_CONTENT` — by topic (frailty/balance/falls_prevention/nutrition) + tier
-- `MONITORING_TEMPLATES` — by tier
+- `EXERCISE_PLANS`  - by tier (robust/pre_frail/frail/severely_frail)
+- `DEFICIT_EXERCISES`  - by deficit (low_balance/slow_gait/weak_chair_stand)
+- `SLEEP_CONTENT`  - by risk level (low/moderate/high)
+- `EDUCATION_CONTENT`  - by topic (frailty/balance/falls_prevention/nutrition) + tier
+- `MONITORING_TEMPLATES`  - by tier
 
 ### UserContext (`backend/app/services/context.py`)
 
@@ -179,12 +179,12 @@ Pre-written, expert-reviewed content. NOT LLM-generated.
 4. POST `/api/users/{id}/health-snapshot` → Assessment Graph (trigger="onboarding")
 5. Score → Classify → Update Plans → Persist
 
-### Phase 2: First Assessment (1 LLM call — Gemini video)
+### Phase 2: First Assessment (1 LLM call  - Gemini video)
 1. Video recording (balance → gait → chair stand)
 2. Gemini 2.5 Flash → SPPB sub-scores
 3. Assessment Graph (trigger="assessment") → complete tier with all scores
 
-### Phase 3: Daily Routine (1 LLM call — Gemini video)
+### Phase 3: Daily Routine (1 LLM call  - Gemini video)
 - Morning: assessment → exercises from personalized plan
 - Assessment Graph runs each time; most days tier unchanged → short path
 
@@ -248,12 +248,12 @@ alerts (id, user_id, timestamp, alert_type, severity, message, source, read)
 
 ### Key Design Decisions
 
-1. **health_snapshots is append-only** — never UPDATE, always INSERT (enables diffs, trends, audit trail)
-2. **frailty_evaluations links its inputs** — FK to health_snapshot_id + assessment_id (full traceability)
-3. **care_plans have lifecycle** — active → superseded, with superseded_by_id pointer
-4. **care_plans content is NOT LLM-generated** — selected from content_library.py
-5. **agent_runs tracks graph executions** — which graph, which nodes, what outcome
-6. **alerts have source field** — assessment_graph vs chat_safety_gate vs system
+1. **health_snapshots is append-only**  - never UPDATE, always INSERT (enables diffs, trends, audit trail)
+2. **frailty_evaluations links its inputs**  - FK to health_snapshot_id + assessment_id (full traceability)
+3. **care_plans have lifecycle**  - active → superseded, with superseded_by_id pointer
+4. **care_plans content is NOT LLM-generated**  - selected from content_library.py
+5. **agent_runs tracks graph executions**  - which graph, which nodes, what outcome
+6. **alerts have source field**  - assessment_graph vs chat_safety_gate vs system
 
 ---
 

@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SilverGait - Clinical Evidence & Design Rationale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root, [data-theme="light"] {
+    --bg:           #f5f4f0;
+    --card:         #ffffff;
+    --text:         #111;
+    --text-secondary: #333;
+    --text-muted:   #555;
+    --border:       #ccc9c2;
+    --border-light: #dddad4;
+    --accent:       #1a2a3a;
+    --det:   #e8eef4; --det-s: #5a7a96; --det-t: #1e3a54;
+    --llm:   #fdf3e4; --llm-s: #b87830; --llm-t: #6b3d0a;
+    --dec:   #ede6f6; --dec-s: #7550a0; --dec-t: #3e2068;
+    --trg:   #e4f5ea; --trg-s: #4a9060; --trg-t: #1a4028;
+    --db:    #f5e8e8; --db-s:  #9e5050; --db-t:  #5a1a1a;
+    --api:   #e2f1f5; --api-s: #3a8898; --api-t: #1a4852;
+    --sidebar-bg:   #1a2a3a;
+    --sidebar-text: #a8b8c8;
+    --sidebar-head: #e0dcd6;
+    --sidebar-act:  #d09040;
+    --sidebar-w:    280px;
+    --font-serif:   'DM Serif Display', Georgia, serif;
+    --font-sans:    'IBM Plex Sans', sans-serif;
+    --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+    --radius:       6px;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,0.08);
+    --transition:   0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  [data-theme="dark"] {
+    --bg:           #121418;
+    --card:         #1a1d24;
+    --text:         #e8e6e1;
+    --text-secondary: #b8b4ad;
+    --text-muted:   #8a8680;
+    --border:       #2e3038;
+    --border-light: #252830;
+    --accent:       #e0dcd6;
+    --det:   #1a2230; --det-s: #5a8ab0; --det-t: #a0c4e0;
+    --llm:   #2a2010; --llm-s: #d09040; --llm-t: #e8b868;
+    --dec:   #201830; --dec-s: #9070c0; --dec-t: #c0a8e0;
+    --trg:   #142818; --trg-s: #60b070; --trg-t: #90d8a0;
+    --db:    #281818; --db-s:  #c06060; --db-t:  #e09090;
+    --api:   #142830; --api-s: #50a8b8; --api-t: #88d0e0;
+    --sidebar-bg:   #0e1218;
+    --sidebar-text: #7a8898;
+    --sidebar-head: #b0a898;
+    --sidebar-act:  #d09040;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background .3s, color .3s;
+  }
+
+  /* ── Progress Bar ─────────────────────────────────────────── */
+  #progress-bar {
+    position: fixed;
+    top: 44px;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--det-s);
+    z-index: 300;
+    transition: width .1s linear;
+  }
+
+  /* ── Top Nav ──────────────────────────────────────────────── */
+  .topnav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 44px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 2rem;
+    z-index: 250;
+    transition: background .3s, border-color .3s;
+  }
+
+  .topnav a {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .topnav a:hover { color: var(--text); }
+  .topnav a.active { color: var(--accent); }
+
+  /* ── Theme Toggle ─────────────────────────────────────────── */
+  .theme-toggle {
+    position: fixed; top: 50px; right: 24px; z-index: 200;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--card);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .3s, border-color .3s, transform .15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  .theme-toggle:hover { transform: scale(1.08); }
+  .theme-toggle svg { width: 20px; height: 20px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s; }
+  .theme-toggle .icon-sun { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    flex: 1;
+    margin-top: 46px; /* below topnav + progress */
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--sidebar-bg);
+    position: sticky;
+    top: 46px;
+    height: calc(100vh - 46px);
+    overflow-y: auto;
+    padding: 2rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 100;
+    transition: background .3s;
+  }
+
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .sidebar-brand {
+    color: var(--sidebar-head);
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2rem;
+    line-height: 1.3;
+  }
+
+  .sidebar-tagline {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .toc-label {
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    font-weight: 500;
+  }
+
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0; }
+
+  .toc-item a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.42rem 0.75rem;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    transition: background var(--transition), color var(--transition);
+    border-left: 2px solid transparent;
+    font-family: var(--font-sans);
+  }
+
+  .toc-item a:hover, .toc-item a.active {
+    background: rgba(255,255,255,0.07);
+    color: var(--sidebar-head);
+    border-left-color: var(--sidebar-act);
+  }
+
+  .toc-num {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    color: rgba(255,255,255,0.2);
+    min-width: 1.2rem;
+    transition: color var(--transition);
+  }
+
+  .toc-item a:hover .toc-num, .toc-item a.active .toc-num { color: var(--sidebar-act); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: var(--sidebar-text);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+  }
+
+  /* ── Main Content ─────────────────────────────────────────── */
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 0 3.5rem 6rem 3rem;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  #hero {
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3.5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--trg-s);
+    background: var(--trg);
+    border: 1px solid var(--trg-s);
+    padding: 0.32rem 0.9rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--accent);
+    margin-bottom: 0.9rem;
+    letter-spacing: -0.02em;
+    transition: color .3s;
+  }
+
+  .hero-sub {
+    font-size: 0.98rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.75;
+    transition: color .3s;
+  }
+
+  /* ── Sections ─────────────────────────────────────────────── */
+  .section {
+    margin-bottom: 4.5rem;
+    animation: fadeUp 0.5s ease both;
+    scroll-margin-top: 64px;
+  }
+
+  .section:nth-child(2) { animation-delay: .1s; }
+  .section:nth-child(3) { animation-delay: .2s; }
+  .section:nth-child(4) { animation-delay: .3s; }
+  .section:nth-child(5) { animation-delay: .4s; }
+  .section:nth-child(6) { animation-delay: .5s; }
+  .section:nth-child(7) { animation-delay: .6s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    min-width: max-content;
+  }
+
+  h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+    transition: color .3s;
+  }
+
+  h3 {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin: 1.75rem 0 0.65rem;
+    transition: color .3s;
+  }
+
+  p { margin-bottom: 0.9rem; color: var(--text-secondary); font-size: 0.93rem; transition: color .3s; line-height: 1.75; }
+
+  strong { color: var(--text); font-weight: 600; }
+
+  .section-intro { margin: 1rem 0 1.5rem; }
+
+  /* ── Stats Row ──────────────────────────────────────────────── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem;
+    text-align: center;
+    transition: background .3s, border-color .3s;
+  }
+
+  .stat-value { font-family: var(--font-serif); font-size: 2rem; color: var(--accent); line-height: 1; margin-bottom: 0.4rem; transition: color .3s; }
+  .stat-label { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; transition: color .3s; }
+
+  /* ── Citation Cards ─────────────────────────────────────────── */
+  .citations-grid { display: grid; gap: 1rem; grid-template-columns: 1fr; margin: 1.5rem 0; }
+  .citations-grid.two-col { grid-template-columns: 1fr 1fr; }
+
+  .citation-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    transition: box-shadow var(--transition), border-color var(--transition), transform var(--transition), background .3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .citation-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--border);
+    transition: background var(--transition);
+  }
+
+  .citation-card:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--det-s);
+    transform: translateY(-1px);
+  }
+
+  .citation-card:hover::before { background: var(--det-s); }
+
+  .citation-authors { font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; transition: color .3s; }
+  .citation-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.6rem; transition: color .3s; }
+  .citation-finding { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; margin-bottom: 0.75rem; transition: color .3s; }
+  .citation-finding strong { color: var(--det-t); }
+
+  .citation-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--det-s);
+    text-decoration: none;
+    border: 1px solid var(--det-s);
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+    transition: background var(--transition), color var(--transition);
+  }
+
+  .citation-link:hover { background: var(--det-s); color: white; }
+  .citation-link svg { width: 10px; height: 10px; }
+
+  /* ── Highlight Box ──────────────────────────────────────────── */
+  .highlight-box {
+    background: var(--det);
+    border-left: 3px solid var(--det-s);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    font-size: 0.93rem;
+    color: var(--det-t);
+    transition: background .3s, color .3s, border-color .3s;
+  }
+
+  .stat-big {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    color: var(--det-t);
+  }
+
+  /* ── Reason / Compare Tables ────────────────────────────────── */
+  .reason-table, .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.88rem;
+    transition: background .3s;
+  }
+
+  .reason-table thead tr, .compare-table thead tr { background: var(--accent); color: var(--bg); transition: background .3s; }
+
+  [data-theme="dark"] .reason-table thead tr,
+  [data-theme="dark"] .compare-table thead tr { background: var(--border); color: var(--text); }
+
+  .reason-table th, .compare-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .reason-table td, .compare-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    transition: color .3s, background .3s;
+  }
+
+  .reason-table tbody tr:last-child td,
+  .compare-table tbody tr:last-child td { border-bottom: none; }
+
+  .reason-table tbody tr:hover td,
+  .compare-table tbody tr:hover td { background: var(--det); }
+
+  .reason-table td:first-child { color: var(--text); font-weight: 600; }
+  .compare-table td:first-child { color: var(--db-t); font-size: 0.85rem; }
+  .compare-table td:last-child  { color: var(--trg-t); }
+
+  .reason-table a, .compare-table a, .metric-body a {
+    color: var(--det-s);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--det-s);
+  }
+
+  /* ── Metric Blocks ──────────────────────────────────────────── */
+  .metric-block {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.4rem;
+    margin: 1.25rem 0;
+    transition: background .3s, border-color .3s;
+  }
+
+  .metric-name {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--llm-t);
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color .3s;
+  }
+
+  .metric-formula {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    background: var(--llm);
+    border: 1px solid var(--llm-s);
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    color: var(--llm-t);
+    margin: 0.5rem 0 0.75rem;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    transition: background .3s, color .3s;
+  }
+
+  .metric-body { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; transition: color .3s; }
+  .metric-body li { margin-left: 1.25rem; margin-bottom: 0.3rem; }
+
+  /* ── Tier Cards ─────────────────────────────────────────────── */
+  .tier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin: 1.5rem 0; }
+
+  .tier-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-align: center;
+    transition: background .3s, border-color .3s;
+  }
+
+  .tier-name { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; margin-bottom: 0.4rem; }
+  .tier-name.robust    { color: var(--trg-s); }
+  .tier-name.prefrail  { color: var(--llm-s); }
+  .tier-name.frail     { color: var(--db-s); }
+  .tier-name.severe    { color: var(--db-t); }
+  .tier-duration { font-family: var(--font-serif); font-size: 1.1rem; color: var(--accent); margin-bottom: 0.35rem; transition: color .3s; }
+  .tier-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; transition: color .3s; }
+
+  /* ── Evidence Summary ───────────────────────────────────────── */
+  .evidence-grid { display: flex; flex-direction: column; gap: 0.5rem; margin: 1.5rem 0; }
+
+  .evidence-row {
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 0.65rem 1rem;
+    gap: 1rem;
+    transition: box-shadow var(--transition), background .3s;
+  }
+
+  .evidence-row:hover { box-shadow: var(--shadow-sm); background: var(--det); }
+
+  .evidence-component { font-size: 0.88rem; color: var(--text); font-weight: 600; transition: color .3s; }
+
+  .evidence-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background .3s, color .3s;
+  }
+
+  .badge-very-strong { background: var(--trg); color: var(--trg-t); border: 1px solid var(--trg-s); }
+  .badge-strong      { background: var(--det); color: var(--det-t); border: 1px solid var(--det-s); }
+  .badge-moderate    { background: var(--llm); color: var(--llm-t); border: 1px solid var(--llm-s); }
+
+  .evidence-papers { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); transition: color .3s; }
+
+  .evidence-header {
+    display: grid;
+    grid-template-columns: 1fr 160px 1fr;
+    gap: 1rem;
+    padding: 0.4rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ── Scrollbar ──────────────────────────────────────────────── */
+  main::-webkit-scrollbar { width: 6px; }
+  main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Responsive ─────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    main { padding: 0 1.5rem 4rem; }
+    .citations-grid.two-col { grid-template-columns: 1fr; }
+    .tier-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    .evidence-row { grid-template-columns: 1fr; gap: 0.25rem; }
+    .evidence-header { display: none; }
+    h1 { font-size: 1.7rem; }
+    main { padding: 0 1rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav class="topnav">
+  <a href="index.html">Overview</a>
+  <a href="langgraph-diagrams.html">Diagrams</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="kinematics.html">Kinematics</a>
+  <a href="research.html" class="active">Research</a>
+</nav>
+
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">SilverGait</div>
+    <div class="sidebar-tagline">Clinical Evidence & Design Rationale</div>
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li class="toc-item"><a href="#s1"><span class="toc-num">01</span>Frailty &amp; Falls in Singapore</a></li>
+      <li class="toc-item"><a href="#s2"><span class="toc-num">02</span>Why SPPB</a></li>
+      <li class="toc-item"><a href="#s3"><span class="toc-num">03</span>Smartphone Computer Vision</a></li>
+      <li class="toc-item"><a href="#s4"><span class="toc-num">04</span>Why Each Metric</a></li>
+      <li class="toc-item"><a href="#s5"><span class="toc-num">05</span>Sleep Intervention</a></li>
+      <li class="toc-item"><a href="#s6"><span class="toc-num">06</span>Exercise Tracking</a></li>
+      <li class="toc-item"><a href="#s7"><span class="toc-num">07</span>Evidence Summary</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      SilverGait<br>
+      DBA5102 · NUS MSBA
+    </div>
+  </nav>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <main>
+
+    <section id="hero">
+      <div class="hero-eyebrow">Peer-Reviewed Clinical Evidence</div>
+      <h1>Clinical Evidence &amp; Design Rationale</h1>
+      <p class="hero-sub">The scientific basis for every design decision: why frailty screening matters, why SPPB is the right instrument, why smartphone pose estimation is clinically valid, and why every biomechanical metric we compute is grounded in fall-risk research.</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 1: Frailty & Falls in Singapore                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>The Problem: Frailty and Falls in Ageing Singapore</h2>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value">6.2%</div>
+          <div class="stat-label">of Singaporeans 65+ are frail - most unaware until a fall occurs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">37%</div>
+          <div class="stat-label">are pre-frail, placing them at elevated risk of rapid decline</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">684K</div>
+          <div class="stat-label">fatal falls globally per year; adults over 60 at highest risk</div>
+        </div>
+      </div>
+
+      <h3>Frailty Prevalence in Singapore</h3>
+
+      <div class="citations-grid">
+        <div class="citation-card">
+          <div class="citation-authors">Merchant RA, Chen MZ, Tan LWL, et al.</div>
+          <div class="citation-meta">J Am Med Dir Assoc. 2017 - Singapore HOPE Study</div>
+          <div class="citation-finding">Among community-dwelling Singaporeans aged 65+, <strong>6.2% are frail and 37% are pre-frail</strong> - most unaware of their status until a fall or hospitalisation occurs.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/28623152/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 28623152
+          </a>
+        </div>
+      </div>
+
+      <h3>What Frailty Predicts</h3>
+
+      <div class="citations-grid">
+        <div class="citation-card">
+          <div class="citation-authors">Fried LP, Tangen CM, Walston J, et al.</div>
+          <div class="citation-meta">J Gerontol A Biol Sci Med Sci. 2001;56(3):M146-56</div>
+          <div class="citation-finding">Frailty - unintentional weight loss, exhaustion, weakness, slow walking speed, low physical activity - <strong>independently predicts falls, disability, hospitalisation, and mortality over 3 years</strong>, operating independently from comorbidity.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/11253156/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 11253156
+          </a>
+        </div>
+      </div>
+
+      <h3>Falls Burden</h3>
+
+      <div class="citations-grid">
+        <div class="citation-card">
+          <div class="citation-authors">World Health Organization</div>
+          <div class="citation-meta">WHO Fact Sheet, 2024</div>
+          <div class="citation-finding">Globally, <strong>684,000 fatal falls</strong> occur annually. An additional 37.3 million falls require medical attention each year; 20-30% of older adults who fall suffer moderate to severe injuries including hip fractures and head trauma.</div>
+          <a href="https://www.who.int/news-room/fact-sheets/detail/falls" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            WHO Link
+          </a>
+        </div>
+      </div>
+
+      <h3>The Screening Gap</h3>
+      <p>Clinical frailty screening requires trained professionals and in-person visits, limiting frequency. Singapore's push for AI-driven healthcare - including the NUS-Synapxe-IMDA AI Innovation Challenge 2026 - calls for tools that enable <strong>continuous remote monitoring</strong> and empower patients to manage health from home.</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 2: Why SPPB                                    -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>Why SPPB</h2>
+      </div>
+
+      <p class="section-intro">The Short Physical Performance Battery (SPPB) assesses lower-extremity function through three timed tests: standing balance, gait speed, and repeated chair stands. Scored 0-12, it is the most widely validated geriatric mobility assessment.</p>
+
+      <table class="reason-table">
+        <thead>
+          <tr>
+            <th>Reason for Choosing SPPB</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Predicts disability and mortality</strong></td>
+            <td>Guralnik et al. (1994) - 5,000+ subjects, strong predictive validity. <a href="https://pubmed.ncbi.nlm.nih.gov/8126356/" target="_blank">PMID 8126356</a></td>
+          </tr>
+          <tr>
+            <td><strong>Predicts disability onset</strong></td>
+            <td>Guralnik et al. (1995) - SPPB predicts disability over 4 years in persons 70+. <a href="https://www.nejm.org/doi/full/10.1056/NEJM199503023320902" target="_blank">NEJM</a></td>
+          </tr>
+          <tr>
+            <td><strong>Predicts falls</strong></td>
+            <td>Lauretani et al. (2019) - SPPB &le;6 independently associated with falls; non-inferior to POMA. <a href="https://pubmed.ncbi.nlm.nih.gov/30515724/" target="_blank">PMID 30515724</a></td>
+          </tr>
+          <tr>
+            <td><strong>Quick and useful for stratification</strong></td>
+            <td>Treacy &amp; Hassett (2020) - Effective risk stratification over 1- and 4-year follow-up. <a href="https://pubmed.ncbi.nlm.nih.gov/33191134/" target="_blank">PMID 33191134</a></td>
+          </tr>
+          <tr>
+            <td><strong>Observable via video</strong></td>
+            <td>Balance (sway), gait (cadence/symmetry), chair-stand (rep timing) - all have quantifiable biomechanical markers extractable from 2D pose estimation</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 3: Smartphone Computer Vision                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>Why Smartphone-Based Computer Vision Works</h2>
+      </div>
+
+      <p class="section-intro">SilverGait uses <strong>MoveNet Lightning</strong> for real-time 17-keypoint 2D pose estimation on-device. Multiple studies validate that 2D markerless pose estimation produces clinically acceptable kinematics.</p>
+
+      <h3>Can 2D Pose Estimation Replace Motion Capture?</h3>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Ung et al. (2022)</div>
+          <div class="citation-meta">Gait &amp; Posture - Direct MoveNet validation</div>
+          <div class="citation-finding"><strong>MoveNet Thunder: 3.7 +/- 1.3 degrees mean hip angle error</strong> vs Vicon motion capture. Directly validates MoveNet for gait analysis.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/35988434/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 35988434
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Stenum et al. (2021)</div>
+          <div class="citation-meta">PLoS Comput Biol</div>
+          <div class="citation-finding">OpenPose: 4.0 degrees hip, 5.6 degrees knee, 7.4 degrees ankle error; <strong>0.02s temporal error</strong>. Clinically acceptable for gait analysis.</div>
+          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8099131/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMC8099131
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Bosquet et al. (2023)</div>
+          <div class="citation-meta">Front Rehabil Sci - Elderly-specific</div>
+          <div class="citation-finding">2D pose estimation <strong>comparable to marker-based systems specifically for elderly gait</strong> analysis in clinical settings.</div>
+          <a href="https://www.frontiersin.org/journals/rehabilitation-sciences/articles/10.3389/fresc.2023.1238134/full" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Ali et al. (2024)</div>
+          <div class="citation-meta">Evol Bioinform - MediaPipe validation</div>
+          <div class="citation-finding">MediaPipe: <strong>Pearson's r = 0.80 lower limb, 0.91 upper limb</strong> vs Qualisys gold-standard motion capture.</div>
+          <a href="https://journals.sagepub.com/doi/10.1177/11779322241231108" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+      </div>
+
+      <h3>Can a Smartphone Do This?</h3>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Shin et al. (2021)</div>
+          <div class="citation-meta">Front Physiol</div>
+          <div class="citation-finding"><strong>Smartphone at 30fps produces clinically usable gait analysis.</strong> Validates the feasibility of mobile-first pose estimation for gait.</div>
+          <a href="https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2021.784865/full" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Gong et al. (2025)</div>
+          <div class="citation-meta">Smart Health</div>
+          <div class="citation-finding">Validates <strong>smartphone-based joint angle analysis for sit-to-stand in elderly</strong> - directly supporting our chair-stand test implementation.</div>
+          <a href="https://www.sciencedirect.com/science/article/pii/S2950550X25000160" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Roldan-Jimenez et al. (2025)</div>
+          <div class="citation-meta">Gait &amp; Posture</div>
+          <div class="citation-finding">Mobile phone pose estimation: <strong>ICC &gt;0.9 for sit-to-stand</strong> - excellent reliability for clinical use.</div>
+          <a href="https://www.sciencedirect.com/science/article/abs/pii/S0966636225000013" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Patel et al. (2023)</div>
+          <div class="citation-meta">PLOS Digit Health</div>
+          <div class="citation-finding">Video-based pose estimation can <strong>detect clinically meaningful change over time</strong>, supporting longitudinal monitoring use cases.</div>
+          <a href="https://journals.plos.org/digitalhealth/article?id=10.1371/journal.pdig.0000467" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+      </div>
+
+      <h3>Systematic Reviews</h3>
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Scott et al. (2023)</div>
+          <div class="citation-meta">J NeuroEng Rehabil - Systematic Review</div>
+          <div class="citation-finding">Markerless motion capture <strong>strong for postural control and gross movement</strong> across diverse clinical populations.</div>
+          <a href="https://jneuroengrehab.biomedcentral.com/articles/10.1186/s12984-023-01186-9" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Ripic et al. (2024)</div>
+          <div class="citation-meta">Sensors - Systematic Review</div>
+          <div class="citation-finding">Markerless camera-based capture <strong>reliable and valid for hip/knee gait kinematics</strong>, supporting clinical deployment of camera-only systems.</div>
+          <a href="https://www.mdpi.com/1424-8220/24/11/3686" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            View Paper
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 4: Why Each Metric                             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>Why We Chose Each Metric</h2>
+      </div>
+
+      <p class="section-intro">Every biomechanical metric SilverGait extracts is grounded in clinical fall-risk research. Here's why we measure what we measure.</p>
+
+      <div class="metric-block">
+        <div class="metric-name">Joint Angles - Three-Point Dot-Product Formula</div>
+        <code class="metric-formula">angle_at_B = arccos( (BA . BC) / (|BA| x |BC|) )</code>
+        <div class="metric-body">
+          <p>This formula is <strong>view-invariant in the sagittal plane</strong> - unlike raw pixel coordinates, joint angles don't change with camera distance or position.</p>
+          <ul>
+            <li><strong>Why knee angle:</strong> Knee flexion/extension range is a key descriptor of sit-to-stand ability and gait phase. Roebroeck et al. (2007) identify knee extension velocity as a primary STS descriptor. <a href="https://biomedical-engineering-online.biomedcentral.com/articles/10.1186/1475-925X-6-26" target="_blank">Link</a></li>
+            <li><strong>Why hip angle:</strong> Trunk-to-thigh flexion during STS is a compensatory movement indicator. Excessive forward lean signals lower-limb weakness.</li>
+            <li><strong>Confidence threshold (0.3):</strong> Intentionally low - MoveNet Lightning prioritizes speed, and temporal aggregation smooths noisy readings.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Sway Velocity &amp; Area (Hip Center Displacement)</div>
+        <div class="metric-body">
+          <p>We track the midpoint of left/right hip keypoints as a center-of-mass proxy and compute frame-to-frame displacement (sway velocity) and bounding-box area (sway area).</p>
+          <div class="highlight-box">
+            <span class="stat-big">75-90%</span> increased fall risk in the highest postural sway quintile (Melzer et al. 2019)
+          </div>
+          <p>We use hip center - not nose or shoulders - because it's the most stable CoM proxy from 2D keypoints. Nose is affected by head turns; shoulder midpoint by arm movement.</p>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/30981147/" target="_blank" class="citation-link" style="font-size:0.72rem">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            Melzer 2019 - PMID 30981147
+          </a>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Trunk Lean Variability (SD of Trunk Angle)</div>
+        <div class="metric-body">
+          <p>We compute trunk lean as the angle between the shoulder-hip line and vertical, then track its standard deviation over time.</p>
+          <p>Gill et al. (2001) - elderly show significantly greater trunk sway during clinical balance tests. Trunk lean variability captures <strong>postural instability that mean values miss</strong>. <a href="https://academic.oup.com/biomedgerontology/article/56/7/M438/559181" target="_blank">Link</a></p>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Gait Rhythm Variability (CV of Inter-Step Intervals)</div>
+        <div class="metric-body">
+          <p>We detect steps via zero-crossings of smoothed ankle X separation, then compute the coefficient of variation of inter-step intervals.</p>
+          <div class="highlight-box">
+            Stride time variability was <span class="stat-big" style="font-size:1.2rem">106ms</span> in fallers vs <span class="stat-big" style="font-size:1.2rem">49ms</span> in non-fallers - the <strong>strongest gait-based fall predictor</strong> in a 1-year prospective study (Hausdorff et al. 2001)
+          </div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/11494184/" target="_blank" class="citation-link" style="font-size:0.72rem">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            Hausdorff 2001 - PMID 11494184
+          </a>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Step Symmetry Index</div>
+        <code class="metric-formula">abs(avgLeft - avgRight) / avgBoth x 100%</code>
+        <div class="metric-body">
+          <p>Gait asymmetry combined with cadence and double stance time predicts falls with <strong>AUC 0.845</strong> (Chen et al. 2024). <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11323353/" target="_blank">PMC11323353</a></p>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Cadence &amp; Normative Ranges</div>
+        <code class="metric-formula">cadence = (stepCount / durationSec) x 60</code>
+        <div class="metric-body">
+          <p>Hollman et al. (2011) normative spatiotemporal gait parameters in older adults provide healthy/at-risk thresholds. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3104090/" target="_blank">PMC3104090</a></p>
+        </div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-name">Chair-Stand Rep Time Consistency (CV of Rep Durations)</div>
+        <div class="metric-body">
+          <p>We detect reps via prominence-based valley detection in the hip Y signal, then compute the CV of rep-to-rep durations.</p>
+          <ul>
+            <li><strong>Rep timing reliability:</strong> Bohannon (2021) - high ICC for 5xSTS timing validates rep time consistency as a reliable, reproducible measure. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8228261/" target="_blank">PMC8228261</a></li>
+            <li><strong>Prominence-based detection:</strong> Fixed Y-thresholds fail because camera distance, chair height, and user height change absolute values. Prominence detection is self-calibrating.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Derived Metrics Over Raw Coordinates</h3>
+      <p>We compute ~16 clinically meaningful features per frame and discard raw coordinates immediately. This is by design:</p>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Problem with Raw Keypoints</th>
+            <th>How Derived Metrics Solve It</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Camera distance changes pixel values</td>
+            <td>Joint angles are view-invariant in the sagittal plane</td>
+          </tr>
+          <tr>
+            <td>MoveNet jitters several pixels frame-to-frame</td>
+            <td>Temporal aggregation (mean, CV) filters noise</td>
+          </tr>
+          <tr>
+            <td>15,300 values per 20s recording bloat LLM prompt</td>
+            <td>~30 scalar summary leaves context for Gemini's video analysis</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 5: Sleep Intervention                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>Why Sleep Intervention</h2>
+      </div>
+
+      <p class="section-intro">SilverGait includes a Sleep Agent that generates personalized CBT-I and sleep hygiene plans based on each user's frailty tier, mood risk, exercise streak, and social isolation level.</p>
+
+      <h3>Sleep and Frailty Are Bidirectional</h3>
+      <p>Poor sleep accelerates muscle loss and frailty progression, while frailty itself worsens sleep quality - creating a vicious cycle.</p>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Ensrud et al. (2012)</div>
+          <div class="citation-meta">J Am Geriatr Soc. - 3,000+ older women, 7-year study</div>
+          <div class="citation-finding">Poor sleep quality associated with <strong>increased frailty risk</strong> in 3,000+ older women over 7 years of follow-up.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/22283806/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 22283806
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Moreno-Tamayo et al. (2020)</div>
+          <div class="citation-meta">Sleep Med.</div>
+          <div class="citation-finding">Insomnia symptoms predict frailty incidence in community-dwelling elderly. <strong>Bidirectional relationship</strong> confirmed - each condition worsens the other.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/32298918/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 32298918
+          </a>
+        </div>
+      </div>
+
+      <h3>CBT-I Is the Gold Standard for Elderly Insomnia</h3>
+      <p>Pharmacological sleep aids carry fall risks for elderly. CBT-I is recommended as first-line treatment.</p>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Irwin et al. (2006)</div>
+          <div class="citation-meta">J Am Geriatr Soc.</div>
+          <div class="citation-finding">CBT-I produces <strong>durable improvements in sleep quality in older adults</strong>, without the fall risks associated with pharmacological options.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/16551307/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 16551307
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Sivertsen et al. (2006)</div>
+          <div class="citation-meta">JAMA - Head-to-head comparison</div>
+          <div class="citation-finding"><strong>CBT-I superior to zopiclone</strong> (sleep medication) at 6-month follow-up in older adults - making it the evidence-based first-line choice.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/16790700/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 16790700
+          </a>
+        </div>
+      </div>
+
+      <div class="highlight-box">
+        The Sleep Agent personalizes advice based on contextual factors: mood risk (anxiety worsens sleep), exercise streak (physical activity improves sleep), frailty tier (poor sleep accelerates muscle loss), and social isolation (loneliness linked to poor sleep in elderly). For moderate/high risk users, CBT-I techniques (sleep restriction, stimulus control, progressive muscle relaxation) are included.
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 6: Exercise Tracking                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2>Why Exercise Tracking &amp; Personalization</h2>
+      </div>
+
+      <h3>Exercise Prevents and Reverses Frailty</h3>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Cadore et al. (2013)</div>
+          <div class="citation-meta">Ageing Res Rev.</div>
+          <div class="citation-finding">Multicomponent exercise (strength + balance + gait) is <strong>the most effective intervention for frailty reversal</strong> in elderly populations.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/23266332/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 23266332
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">de Labra et al. (2015)</div>
+          <div class="citation-meta">BMC Geriatr. - Systematic review of 19 RCTs</div>
+          <div class="citation-finding">Exercise programs <strong>improve physical function, mobility, and balance</strong> in frail older adults across 19 randomized controlled trials.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/26126532/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 26126532
+          </a>
+        </div>
+      </div>
+
+      <h3>Exercise Reduces Fall Risk</h3>
+
+      <div class="citations-grid two-col">
+        <div class="citation-card">
+          <div class="citation-authors">Sherrington et al. (2019)</div>
+          <div class="citation-meta">Br J Sports Med. - 108 RCTs, Cochrane-level</div>
+          <div class="citation-finding">Exercise reduces fall rate by <strong>23% overall</strong>. Programs including balance training reduce falls by <strong>39%</strong>. The most definitive evidence base in the field.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/30464052/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 30464052
+          </a>
+        </div>
+        <div class="citation-card">
+          <div class="citation-authors">Gillespie et al. (2012)</div>
+          <div class="citation-meta">Cochrane Database Syst Rev.</div>
+          <div class="citation-finding">Multifactorial interventions including exercise <strong>reduce rate of falls in community-dwelling older adults</strong> - supporting our integrated approach.</div>
+          <a href="https://pubmed.ncbi.nlm.nih.gov/22972103/" target="_blank" class="citation-link">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1h4v4M11 1L5 7M3 3H1v8h8V9"/></svg>
+            PMID 22972103
+          </a>
+        </div>
+      </div>
+
+      <h3>Our Approach: Safety-Tiered Intensity</h3>
+      <p>Exercise plans are selected deterministically from a curated content library by frailty tier - not LLM-generated - ensuring safety-appropriate intensity.</p>
+
+      <div class="tier-grid">
+        <div class="tier-card">
+          <div class="tier-name robust">Robust</div>
+          <div class="tier-duration">20-30 min</div>
+          <div class="tier-desc">Moderate intensity maintenance</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-name prefrail">Pre-frail</div>
+          <div class="tier-duration">15-20 min</div>
+          <div class="tier-desc">Strengthening for balance &amp; leg power</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-name frail">Frail</div>
+          <div class="tier-duration">10-15 min</div>
+          <div class="tier-desc">Gentle seated/supported exercises</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-name severe">Severely Frail</div>
+          <div class="tier-duration">5-10 min</div>
+          <div class="tier-desc">Minimal caregiver-assisted movements</div>
+        </div>
+      </div>
+
+      <p style="margin-top:1rem;">The Exercise Agent (LLM) provides <em>additional</em> personalization based on specific SPPB deficits (low balance, slow gait, weak chair stand) and exercise streak - layered on top of the safe deterministic base.</p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SECTION 7: Evidence Summary                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2>Evidence Strength Summary</h2>
+      </div>
+
+      <p class="section-intro">A consolidated view of the clinical evidence underpinning each component of SilverGait.</p>
+
+      <div class="evidence-grid">
+        <div class="evidence-header">
+          <span>Component</span>
+          <span>Evidence Strength</span>
+          <span>Key Papers</span>
+        </div>
+
+        <div class="evidence-row">
+          <div class="evidence-component">SPPB as clinical tool</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Guralnik 1994, 1995</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">SPPB predicts falls</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Lauretani 2019, Treacy 2020</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Frailty predicts adverse outcomes</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Fried 2001</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Singapore frailty prevalence</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Merchant 2017 (HOPE Study)</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">MoveNet for 2D kinematics</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Ung 2022</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Smartphone-based gait analysis</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Shin 2021</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Smartphone-based STS analysis</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Gong 2025, Roldan-Jimenez 2025</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Gait variability as fall predictor</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Hausdorff 2001</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Postural sway as fall predictor</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Melzer 2019</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Trunk lean variability</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Gill 2001</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Step symmetry as fall predictor</div>
+          <div><span class="evidence-badge badge-moderate">Moderate-Strong</span></div>
+          <div class="evidence-papers">Chen 2024</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">STS rep time consistency</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Bohannon 2021</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Markerless motion capture validity</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Scott 2023, Ripic 2024</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Sleep-frailty bidirectional link</div>
+          <div><span class="evidence-badge badge-strong">Strong</span></div>
+          <div class="evidence-papers">Ensrud 2012, Moreno-Tamayo 2020</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">CBT-I for elderly insomnia</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Irwin 2006, Sivertsen 2006</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Exercise reverses frailty</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Cadore 2013, de Labra 2015</div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-component">Exercise reduces falls</div>
+          <div><span class="evidence-badge badge-very-strong">Very Strong</span></div>
+          <div class="evidence-papers">Sherrington 2019 (108 RCTs)</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  /* ── Dark mode toggle ─────────────────────────────────────── */
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    localStorage.setItem('sg-theme', html.getAttribute('data-theme'));
+  }
+
+  (function() {
+    const saved = localStorage.getItem('sg-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+
+  /* ── Progress bar ─────────────────────────────────────────── */
+  window.addEventListener('scroll', function() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  });
+
+  /* ── Scroll spy ───────────────────────────────────────────── */
+  (function() {
+    const sections = document.querySelectorAll('.section[id]');
+    const tocLinks = document.querySelectorAll('.toc-item a');
+
+    function onScroll() {
+      let current = '';
+      sections.forEach(sec => {
+        const top = sec.getBoundingClientRect().top;
+        if (top <= 80) current = sec.id;
+      });
+      tocLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

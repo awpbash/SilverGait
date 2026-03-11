@@ -12,29 +12,29 @@ A **multimodal agentic system** for at-home elderly frailty assessment and manag
 
 ## Problem
 
-Singapore is one of the fastest-ageing societies in Asia. Frailty and mobility decline are leading predictors of falls, hospitalisation, and loss of independence among the elderly — yet clinical assessments like the SPPB require in-person visits with trained professionals, making regular screening impractical. Most seniors are unaware of their frailty status until a fall or hospitalisation occurs.
+Singapore is one of the fastest-ageing societies in Asia. Frailty and mobility decline are leading predictors of falls, hospitalisation, and loss of independence among the elderly, yet clinical assessments like the SPPB require in-person visits with trained professionals, making regular screening impractical. Most seniors are unaware of their frailty status until a fall or hospitalisation occurs.
 
 As AI-driven healthcare solutions gain momentum in Singapore ([NUS-Synapxe-IMDA AI Innovation Challenge 2026](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/press-releases/2026/ai-solutions-combating-chronic-diseases)), there is a clear need for tools that enable **continuous remote monitoring** and **empower patients to manage their health from home**.
 
 ## Solution
 
-SilverGait enables elderly users to perform standardized SPPB assessments at home using only a smartphone camera — no wearables, no clinic visits. The system combines **computer vision**, **deterministic clinical scoring**, and a **multilingual agentic chat system** to deliver continuous, personalized frailty management.
+SilverGait enables elderly users to perform standardized SPPB assessments at home using only a smartphone camera, with no wearables or clinic visits required. The system combines **computer vision**, **deterministic clinical scoring**, and a **multilingual agentic chat system** to deliver continuous, personalized frailty management.
 
 **Modalities:** Video (pose estimation + vision LLM), voice (STT/TTS in 4 languages), text (chat agent), structured health data (Katz ADL, CFS, SPPB scoring)
 
 ## Features
 
-- **Video-based SPPB assessment** — Phone camera records balance, gait, and chair-stand tests. MoveNet extracts 2D kinematics on-device; Gemini Vision scores each test 0-4. Combined SPPB (0-12) drives frailty classification. [How it works](docs/kinematics-and-sppb.md) | [Research](docs/research.md)
+- **Video-based SPPB assessment** - Phone camera records balance, gait, and chair-stand tests. MoveNet extracts 2D kinematics on-device; Gemini Vision scores each test 0-4. Combined SPPB (0-12) drives frailty classification.
 
   <p align="center"><img src="demo/cv.png" width="32%" /></p>
-- **Deterministic frailty pipeline** — Katz ADL (0-6), CFS (1-9), and SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts. Append-only snapshots for full audit trail.
-- **Agentic chat with sub-agents** — Gemini 2.5 Flash orchestrator with function calling dispatches to Exercise, Sleep, Education, and Monitoring sub-agents. Safety gate detects falls, emergencies, and distress in all four languages.
-- **Caregiver voice cloning** — ElevenLabs clones a caregiver's voice for all TTS output. Elderly are more likely to engage with and comply with instructions from a familiar voice — exercise coaching, assessment guidance, and chat responses all sound like a trusted family member rather than a generic AI.
+- **Deterministic frailty pipeline** - Katz ADL (0-6), CFS (1-9), and SPPB feed a rule-based classifier (0 LLM calls). Tier changes auto-generate care plans and caregiver alerts. Append-only snapshots for full audit trail.
+- **Agentic chat with sub-agents** - Gemini 2.5 Flash orchestrator with function calling dispatches to Exercise, Sleep, Education, and Monitoring sub-agents. Safety gate detects falls, emergencies, and distress in all four languages.
+- **Caregiver voice cloning** - ElevenLabs clones a caregiver's voice for all TTS output. Elderly users are more likely to engage with instructions from a familiar voice, so exercise coaching, assessment guidance, and chat responses all sound like a trusted family member.
 
   <p align="center"><img src="demo/voice.png" width="32%" /></p>
-- **Multilingual voice-first** — English, Mandarin, Malay, Tamil. MERaLiON AudioLLM (NUS/A*STAR) handles Singlish accents and code-switching. Voice input on every screen so users never have to type.
-- **Personalized exercise & sleep plans** — Exercise plans selected by frailty tier from a curated library, then personalized by SPPB deficits. Sleep Agent generates CBT-I plans — the recommended first-line treatment over pharmacological aids which carry fall risks.
-- **Elderly-optimized UI** — 18px+ fonts, 48px+ touch targets, high-contrast warm palette. One decision at a time, bottom nav, voice on all input screens. Clinical detail reserved for the caregiver dashboard.
+- **Multilingual voice-first** - English, Mandarin, Malay, Tamil. MERaLiON AudioLLM (NUS/A*STAR) handles Singlish accents and code-switching. Voice input on every screen so users never have to type.
+- **Personalized exercise & sleep plans** - Exercise plans selected by frailty tier from a curated library, then personalized by SPPB deficits. Sleep Agent generates CBT-I plans, the recommended first-line treatment over pharmacological aids which carry fall risks.
+- **Elderly-optimized UI** - 18px+ fonts, 48px+ touch targets, high-contrast warm palette. One decision at a time, bottom nav, voice on all input screens. Clinical detail reserved for the caregiver dashboard.
 
   <p align="center"><img src="demo/wearables.png" width="32%" /></p>
 
@@ -53,23 +53,30 @@ Score -> Classify -> Tier Change?       Context Assembly -> Agent (Gemini)
 
 Design philosophy: **LLM only where reasoning is needed.** Scoring, classification, routing, and plan selection are fully deterministic. LLM calls are reserved for video analysis, conversational reasoning, and personalized content generation.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for detailed specs, state schemas, and DB schema.
-See [`docs/kinematics-and-sppb.md`](docs/kinematics-and-sppb.md) for our CV/kinematics approach and research references (35+ peer-reviewed papers).
-See [`docs/research.md`](docs/research.md) for the clinical evidence and scientific rationale behind the system.
-View the **[documentation site](https://awpbash.github.io/SilverGait/)** — interactive diagrams, architecture specs, kinematics pipeline, and clinical evidence.
-- [LangGraph Diagrams](https://awpbash.github.io/SilverGait/langgraph-diagrams.html) · [Architecture](https://awpbash.github.io/SilverGait/architecture.html) · [Kinematics](https://awpbash.github.io/SilverGait/kinematics.html) · [Research](https://awpbash.github.io/SilverGait/research.html)
+## Documentation
+
+Browse the **[documentation site](https://awpbash.github.io/SilverGait/)** for interactive rendered versions of all docs:
+
+| Page | Description |
+|------|-------------|
+| [LangGraph Diagrams](https://awpbash.github.io/SilverGait/langgraph-diagrams.html) | Interactive flow diagrams of both pipelines |
+| [System Architecture](https://awpbash.github.io/SilverGait/architecture.html) | Node-level specs, state schemas, DB schema |
+| [Kinematics & SPPB](https://awpbash.github.io/SilverGait/kinematics.html) | CV pipeline, pose estimation, scoring algorithms |
+| [Clinical Evidence](https://awpbash.github.io/SilverGait/research.html) | 35+ peer-reviewed papers backing each design decision |
+
+Raw markdown sources are in [`docs/`](docs/).
 
 ## Prerequisites
 
 - **Python 3.10+** (with pip)
-- **Node.js 18+** (with pnpm — install via `npm i -g pnpm` or use Corepack)
-- **Gemini API key** — get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **Node.js 18+** (with pnpm - install via `npm i -g pnpm` or use Corepack)
+- **Gemini API key** - get one from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ## Setup
 
 1. Clone and enter the repo:
    ```bash
-   git clone https://github.com/ngjunsiang/SilverGait.git
+   git clone https://github.com/awpbash/SilverGait.git
    cd SilverGait
    ```
 
@@ -97,11 +104,7 @@ View the **[documentation site](https://awpbash.github.io/SilverGait/)** — int
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/api/docs
 
-4. Open the frontend on your phone (same network) or use `share.sh` for a public URL:
-   ```bash
-   chmod +x share.sh
-   ./share.sh
-   ```
+4. Open the frontend on your phone (same network) or use `share.sh` / `share.bat` for a public URL via ngrok.
 
 ## Environment Variables
 
@@ -132,11 +135,15 @@ The app runs with only `GEMINI_API_KEY`. Optional keys enable higher-quality voi
 SilverGait/
 ├── .env.example              # API key template
 ├── run.sh / run.bat          # Start backend + frontend
-├── share.sh                  # Public URL via localtunnel
-├── langgraph-diagrams.html   # Interactive architecture diagrams
+├── share.sh / share.bat      # Public URL via ngrok
 │
 ├── demo/                     # Screenshots, GIFs, demo videos
 ├── docs/
+│   ├── index.html            # Documentation site hub
+│   ├── langgraph-diagrams.html  # Interactive pipeline diagrams
+│   ├── architecture.html     # System architecture (rendered)
+│   ├── kinematics.html       # CV pipeline & SPPB (rendered)
+│   ├── research.html         # Clinical evidence (rendered)
 │   ├── ARCHITECTURE.md       # Detailed specs, state schemas, DB schema
 │   ├── kinematics-and-sppb.md # CV pipeline, biomechanics, research refs
 │   └── research.md           # Clinical evidence and scientific rationale
