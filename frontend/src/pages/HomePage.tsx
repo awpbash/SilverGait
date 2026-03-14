@@ -184,41 +184,9 @@ export function HomePage() {
 
   // --- Voice (STT) — Browser SpeechRecognition, Gemini fallback ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const SpeechRecognitionAPI: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-  const LANG_BCP47: Record<string, string> = { en: 'en-SG', mandarin: 'zh-CN', malay: 'ms-MY', tamil: 'ta-IN' };
+
 
   const recognitionRef = useRef<any>(null);
-
-  const handleBrowserSTTResult = useCallback((transcript: string) => {
-    if (!transcript.trim()) return;
-    sendMessage(transcript.trim());
-  }, [sendMessage]);
-
-  const startBrowserSTT = useCallback(() => {
-    if (!SpeechRecognitionAPI) return false;
-    const recognition = new SpeechRecognitionAPI();
-    recognitionRef.current = recognition;
-    recognition.lang = LANG_BCP47[lang] || 'en-SG';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
-
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onresult = (event: any) => {
-      setIsRecording(false);
-      const transcript = event.results?.[0]?.[0]?.transcript || '';
-      handleBrowserSTTResult(transcript);
-    };
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
-
-    try {
-      recognition.start();
-      return true;
-    } catch {
-      return false;
-    }
-  }, [lang, handleBrowserSTTResult]);
 
   // Backend STT via WAV recording (no ffmpeg needed)
   const startGeminiFallbackSTT = useCallback(async () => {
