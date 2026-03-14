@@ -40,7 +40,7 @@ export function MovementGraph({
   const t = useT();
   const width = 360; // SVG viewBox width, scales responsively
 
-  const { path, areaPath, yMin, yMax, yTicks, xTicks, validPoints } = useMemo(() => {
+  const { path, areaPath, yTicks, xTicks, validPoints } = useMemo(() => {
     // Filter valid data points
     const pts: { t: number; v: number; idx: number }[] = [];
     for (let i = 0; i < time.length; i++) {

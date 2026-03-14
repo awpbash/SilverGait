@@ -4,13 +4,17 @@ FastAPI server for AI-powered elderly care.
 """
 
 import os
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import logging
 from logging.handlers import RotatingFileHandler
 
 from .core.config import get_settings
 from .core.database import init_db, DB_DIR
+from .core.auth import get_current_user
 from .routers import (
     health_router,
     assessment_router,
@@ -68,16 +72,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers — public (no auth)
 app.include_router(health_router, prefix="/api")
-app.include_router(assessment_router, prefix="/api")
-app.include_router(intervention_router, prefix="/api")
-app.include_router(voice_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-app.include_router(history_router, prefix="/api")
-app.include_router(chat_router, prefix="/api")
-app.include_router(exercises_router, prefix="/api")
-app.include_router(agent_router, prefix="/api")
+app.include_router(voice_router, prefix="/api")  # public: needed during onboarding TTS/STT
+
+# Include routers — protected (require valid session token)
+_auth = [Depends(get_current_user)]
+app.include_router(assessment_router, prefix="/api", dependencies=_auth)
+app.include_router(intervention_router, prefix="/api", dependencies=_auth)
+app.include_router(history_router, prefix="/api", dependencies=_auth)
+app.include_router(chat_router, prefix="/api", dependencies=_auth)
+app.include_router(exercises_router, prefix="/api", dependencies=_auth)
+app.include_router(agent_router, prefix="/api", dependencies=_auth)
 
 
 @app.on_event("startup")
@@ -89,20 +96,36 @@ async def startup():
         logger.critical("GEMINI_API_KEY not set — chat and assessment features will fail!")
 
 
-@app.get("/")
-async def root():
-    """Health check endpoint."""
-    return {
-        "app": "SilverGait",
-        "status": "running",
-        "version": "1.0.0",
-    }
-
-
 @app.get("/api/health")
 async def api_health():
     """API health check."""
     return {"status": "healthy"}
+
+
+# ── Serve frontend in production ────────────────────────────────────
+# If frontend/dist exists (i.e. built for production), serve it.
+# In local dev, dist/ doesn't exist — Vite proxy handles /api instead.
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if _FRONTEND_DIST.is_dir():
+    # Serve static assets (JS, CSS, images) at /assets
+    app.mount("/assets", StaticFiles(directory=_FRONTEND_DIST / "assets"), name="assets")
+
+    # SPA fallback: any non-/api route returns index.html
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        # Try to serve an exact static file first (favicon.ico, etc.)
+        file_path = (_FRONTEND_DIST / full_path).resolve()
+        if full_path and file_path.is_file() and str(file_path).startswith(str(_FRONTEND_DIST)):
+            return FileResponse(file_path)
+        return FileResponse(_FRONTEND_DIST / "index.html")
+
+    logger.info(f"Serving frontend from {_FRONTEND_DIST}")
+else:
+    # Local dev — just a simple health check at /
+    @app.get("/")
+    async def root():
+        return {"app": "SilverGait", "status": "running", "version": "1.0.0"}
 
 
 if __name__ == "__main__":

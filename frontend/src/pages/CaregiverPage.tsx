@@ -38,7 +38,7 @@ type FrailtyEntry = {
 
 export function CaregiverPage() {
   const { latestAssessment, history } = useAssessmentStore();
-  const userId = useUserStore((s) => s.userId);
+  const userId = useUserStore((s: { userId: string }) => s.userId);
   const navigate = useNavigate();
   const t = useT();
   const exerciseStats = useExerciseStats(7);

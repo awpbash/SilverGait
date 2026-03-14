@@ -180,7 +180,7 @@ function saveCompleted(completed: Set<string>) {
 
 export function ExercisesPage() {
   const t = useT();
-  const userId = useUserStore((s) => s.userId);
+  const userId = useUserStore((s: { userId: string }) => s.userId);
   const RAW_EXERCISES = useMemo(() => getExercises(t), [t]);
   const [exerciseOrder, setExerciseOrder] = useState<string[]>([]);
   const [recommendedIds, setRecommendedIds] = useState<Set<string>>(new Set());

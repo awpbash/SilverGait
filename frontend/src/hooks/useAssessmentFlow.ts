@@ -15,6 +15,7 @@ import { extractFrameMetrics } from '../utils/poseMetrics';
 import { computeTotal as computeTotalScore, computeMaxScore } from '../utils/scoring';
 import { useT, tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
+import { authHeaders } from '../services/api';
 
 // --- Types ---
 export type AssessmentStep =
@@ -453,7 +454,7 @@ export function useAssessmentFlow() {
       formData.append('test_type', currentTest.id);
       if (metricsRef.current) formData.append('pose_metrics', JSON.stringify(metricsRef.current));
 
-      const response = await fetch('/api/assessment/analyze-stream', { method: 'POST', body: formData });
+      const response = await fetch('/api/assessment/analyze-stream', { method: 'POST', body: formData, headers: authHeaders() });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || t.assessment.checkFailed);

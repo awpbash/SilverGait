@@ -663,6 +663,9 @@ const en = {
     dailyExercises: 'Daily Exercises',
     howAmIDoing: 'How Am I Doing?',
     // Quick prompts
+    qpCheck: 'Check my strength',
+    qpExercises: 'Show me exercises',
+    qpProgress: 'How am I doing?',
     qpUnsteady: 'I feel unsteady today',
     qpWhatToDo: 'What should I do today?',
     qpFallRisk: 'How do I prevent falls?',

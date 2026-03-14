@@ -1,7 +1,8 @@
-"""User management endpoints — lightweight, no auth."""
+"""User management endpoints — lightweight session auth."""
 
 import logging
 from datetime import datetime
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,7 +10,8 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
-from ..models.db_models import User, HealthSnapshot, FrailtyEvaluation, CarePlan, Alert
+from ..core.auth import create_session, get_current_user
+from ..models.db_models import User, Session, HealthSnapshot, FrailtyEvaluation, CarePlan, Alert
 from ..services.scoring import score_katz, score_cfs, CFS_LABELS
 from ..services.context import build_user_context
 
@@ -18,7 +20,6 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 class UserCreate(BaseModel):
-    id: str
     display_name: str = ""
     language: str = "en"
     gender: str | None = None  # male | female | other
@@ -31,6 +32,7 @@ class UserResponse(BaseModel):
     gender: str | None = None
     created_at: str
     onboarded: bool = False
+    token: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -54,16 +56,15 @@ class HealthSnapshotRequest(BaseModel):
 
 
 @router.post("", response_model=UserResponse)
-async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Create a user if they don't exist, or return existing."""
-    result = await db.execute(select(User).where(User.id == body.id))
-    user = result.scalar_one_or_none()
+async def create_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new user with server-generated UUID and session token."""
+    user_id = uuid4().hex
+    user = User(id=user_id, display_name=body.display_name, language=body.language, gender=body.gender)
+    db.add(user)
+    await db.flush()
 
-    if not user:
-        user = User(id=body.id, display_name=body.display_name, language=body.language, gender=body.gender)
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    token = await create_session(db, user_id)
+    await db.commit()
 
     return UserResponse(
         id=user.id,
@@ -72,6 +73,36 @@ async def create_or_get_user(body: UserCreate, db: AsyncSession = Depends(get_db
         gender=user.gender,
         created_at=user.created_at.isoformat(),
         onboarded=user.onboarded_at is not None,
+        token=token,
+    )
+
+
+class TokenValidateRequest(BaseModel):
+    token: str
+
+
+@router.post("/validate-token", response_model=UserResponse)
+async def validate_token(body: TokenValidateRequest, db: AsyncSession = Depends(get_db)):
+    """Validate an existing token and return user info. Used on app reload."""
+    result = await db.execute(select(Session).where(Session.token == body.token))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if session.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    user = await db.get(User, session.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return UserResponse(
+        id=user.id,
+        display_name=user.display_name,
+        language=user.language,
+        gender=user.gender,
+        created_at=user.created_at.isoformat(),
+        onboarded=user.onboarded_at is not None,
+        token=body.token,
     )
 
 

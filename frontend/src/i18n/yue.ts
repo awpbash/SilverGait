@@ -3,7 +3,7 @@
  * Uses written Cantonese where natural, falls back to English otherwise.
  */
 import type { Translations } from './en';
-import { DeepPartial } from './index';
+import type { DeepPartial } from './index';
 
 const yue: DeepPartial<Translations> = {
   common: {

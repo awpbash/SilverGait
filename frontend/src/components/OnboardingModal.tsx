@@ -56,37 +56,6 @@ function playBrowserTTS(
   return true;
 }
 
-async function playGeminiFallbackTTS(
-  text: string,
-  audioRef: React.MutableRefObject<HTMLAudioElement | null>,
-  onStart: () => void,
-  onEnd: () => void,
-  onError: (msg: string) => void,
-): Promise<void> {
-  onStart();
-  try {
-    const fd = new FormData();
-    fd.append('text', text);
-    const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: fd });
-    if (!res.ok) {
-      onError(res.status === 503 ? 'Voice service not available' : 'Could not read aloud');
-      onEnd();
-      return;
-    }
-    const blob = await res.blob();
-    if (!blob.size) { onError('No audio received'); onEnd(); return; }
-    const url = URL.createObjectURL(blob);
-    if (!audioRef.current) audioRef.current = new Audio();
-    audioRef.current.src = url;
-    audioRef.current.onended = () => { URL.revokeObjectURL(url); onEnd(); };
-    audioRef.current.onerror = () => { URL.revokeObjectURL(url); onEnd(); };
-    audioRef.current.play().catch(() => { onError('Audio playback blocked'); onEnd(); });
-  } catch {
-    onError('Cannot reach voice service');
-    onEnd();
-  }
-}
-
 /** Play TTS: ElevenLabs (backend) → browser speechSynthesis → Gemini fallback. */
 function playTTS(
   text: string,
@@ -346,10 +315,8 @@ interface ContributingAnswers {
   cognitive_risk: string | null;
 }
 
-const KATZ_KEYS = ['bathing', 'dressing', 'toileting', 'transferring', 'continence', 'feeding'] as const;
-
 export function OnboardingModal() {
-  const { userId, voiceId, setDisplayName, setGender, setPreferredLanguage, setHasOnboarded, setSynced } = useUserStore();
+  const { voiceId, setUserId, setSessionToken, setDisplayName, setGender, setPreferredLanguage, setHasOnboarded, setSynced } = useUserStore();
   const t = useT();
   const ob = t.onboarding;
 
@@ -415,8 +382,8 @@ export function OnboardingModal() {
 
   /* ── TTS: read question aloud ── */
   const handleSpeak = useCallback((text: string) => {
-    playTTS(text, lang, audioRef, () => setSpeaking(true), () => setSpeaking(false), showVoiceError, userId, voiceId);
-  }, [lang, showVoiceError, userId, voiceId]);
+    playTTS(text, lang, audioRef, () => setSpeaking(true), () => setSpeaking(false), showVoiceError, undefined, voiceId);
+  }, [lang, showVoiceError, voiceId]);
 
   const handleWelcomeNext = useCallback(() => {
     if (name.trim()) setDisplayName(name.trim());
@@ -477,11 +444,13 @@ export function OnboardingModal() {
   const handleSubmit = async (finalContrib: ContributingAnswers) => {
     setSubmitting(true);
     try {
-      // 1. Ensure user exists in backend
-      await userApi.ensureUser(userId, name.trim() || undefined, lang, gender || null);
+      // 1. Register user on backend (server generates UUID + session token)
+      const userRes = await userApi.ensureUser(name.trim() || undefined, lang, gender || null);
+      setUserId(userRes.id);
+      setSessionToken(userRes.token);
 
       // 2. Create health snapshot + trigger Assessment Graph
-      await healthSnapshotApi.create(userId, {
+      await healthSnapshotApi.create(userRes.id, {
         trigger: 'onboarding',
         katz_bathing: katz.bathing ?? true,
         katz_dressing: katz.dressing ?? true,
@@ -506,7 +475,6 @@ export function OnboardingModal() {
   };
 
   const stepNumber = step === 'welcome' ? 1 : step === 'katz' ? 2 : 3;
-  const totalSteps = 3;
 
   return (
     <div className="onboarding-overlay">

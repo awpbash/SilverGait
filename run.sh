@@ -6,7 +6,7 @@
 
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 VENV_DIR="$BACKEND_DIR/venv"
@@ -116,7 +116,7 @@ trap cleanup SIGINT SIGTERM
 # Start backend
 echo -e "\n${GREEN}Starting backend server...${NC}"
 cd "$BACKEND_DIR"
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 echo -e "Backend PID: $BACKEND_PID"
 

@@ -4,7 +4,7 @@
  * Falls back to English for most strings.
  */
 import type { Translations } from './en';
-import { DeepPartial } from './index';
+import type { DeepPartial } from './index';
 
 const hokkien: DeepPartial<Translations> = {
   common: {

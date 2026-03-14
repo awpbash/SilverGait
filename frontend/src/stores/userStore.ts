@@ -10,6 +10,9 @@ import type { HealthMetrics, WeeklyTrend } from '../types';
 interface UserState {
   // User identity
   userId: string;
+  setUserId: (id: string) => void;
+  sessionToken: string | null;
+  setSessionToken: (token: string | null) => void;
   displayName: string;
   gender: string | null;
   setDisplayName: (name: string) => void;
@@ -44,13 +47,11 @@ interface UserState {
   setError: (error: string | null) => void;
 }
 
-// Generate a stable user ID
-const generateUserId = () => `user_${Date.now().toString(36)}`;
-
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
-      userId: generateUserId(),
+      userId: '',
+      sessionToken: null,
       displayName: '',
       gender: null,
       preferredLanguage: 'en',
@@ -63,6 +64,8 @@ export const useUserStore = create<UserState>()(
       isLoading: false,
       error: null,
 
+      setUserId: (userId) => set({ userId }),
+      setSessionToken: (sessionToken) => set({ sessionToken }),
       setDisplayName: (displayName) => set({ displayName }),
       setGender: (gender) => set({ gender }),
       setPreferredLanguage: (preferredLanguage) => set({ preferredLanguage }),
@@ -76,9 +79,10 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'SilverGait-user',
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         userId: state.userId,
+        sessionToken: state.sessionToken,
         displayName: state.displayName,
         gender: state.gender,
         preferredLanguage: state.preferredLanguage,
@@ -86,13 +90,20 @@ export const useUserStore = create<UserState>()(
         hasOnboarded: state.hasOnboarded,
         synced: state.synced,
       }),
-      migrate: (persisted: unknown) => {
+      migrate: (persisted: unknown, version: number): UserState => {
         const state = persisted as Record<string, unknown>;
+        // v1→v2: server-generated IDs + session tokens. Clear old client-generated state.
+        if (version < 2) {
+          state.userId = '';
+          state.sessionToken = null;
+          state.hasOnboarded = false;
+          state.synced = false;
+        }
         const validLangs = ['en', 'mandarin', 'malay', 'tamil'];
         if (state && typeof state.preferredLanguage === 'string' && !validLangs.includes(state.preferredLanguage)) {
           state.preferredLanguage = 'en';
         }
-        return state as ReturnType<typeof useUserStore.getState>;
+        return state as unknown as UserState;
       },
     }
   )

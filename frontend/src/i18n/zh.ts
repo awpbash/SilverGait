@@ -656,6 +656,9 @@ const zh: Translations = {
     dailyExercises: '每天运动',
     howAmIDoing: '我做得怎么样？',
     // Quick prompts
+    qpCheck: '检查我的体力',
+    qpExercises: '给我看运动',
+    qpProgress: '我做得怎么样？',
     qpUnsteady: '我今天站不太稳',
     qpWhatToDo: '我今天应该做什么？',
     qpFallRisk: '怎样预防跌倒？',

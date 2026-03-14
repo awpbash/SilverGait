@@ -4,7 +4,7 @@
  * Score is proportional: 1 test = /4, 2 = /8, 3 = /12.
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader, Loading, CameraRecordingView, AssessmentResultView } from '../components';
 import { useAssessmentFlow, STAGE_ORDER } from '../hooks/useAssessmentFlow';
@@ -75,7 +75,6 @@ export function AssessmentPage() {
     setVoiceCoachEnabled,
     setStep,
     triggerCameraStart,
-    latestIntervention,
   } = flow;
 
   // Extra state: show demo before starting camera

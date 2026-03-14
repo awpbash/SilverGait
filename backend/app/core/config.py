@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     elevenlabs_style: float = 0.55            # 0-1, style exaggeration (warmth + intonation)
     elevenlabs_speaker_boost: bool = True      # enhance voice clarity
 
+    # Session management
+    session_expiry_days: int = 90
+
     # Server
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000

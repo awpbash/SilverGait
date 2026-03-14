@@ -19,6 +19,53 @@ const api = axios.create({
   timeout: 30000,
 });
 
+// Attach session token to all requests
+api.interceptors.request.use((config) => {
+  const stored = localStorage.getItem('SilverGait-user');
+  if (stored) {
+    try {
+      const { state } = JSON.parse(stored);
+      if (state?.sessionToken) {
+        config.headers.Authorization = `Bearer ${state.sessionToken}`;
+      }
+    } catch { /* ignore parse errors */ }
+  }
+  return config;
+});
+
+// On 401, clear session so app re-registers
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error?.response?.status === 401) {
+      const stored = localStorage.getItem('SilverGait-user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          parsed.state = { ...parsed.state, userId: '', sessionToken: null, hasOnboarded: false, synced: false };
+          localStorage.setItem('SilverGait-user', JSON.stringify(parsed));
+        } catch { /* ignore */ }
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
+/** Helper: get session token from localStorage for raw fetch() calls. */
+export const getSessionToken = (): string | null => {
+  try {
+    const stored = localStorage.getItem('SilverGait-user');
+    if (!stored) return null;
+    return JSON.parse(stored)?.state?.sessionToken ?? null;
+  } catch { return null; }
+};
+
+/** Build auth headers for raw fetch() calls (FormData-compatible — no Content-Type). */
+export const authHeaders = (): Record<string, string> => {
+  const token = getSessionToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Error handler with graceful "Retrying..." as per CLAUDE.md
 const handleApiError = (error: unknown): never => {
   if (error instanceof AxiosError) {
@@ -165,18 +212,27 @@ export const interventionApi = {
 // User API
 export const userApi = {
   ensureUser: async (
-    userId: string,
     displayName?: string,
     language?: string,
     gender?: string | null,
-  ): Promise<{ id: string; display_name: string; language: string; gender: string | null; created_at: string }> => {
+  ): Promise<{ id: string; display_name: string; language: string; gender: string | null; created_at: string; token: string }> => {
     try {
       const response = await api.post('/users', {
-        id: userId,
         display_name: displayName || '',
         language: language || 'en',
         gender: gender || null,
       });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  validateToken: async (
+    token: string,
+  ): Promise<{ id: string; display_name: string; language: string; gender: string | null; created_at: string; onboarded: boolean; token: string }> => {
+    try {
+      const response = await api.post('/users/validate-token', { token });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
@@ -586,9 +642,13 @@ export const chatApi = {
     onChunk: (text: string) => void,
     language: string = 'en',
   ): Promise<{ actions: Array<{ label: string; route?: string; prompt?: string }> }> => {
+    const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = getSessionToken();
+    if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+
     const res = await fetch(`${API_BASE}/chat/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ user_id: userId, message, language }),
     });
 

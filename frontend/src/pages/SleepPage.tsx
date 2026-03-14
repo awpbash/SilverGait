@@ -19,7 +19,7 @@ export function SleepPage() {
   const st = (t as any).sleep || {};
   const navigate = useNavigate();
   const { userId } = useUserStore();
-  const lang = useUserStore(s => s.preferredLanguage);
+  const lang = useUserStore((s: { preferredLanguage: string }) => s.preferredLanguage);
 
   const [ctx, setCtx] = useState<SleepContext | null>(null);
   const [sleepPlan, setSleepPlan] = useState<string | null>(null);

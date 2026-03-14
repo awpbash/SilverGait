@@ -10,7 +10,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 export COREPACK_HOME="$PROJECT_ROOT/.corepack"
 mkdir -p "$COREPACK_HOME"
 

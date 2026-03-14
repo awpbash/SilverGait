@@ -4,7 +4,7 @@ import { AppHeader } from '../components';
 import { Markdown } from '../components/Markdown';
 import { useUserStore, useChatStore } from '../stores';
 import type { ChatMessage } from '../stores';
-import { userApi, chatApi } from '../services/api';
+import { userApi, chatApi, authHeaders } from '../services/api';
 import { useT } from '../i18n';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -16,7 +16,7 @@ const MAX_RECORD_MS = 6000;
 export function HomePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userId, displayName, preferredLanguage, synced, setSynced } = useUserStore();
+  const { userId, sessionToken, displayName, preferredLanguage, synced, setSynced } = useUserStore();
   const { messages, loading, setMessages, setLoading, addMessage, updateMessage, appendToMessage } = useChatStore();
   const t = useT();
 
@@ -36,11 +36,11 @@ export function HomePage() {
 
   const lang = preferredLanguage || 'en';
 
-  // Sync user with backend
+  // Validate session token with backend on first load
   useEffect(() => {
-    if (synced) return;
-    userApi.ensureUser(userId, displayName).then(() => setSynced(true)).catch(() => {});
-  }, [userId, displayName, synced, setSynced]);
+    if (synced || !sessionToken) return;
+    userApi.validateToken(sessionToken).then(() => setSynced(true)).catch(() => {});
+  }, [sessionToken, synced, setSynced]);
 
   // Reset chat when language changes — fresh conversation in new language
   useEffect(() => {
@@ -148,7 +148,7 @@ export function HomePage() {
       formData.append('user_id', userId);
       const storeVoiceId = useUserStore.getState().voiceId;
       if (storeVoiceId) formData.append('voice_id', storeVoiceId);
-      const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: formData, headers: authHeaders() });
       if (res.ok) {
         const blob = await res.blob();
         if (blob.size > 0) {
@@ -167,7 +167,8 @@ export function HomePage() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      const bcp47 = { en: 'en-SG', mandarin: 'zh-CN', malay: 'ms-MY', tamil: 'ta-IN' }[lang] || 'en-SG';
+      const bcp47Map: Record<string, string> = { en: 'en-SG', mandarin: 'zh-CN', malay: 'ms-MY', tamil: 'ta-IN' };
+      const bcp47 = bcp47Map[lang] || 'en-SG';
       utterance.lang = bcp47;
       utterance.rate = 0.9;
       const voices = window.speechSynthesis.getVoices();
@@ -244,7 +245,7 @@ export function HomePage() {
         try {
           const fd = new FormData();
           fd.append('audio', blob, 'voice.webm');
-          const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd });
+          const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd, headers: authHeaders() });
           if (!res.ok) throw new Error('Transcription failed');
           const data = await res.json();
           const transcript = data?.transcript || '';

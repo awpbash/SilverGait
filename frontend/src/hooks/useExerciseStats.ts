@@ -11,7 +11,7 @@ export interface ExerciseStats {
 }
 
 export function useExerciseStats(days: number = 7): ExerciseStats {
-  const userId = useUserStore((s) => s.userId);
+  const userId = useUserStore((s: { userId: string }) => s.userId);
   const [stats, setStats] = useState<ExerciseStats>({
     todayCompleted: [],
     daily: [],
@@ -21,6 +21,7 @@ export function useExerciseStats(days: number = 7): ExerciseStats {
   });
 
   useEffect(() => {
+    if (!userId) { setStats((s) => ({ ...s, loading: false })); return; }
     let cancelled = false;
     exerciseApi.getStats(userId, days).then((data) => {
       if (cancelled) return;

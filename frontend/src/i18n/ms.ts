@@ -656,6 +656,9 @@ const ms: Translations = {
     dailyExercises: 'Senaman Harian',
     howAmIDoing: 'Macam Mana Saya?',
     // Cadangan pantas
+    qpCheck: 'Semak kekuatan saya',
+    qpExercises: 'Tunjukkan senaman',
+    qpProgress: 'Macam mana prestasi saya?',
     qpUnsteady: 'Saya rasa tak stabil hari ini',
     qpWhatToDo: 'Apa yang saya patut buat hari ini?',
     qpFallRisk: 'Macam mana nak elak jatuh?',

@@ -4,7 +4,7 @@
  * Everything else falls back to English.
  */
 import type { Translations } from './en';
-import { DeepPartial } from './index';
+import type { DeepPartial } from './index';
 
 const singlish: DeepPartial<Translations> = {
   common: {

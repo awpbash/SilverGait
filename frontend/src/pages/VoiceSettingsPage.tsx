@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../components';
 import { useUserStore } from '../stores';
 import { useT, tpl } from '../i18n';
-import { voiceApi } from '../services/api';
+import { voiceApi, authHeaders } from '../services/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -116,7 +116,7 @@ export function VoiceSettingsPage() {
       fd.append('text', 'Hello! This is how I will sound when reading messages to you.');
       fd.append('user_id', userId);
       if (selectedVoice) fd.append('voice_id', selectedVoice);
-      const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: fd });
+      const res = await fetch(`${API_BASE}/voice/tts-stream`, { method: 'POST', body: fd, headers: authHeaders() });
       if (res.ok) {
         const blob = await res.blob();
         if (blob.size > 0) {

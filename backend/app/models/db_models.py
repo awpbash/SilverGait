@@ -8,6 +8,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ..core.database import Base
 
 
+class Session(Base):
+    """Lightweight session tokens for user isolation (no passwords)."""
+    __tablename__ = "sessions"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class User(Base):
     __tablename__ = "users"
 

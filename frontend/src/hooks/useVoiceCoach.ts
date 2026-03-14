@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUserStore } from '../stores';
+import { authHeaders } from '../services/api';
 
 type AssessmentTestId = 'balance' | 'gait' | 'chair_stand';
 
@@ -79,6 +80,7 @@ export function useVoiceCoach(config: VoiceCoachConfig): {
         fetch('/api/voice/tts-stream', {
           method: 'POST',
           body: ttsBody,
+          headers: authHeaders(),
         })
           .then((res) => {
             if (!res.ok) throw new Error('TTS failed');
