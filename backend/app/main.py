@@ -18,13 +18,10 @@ from .core.auth import get_current_user
 from .routers import (
     health_router,
     assessment_router,
-    intervention_router,
     voice_router,
     users_router,
-    history_router,
     chat_router,
     exercises_router,
-    agent_router,
 )
 
 # Configure logging — console + rotating file in backend/data/
@@ -80,11 +77,8 @@ app.include_router(voice_router, prefix="/api")  # public: needed during onboard
 # Include routers — protected (require valid session token)
 _auth = [Depends(get_current_user)]
 app.include_router(assessment_router, prefix="/api", dependencies=_auth)
-app.include_router(intervention_router, prefix="/api", dependencies=_auth)
-app.include_router(history_router, prefix="/api", dependencies=_auth)
 app.include_router(chat_router, prefix="/api", dependencies=_auth)
 app.include_router(exercises_router, prefix="/api", dependencies=_auth)
-app.include_router(agent_router, prefix="/api", dependencies=_auth)
 
 
 @app.on_event("startup")
@@ -108,6 +102,14 @@ async def api_health():
 _FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
 if _FRONTEND_DIST.is_dir():
+    # Cache hashed assets forever (Vite includes content hash in filenames)
+    @app.middleware("http")
+    async def cache_assets(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/assets/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
     # Serve static assets (JS, CSS, images) at /assets
     app.mount("/assets", StaticFiles(directory=_FRONTEND_DIST / "assets"), name="assets")
 
@@ -118,7 +120,11 @@ if _FRONTEND_DIST.is_dir():
         file_path = (_FRONTEND_DIST / full_path).resolve()
         if full_path and file_path.is_file() and str(file_path).startswith(str(_FRONTEND_DIST)):
             return FileResponse(file_path)
-        return FileResponse(_FRONTEND_DIST / "index.html")
+        # Never cache index.html — ensures browser fetches new asset hashes after redeploy
+        return FileResponse(
+            _FRONTEND_DIST / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
     logger.info(f"Serving frontend from {_FRONTEND_DIST}")
 else:

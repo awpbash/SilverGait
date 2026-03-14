@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useUserStore } from '../stores';
 import { useT, tpl } from '../i18n';
 import { userApi, healthSnapshotApi } from '../services/api';
+import { startWavRecording, stopWavRecording } from '../utils/wavRecorder';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -169,60 +170,16 @@ function useBrowserSTT(lang: string) {
 function useGeminiSTT() {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async (onError?: (msg: string) => void): Promise<string | null> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-      const mr = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mr;
-      chunksRef.current = [];
+      await startWavRecording();
+      setRecording(true);
 
       return new Promise<string | null>((resolve) => {
-        mr.ondataavailable = (e) => {
-          if (e.data.size > 0) chunksRef.current.push(e.data);
-        };
-
-        mr.onstop = async () => {
-          stream.getTracks().forEach((t) => t.stop());
-          setRecording(false);
-          setProcessing(true);
-
-          const blob = new Blob(chunksRef.current, { type: mimeType });
-          if (!blob.size) { setProcessing(false); resolve(null); return; }
-
-          try {
-            const fd = new FormData();
-            fd.append('audio', blob, 'voice.webm');
-            const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd });
-            setProcessing(false);
-            if (!res.ok) {
-              onError?.(res.status === 503 ? 'Voice service not available' : 'Could not understand');
-              resolve(null);
-              return;
-            }
-            const data = await res.json();
-            resolve(data?.transcript || null);
-          } catch {
-            setProcessing(false);
-            onError?.('Cannot reach voice service');
-            resolve(null);
-          }
-        };
-
-        mr.onerror = () => {
-          stream.getTracks().forEach((t) => t.stop());
-          setRecording(false);
-          setProcessing(false);
-          resolve(null);
-        };
-
-        mr.start();
-        setRecording(true);
+        // Store resolve so stopRecording can call it
+        resolveRef.current = resolve;
+        onErrorRef.current = onError || null;
       });
     } catch {
       setRecording(false);
@@ -231,9 +188,41 @@ function useGeminiSTT() {
     }
   }, []);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
+  const resolveRef = useRef<((v: string | null) => void) | null>(null);
+  const onErrorRef = useRef<((msg: string) => void) | null>(null);
+
+  const stopRecording = useCallback(async () => {
+    setRecording(false);
+    setProcessing(true);
+    const resolve = resolveRef.current;
+    const onError = onErrorRef.current;
+    resolveRef.current = null;
+    onErrorRef.current = null;
+
+    try {
+      const blob = await stopWavRecording();
+      if (!blob.size) { setProcessing(false); resolve?.(null); return; }
+
+      try {
+        const fd = new FormData();
+        fd.append('audio', blob, 'voice.wav');
+        const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd });
+        setProcessing(false);
+        if (!res.ok) {
+          onError?.(res.status === 503 ? 'Voice service not available' : 'Could not understand');
+          resolve?.(null);
+          return;
+        }
+        const data = await res.json();
+        resolve?.(data?.transcript || null);
+      } catch {
+        setProcessing(false);
+        onError?.('Cannot reach voice service');
+        resolve?.(null);
+      }
+    } catch {
+      setProcessing(false);
+      resolve?.(null);
     }
   }, []);
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { startWavRecording, stopWavRecording, cancelWavRecording } from '../utils/wavRecorder';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '../components';
 import { Markdown } from '../components/Markdown';
@@ -11,7 +12,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 
 const QUICK_PROMPT_ICONS = ['\u{1F972}', '\u{2753}', '\u{1F6E1}', '\u{1F9B5}'];
-const MAX_RECORD_MS = 6000;
+const MAX_RECORD_MS = 30000;
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -28,9 +29,6 @@ export function HomePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const streamMsgId = useRef<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
   const autoStopRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -86,10 +84,11 @@ export function HomePage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      cancelWavRecording();
       if (autoStopRef.current) window.clearTimeout(autoStopRef.current);
       if (recognitionRef.current) try { recognitionRef.current.abort(); } catch { /* ignore */ }
       window.speechSynthesis?.cancel();
+      audioRef.current?.pause();
     };
   }, []);
 
@@ -221,66 +220,81 @@ export function HomePage() {
     }
   }, [lang, handleBrowserSTTResult]);
 
-  // Gemini fallback for browsers without SpeechRecognition
+  // Backend STT via WAV recording (no ffmpeg needed)
   const startGeminiFallbackSTT = useCallback(async () => {
     try {
       setIsRecording(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        setIsRecording(false);
-
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        if (!blob.size) return;
-
-        const listenId = `v-${Date.now()}`;
-        addMessage({ id: listenId, role: 'user', text: '...' });
-        setLoading(true);
-
-        try {
-          const fd = new FormData();
-          fd.append('audio', blob, 'voice.webm');
-          const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd, headers: authHeaders() });
-          if (!res.ok) throw new Error('Transcription failed');
-          const data = await res.json();
-          const transcript = data?.transcript || '';
-          updateMessage(listenId, { text: transcript || '(...)' });
-          if (transcript) {
-            setLoading(false);
-            sendMessage(transcript);
-          } else {
-            setLoading(false);
-          }
-        } catch {
-          updateMessage(listenId, { text: t.chat.couldNotHear });
-          setLoading(false);
-        }
-      };
-      recorderRef.current = recorder;
-      recorder.start();
+      await startWavRecording();
       autoStopRef.current = window.setTimeout(stopGeminiRecording, MAX_RECORD_MS);
-    } catch { setIsRecording(false); }
-  }, [sendMessage, addMessage, updateMessage, setLoading, t]);
-
-  const stopGeminiRecording = useCallback(() => {
-    if (autoStopRef.current) { window.clearTimeout(autoStopRef.current); autoStopRef.current = null; }
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-    setIsRecording(false);
+    } catch (err: any) {
+      setIsRecording(false);
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        alert('Microphone access is required for voice input. Please allow microphone permission in your browser settings and try again.');
+      }
+    }
   }, []);
+
+  const stopGeminiRecording = useCallback(async () => {
+    if (autoStopRef.current) { window.clearTimeout(autoStopRef.current); autoStopRef.current = null; }
+    setIsRecording(false);
+
+    try {
+      const blob = await stopWavRecording();
+      if (!blob.size) return;
+
+      // Show placeholder user bubble while transcribing
+      const placeholderId = `u-${Date.now()}`;
+      addMessage({ id: placeholderId, role: 'user', text: '...' });
+      setLoading(true);
+
+      try {
+        const fd = new FormData();
+        fd.append('audio', blob, 'voice.wav');
+        const res = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body: fd, headers: authHeaders() });
+        if (!res.ok) throw new Error('Transcription failed');
+        const data = await res.json();
+        const transcript = data?.transcript || '';
+        if (transcript) {
+          // Update placeholder with real transcript, then send to chat
+          updateMessage(placeholderId, { text: transcript });
+          const botId = `b-${Date.now()}`;
+          streamMsgId.current = botId;
+          addMessage({ id: botId, role: 'assistant', text: '' });
+          try {
+            const { actions } = await chatApi.sendStream(userId, transcript, (chunk) => {
+              appendToMessage(botId, chunk);
+            }, lang);
+            updateMessage(botId, { actions });
+          } catch {
+            const fallbackActions = [
+              { label: t.chat.checkStrength, route: '/check' },
+              { label: t.chat.dailyExercises, route: '/exercises' },
+              { label: t.chat.howAmIDoing, route: '/progress' },
+            ];
+            updateMessage(botId, { text: t.chat.cantConnect, actions: fallbackActions });
+          } finally {
+            streamMsgId.current = null;
+          }
+        } else {
+          // No transcript — remove placeholder
+          setMessages((prev: ChatMessage[]) => prev.filter(m => m.id !== placeholderId));
+        }
+      } catch {
+        // Transcription failed — remove placeholder
+        setMessages((prev: ChatMessage[]) => prev.filter(m => m.id !== placeholderId));
+      }
+      setLoading(false);
+    } catch {
+      // No recording in progress
+    }
+  }, [userId, lang, t, addMessage, updateMessage, appendToMessage, setMessages, setLoading]);
 
   const startRecording = useCallback(() => {
     if (isRecording || loading) return;
-    // Try browser STT first (instant), fall back to Gemini
-    if (!startBrowserSTT()) {
-      startGeminiFallbackSTT();
-    }
-  }, [isRecording, loading, startBrowserSTT, startGeminiFallbackSTT]);
+    // Always use backend STT (MERaLiON → Gemini fallback) for Singlish support
+    // Browser SpeechRecognition only as last resort if backend is unavailable
+    startGeminiFallbackSTT();
+  }, [isRecording, loading, startGeminiFallbackSTT]);
 
   const stopRecording = useCallback(() => {
     // Stop browser STT

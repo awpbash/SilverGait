@@ -44,6 +44,7 @@ api.interceptors.response.use(
           const parsed = JSON.parse(stored);
           parsed.state = { ...parsed.state, userId: '', sessionToken: null, hasOnboarded: false, synced: false };
           localStorage.setItem('SilverGait-user', JSON.stringify(parsed));
+          window.location.reload();
         } catch { /* ignore */ }
       }
     }

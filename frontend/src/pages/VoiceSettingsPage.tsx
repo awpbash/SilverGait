@@ -55,6 +55,10 @@ export function VoiceSettingsPage() {
 
   useEffect(() => {
     loadVoices();
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      mediaRecorderRef.current?.stream?.getTracks().forEach(t => t.stop());
+    };
   }, []);
 
   const loadVoices = async () => {

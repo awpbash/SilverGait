@@ -1,6 +1,9 @@
 """Voice router - speech navigation for elderly-friendly UX."""
 
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -62,7 +65,7 @@ async def voice_turn(
         raise HTTPException(status_code=400, detail="Empty audio.")
 
     # MERaLiON primary (Singlish-aware) → Gemini fallback
-    filename = audio.filename or "voice.webm"
+    filename = audio.filename or "voice.wav"
     transcript = None
     stt_provider = "gemini"
     if meralion_service.enabled:
@@ -130,6 +133,7 @@ async def voice_transcribe(
 ):
     """Lightweight transcription-only endpoint. MERaLiON primary → Gemini fallback."""
     settings = get_settings()
+    logger.info(f"POST /voice/transcribe — meralion.enabled={meralion_service.enabled}, voice.enabled={voice_service.enabled}")
     if not settings.voice_enabled and not meralion_service.enabled:
         raise HTTPException(status_code=503, detail="Voice is not enabled.")
 
@@ -137,20 +141,33 @@ async def voice_transcribe(
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio.")
 
-    filename = audio.filename or "voice.webm"
+    filename = audio.filename or "voice.wav"
+    logger.info(f"STT: received {len(audio_bytes)} bytes, filename={filename}")
     transcript = None
     stt_provider = "gemini"
 
     # MERaLiON primary (Singlish-aware) → Gemini fallback
     if meralion_service.enabled:
+        logger.info("STT: trying MERaLiON...")
         transcript = await meralion_service.transcribe(audio_bytes, filename)
         if transcript:
             stt_provider = "meralion"
+            logger.info(f"STT: MERaLiON succeeded — '{transcript[:80]}'")
+        else:
+            logger.warning("STT: MERaLiON returned None, falling back to Gemini")
+    else:
+        logger.info("STT: MERaLiON disabled, using Gemini directly")
     if not transcript and voice_service.enabled:
+        logger.info("STT: trying Gemini...")
         transcript = await voice_service.transcribe(audio_bytes, filename)
+        if transcript:
+            logger.info(f"STT: Gemini succeeded — '{transcript[:80]}'")
+        else:
+            logger.warning("STT: Gemini also returned None")
     if not transcript:
         raise HTTPException(status_code=502, detail="Could not transcribe audio.")
 
+    logger.info(f"STT: final provider={stt_provider}, transcript='{transcript[:80]}'")
     return {"transcript": transcript, "stt_provider": stt_provider}
 
 

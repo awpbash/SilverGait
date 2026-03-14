@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,7 +43,7 @@ class UserUpdate(BaseModel):
 
 
 class HealthSnapshotRequest(BaseModel):
-    trigger: str = "onboarding"  # onboarding | user_update | biweekly_recheck
+    trigger: Literal["onboarding", "user_update", "biweekly_recheck"] = "onboarding"
     katz_bathing: bool | None = None
     katz_dressing: bool | None = None
     katz_toileting: bool | None = None
@@ -106,7 +107,7 @@ async def validate_token(body: TokenValidateRequest, db: AsyncSession = Depends(
     )
 
 
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=UserResponse, dependencies=[Depends(get_current_user)])
 async def update_user(user_id: str, body: UserUpdate, db: AsyncSession = Depends(get_db)):
     """Update user display name or language."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -136,7 +137,7 @@ async def update_user(user_id: str, body: UserUpdate, db: AsyncSession = Depends
     )
 
 
-@router.post("/{user_id}/health-snapshot")
+@router.post("/{user_id}/health-snapshot", dependencies=[Depends(get_current_user)])
 async def create_health_snapshot(
     user_id: str,
     body: HealthSnapshotRequest,
@@ -234,7 +235,7 @@ async def create_health_snapshot(
     }
 
 
-@router.get("/{user_id}/context")
+@router.get("/{user_id}/context", dependencies=[Depends(get_current_user)])
 async def get_user_context(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get full UserContext for frontend rendering."""
     ctx = await build_user_context(db, user_id)
@@ -271,7 +272,7 @@ async def get_user_context(user_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/{user_id}/alerts")
+@router.get("/{user_id}/alerts", dependencies=[Depends(get_current_user)])
 async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get all alerts for a user."""
     result = await db.execute(
@@ -284,7 +285,7 @@ async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
     return [a.to_dict() for a in alerts]
 
 
-@router.get("/{user_id}/frailty-history")
+@router.get("/{user_id}/frailty-history", dependencies=[Depends(get_current_user)])
 async def get_frailty_history(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get frailty evaluation history."""
     result = await db.execute(
@@ -297,7 +298,7 @@ async def get_frailty_history(user_id: str, db: AsyncSession = Depends(get_db)):
     return [e.to_dict() for e in evals]
 
 
-@router.get("/{user_id}/care-plans")
+@router.get("/{user_id}/care-plans", dependencies=[Depends(get_current_user)])
 async def get_care_plans(user_id: str, status: str = "active", db: AsyncSession = Depends(get_db)):
     """Get care plans for a user."""
     query = select(CarePlan).where(CarePlan.user_id == user_id)

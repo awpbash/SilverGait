@@ -56,10 +56,10 @@ def run_exercise_agent(client: genai.Client, ctx: UserContext, language: str = "
 
     issues = ctx.recent_issues or []
 
-    prompt = f"""You are a physiotherapist giving brief exercise advice to an elderly patient.
+    prompt = f"""You are an AI wellness assistant suggesting gentle exercises for an elderly person. You are NOT a doctor — remind them to check with their doctor if they have pain or new symptoms.
 
 Patient: {ctx.display_name or 'User'} | Tier: {tier} | SPPB: {sppb}/12 | Intensity: {intensity}
-Deficits: {', '.join(deficits) if deficits else 'None'} | Streak: {ctx.exercise_streak} days
+Deficits: {', '.join(deficits) if deficits else 'None'} | Movement issues: {', '.join(issues) if issues else 'None'} | Streak: {ctx.exercise_streak} days
 
 Give exactly 5 bullet points. Each bullet: bold the exercise name, then ≤15 words (sets/reps/safety). Home-friendly, chair-based if frail. Personalize to deficits above.
 
@@ -113,7 +113,7 @@ def run_sleep_agent(client: genai.Client, ctx: UserContext, language: str = "en"
 - If can't sleep after 20 minutes, get up and do something calm, then return
 - Progressive muscle relaxation: tense and release each muscle group, toes to head"""
 
-    prompt = f"""You are a sleep specialist giving brief advice to an elderly patient in Singapore.
+    prompt = f"""You are an AI wellness assistant giving brief sleep tips to an elderly person in Singapore. You are NOT a doctor — for persistent sleep problems, suggest they see their doctor.
 
 Patient: {ctx.display_name or 'User'} | Sleep risk: {sleep_risk} | Tier: {tier} | Mood: {mood_risk} | Exercise streak: {ctx.exercise_streak} days
 Factors: {'; '.join(factors) if factors else 'None'}
@@ -148,7 +148,7 @@ def run_education_agent(client: genai.Client, ctx: UserContext, topic: str = "fr
     sppb = ctx.sppb_total or 0
     cfs_label = f"CFS {ctx.cfs_score}/9" if ctx.cfs_score else "not assessed"
 
-    prompt = f"""You are a health educator giving brief advice to an elderly patient in Singapore.
+    prompt = f"""You are an AI wellness assistant sharing health education tips with an elderly person in Singapore. You are NOT a doctor — for medical concerns, always suggest they consult their doctor.
 
 Patient: {ctx.display_name or 'User'} | Tier: {tier} | SPPB: {sppb}/12 | CFS: {cfs_label}
 Topic: {topic}
@@ -183,7 +183,7 @@ def run_monitoring_agent(client: genai.Client, ctx: UserContext, language: str =
     katz_trend = " -> ".join(str(s) for s in ctx.katz_trend) if ctx.katz_trend else "No data"
     tier_history = " -> ".join(ctx.tier_history) if ctx.tier_history else "No data"
 
-    prompt = f"""Analyze health trends for an elderly patient. Be direct.
+    prompt = f"""You are an AI wellness assistant analyzing health trends for an elderly person. Be direct. You are NOT a doctor — for any concerning trends, recommend they see their doctor.
 
 Patient: {ctx.display_name or 'User'} | Tier: {ctx.current_tier or 'unknown'}
 SPPB: {sppb_trend} ({ctx.sppb_direction or 'unknown'}) | Katz: {katz_trend} | Tiers: {tier_history}

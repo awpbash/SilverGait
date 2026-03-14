@@ -84,15 +84,26 @@ STYLE:
 - Speak as YOU the expert. Never say "the app" or "the system".
 - Warm but brief — like a text from family, not a letter.
 
-TOOL CALLING — you MUST use tools proactively. When in doubt, CALL THE TOOL:
-- exercise/workout/what to do/staying active → get_exercise_plan
-- can't sleep/tired/insomnia/fatigue/sleep problems → get_sleep_advice
+CRITICAL — be HELPFUL, not just empathetic:
+- ALWAYS give practical advice or action in your response. Never just ask questions without also offering help.
+- Daily life difficulty (can't board bus, hard to climb stairs, trouble getting up) → acknowledge briefly, then give 2-3 concrete tips. Call get_education(falls_prevention) or get_exercise_plan if relevant.
+- Pain/weakness (leg weak, knee pain, body ache) → acknowledge briefly, suggest seeing doctor if severe, then offer gentle strengthening tips. Call get_exercise_plan for gentle exercises.
+- Want to DO something in this app (assessment, check strength, exercises, sleep page) → use navigate_to_page to direct them immediately.
+- Feelings (lonely, scared, frustrated) → empathize in 1 sentence, then suggest something actionable.
+
+TOOL CALLING — use the RIGHT tool for what the user needs:
+- exercise/workout/staying active/want to get stronger → get_exercise_plan
+- can't sleep/insomnia/waking up at night → get_sleep_advice
 - why do I fall/frailty/nutrition/balance/diet → get_education
 - getting better/worse/progress/scores/trends → get_progress_summary or analyze_trends
-- fell/chest pain/hurt/injury/breathing problems → alert_caregiver (ONLY for acute physical safety)
+- fell/chest pain/hurt/breathing problems → alert_caregiver (ONLY for acute physical safety)
+- user wants to go to a page/do assessment/see exercises/check progress → navigate_to_page
 Do NOT use alert_caregiver for sleep, tiredness, or general wellness questions.
+Do NOT suggest exercises for every problem. Match the response to the actual concern.
 
 {user_context}
+
+IMPORTANT: You are an AI wellness companion, NOT a doctor or physiotherapist. For serious pain, injuries, or new symptoms, always recommend the user see their doctor. Never diagnose conditions.
 
 ⚠️ {language_instruction}
 Every word in that language. No mixing."""
@@ -104,7 +115,7 @@ TOOL_DECLARATIONS = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
             name="get_exercise_plan",
-            description="Get personalized exercises. CALL when user mentions: exercise, workout, stretching, staying active, knee pain, leg pain, joint ache, body pain, stiffness, what should I do today, want to get stronger.",
+            description="Get personalized exercises. CALL when user mentions: exercise, workout, stretching, staying active, want to get stronger, legs weak, hard to walk/climb/stand, mobility difficulty, body feels weak.",
         ),
         types.FunctionDeclaration(
             name="get_sleep_advice",
@@ -145,6 +156,21 @@ TOOL_DECLARATIONS = types.Tool(
                     }
                 },
                 "required": ["message"],
+            },
+        ),
+        types.FunctionDeclaration(
+            name="navigate_to_page",
+            description="Direct user to an app page. CALL when user wants to: do assessment/check strength → /check, see exercises → /exercises, view progress → /progress, sleep page → /sleep, caregiver page → /caregiver.",
+            parameters={
+                "type": "OBJECT",
+                "properties": {
+                    "page": {
+                        "type": "STRING",
+                        "description": "The route to navigate to",
+                        "enum": ["/check", "/exercises", "/progress", "/sleep", "/caregiver"],
+                    }
+                },
+                "required": ["page"],
             },
         ),
     ]
@@ -243,6 +269,11 @@ async def _execute_tool(
         db.add(alert)
         await db.flush()
         result = "Caregiver has been notified."
+
+    elif tool_name == "navigate_to_page":
+        page = args.get("page", "/check")
+        page_names = {"/check": "Check My Strength", "/exercises": "Exercises", "/progress": "Progress", "/sleep": "Sleep & Wellness", "/caregiver": "Caregiver"}
+        result = f"Navigating user to {page_names.get(page, page)} page (route: {page})"
 
     else:
         result = f"Unknown tool: {tool_name}"
@@ -418,9 +449,7 @@ async def agent_node(state: ChatState, api_key: str) -> dict:
 async def safety_gate_node(state: ChatState) -> dict:
     """Check for emergency signals in user message AND agent response."""
     user_msg = (state.get("user_message") or "").lower()
-    agent_resp = (state.get("agent_response") or "").lower()
     language = state.get("language", "en")
-    combined = user_msg + " " + agent_resp
 
     safety_alerts = []
     appendix = ""
@@ -429,8 +458,8 @@ async def safety_gate_node(state: ChatState) -> dict:
     user_id = state["user_id"]
     from ...models.db_models import Alert
 
-    # Fall detection
-    fall_patterns = [r"\bfell(?!\s+(?:asleep|ill))\b", r"\bfall(?:ing)?\b", r"\bfallen\b", r"\bslipped?\b", r"\btripped?\b", r"\bstumble[ds]?\b", r"\bjatuh\b", r"\bterjatuh\b", r"跌倒", r"摔倒", r"摔了", r"跌了", r"விழுந்த", r"விழ"]
+    # Fall detection — exclude "fall asleep", "falling asleep", "rainfall"
+    fall_patterns = [r"\bfell(?!\s+(?:asleep|ill))\b", r"\bfall(?:ing)?(?!\s+asleep)\b(?<!rain)", r"\bfallen(?!\s+asleep)\b", r"\bslipped?\b", r"\btripped?\b", r"\bstumble[ds]?\b", r"\bjatuh\b", r"\bterjatuh\b", r"跌倒", r"摔倒", r"摔了", r"跌了", r"விழுந்த", r"விழ"]
     if any(re.search(p, user_msg) for p in fall_patterns):
         alert = Alert(
             user_id=user_id, alert_type="fall_reported", severity="urgent",
@@ -439,8 +468,24 @@ async def safety_gate_node(state: ChatState) -> dict:
         db.add(alert)
         safety_alerts.append({"type": "fall_reported", "severity": "urgent"})
 
-    # Emergency signals
-    emergency_patterns = [r"chest\s*(pain|hurt|tight|ache)", r"can'?t breathe", r"breathing difficulty", r"heart\s*(attack|pain|hurt)", r"胸痛", r"胸口", r"呼吸困难", r"sakit dada", r"sakit jantung", r"நெஞ்சு வலி"]
+    # Emergency signals — chest pain, breathing, stroke, fainting, choking
+    emergency_patterns = [
+        r"chest\s*(pain|hurt|tight|ache)", r"can'?t breathe", r"breathing difficulty",
+        r"heart\s*(attack|pain|hurt)",
+        # Stroke symptoms
+        r"slurred?\s*speech", r"face\s*droop", r"sudden(ly)?\s*(confus|headache|blind|vision|numb|weak\s*on\s*one)",
+        r"one\s*side\s*(weak|numb|cannot\s*move)",
+        # Fainting
+        r"\bfainted?\b", r"\bblack\s*out\b", r"\bpass(ed)?\s*out\b", r"\bunconscious\b",
+        # Choking / severe bleeding
+        r"\bchoking\b", r"bleeding\s*(a\s*lot|heavily|non.?stop)",
+        # Chinese
+        r"胸痛", r"胸口", r"呼吸困难", r"中风", r"昏倒", r"晕倒", r"噎", r"大量出血",
+        # Malay
+        r"sakit dada", r"sakit jantung", r"pengsan", r"tersedak", r"banyak darah",
+        # Tamil
+        r"நெஞ்சு வலி", r"மயக்கம்", r"மூச்சு திணறல்",
+    ]
     if any(re.search(p, user_msg) for p in emergency_patterns):
         alert = Alert(
             user_id=user_id, alert_type="emergency", severity="urgent",
@@ -451,7 +496,12 @@ async def safety_gate_node(state: ChatState) -> dict:
         appendix = SAFETY_APPENDIX_EMERGENCY.get(language, SAFETY_APPENDIX_EMERGENCY["en"])
 
     # Mental health
-    distress_patterns = [r"want to die", r"hopeless", r"no point living", r"想死", r"不想活"]
+    distress_patterns = [
+        r"want to die", r"hopeless", r"no point living", r"better I die", r"burden to everyone",
+        r"想死", r"不想活", r"活着没意思",
+        r"nak mati", r"bunuh diri", r"tak nak hidup", r"putus asa",
+        r"சாக விரும்புகிறேன்", r"நம்பிக்கை இல்லை", r"வாழ விரும்பவில்லை",
+    ]
     if any(re.search(p, user_msg) for p in distress_patterns):
         alert = Alert(
             user_id=user_id, alert_type="emergency", severity="urgent",
@@ -769,14 +819,16 @@ async def run_chat_pipeline_stream(
     logger.info("CHAT GRAPH: persisted")
 
     # 6. Suggested actions
-    actions = _get_suggested_actions(message, full_reply, language)
+    tools_used = [tc["name"] for tc in tool_calls] if tool_calls else []
+    actions = _get_suggested_actions(message, full_reply, language, tools_used)
     yield json.dumps({"type": "done", "actions": actions, "safety_alerts": state.get("safety_alerts", []),
-                       "tools_used": [tc["name"] for tc in tool_calls] if tool_calls else []})
+                       "tools_used": tools_used})
     logger.info(f"CHAT GRAPH DONE (tools_used={[tc['name'] for tc in tool_calls]})")
 
 
-def _get_suggested_actions(message: str, reply: str, language: str) -> list[dict]:
+def _get_suggested_actions(message: str, reply: str, language: str, tools_used: list[str] | None = None) -> list[dict]:
     """Return contextual quick-reply suggestions. Uses 'prompt' for chat follow-ups, 'route' for page navigation."""
+    tools_used = tools_used or []
     lower = (message + " " + reply).lower()
 
     # Topic-specific follow-up prompts (these send a chat message, not navigate)
@@ -832,19 +884,42 @@ def _get_suggested_actions(message: str, reply: str, language: str) -> list[dict
     # Detect topic and return relevant follow-ups
     sleep_kw = ["sleep", "insomnia", "tired", "fatigue", "rest", "night", "bed", "睡", "眠", "tidur", "penat", "தூக்க"]
     exercise_kw = ["exercise", "stretch", "move", "workout", "运动", "锻炼", "senaman", "latihan", "பயிற்சி"]
-    check_kw = ["check", "assess", "strength", "test", "检查", "力量", "periksa", "semak", "சோதனை"]
+    check_kw = ["check", "assess", "strength", "test", "sppb", "检查", "力量", "periksa", "semak", "சோதனை"]
     progress_kw = ["progress", "score", "trend", "better", "worse", "improving", "进度", "分数", "kemajuan", "முன்னேற்றம்"]
     education_kw = ["frailty", "balance", "fall", "nutrition", "diet", "eat", "food", "strong", "learn", "what is", "why", "虚弱", "营养", "吃", "makanan", "makan", "jatuh", "pemakanan", "உணவு", "சாப்பிட"]
+    mobility_kw = ["bus", "stair", "walk", "stand", "sit", "knee", "leg", "pain", "hurt", "ache", "difficult", "hard to", "can't", "cannot", "struggle", "weak", "jialat", "sakit", "susah", "tidak boleh", "痛", "走", "站", "上", "楼梯"]
+    navigate_kw = ["/check", "/exercises", "/progress", "/sleep"]
 
-    if any(w in lower for w in sleep_kw):
-        return [n["sleep"], p["sleep_routine"], p["sleep_exercise"]]
-    elif any(w in lower for w in exercise_kw):
+    # Primary: match based on which tool was actually called
+    if "navigate_to_page" in tools_used:
+        for route in navigate_kw:
+            if route in lower:
+                key = route.lstrip("/")
+                if key in n:
+                    return [n[key], p["trends"], p["balance"]]
+    if "get_exercise_plan" in tools_used:
         return [n["exercises"], p["balance"], p["nutrition"]]
-    elif any(w in lower for w in education_kw):
+    if "get_sleep_advice" in tools_used:
+        return [n["sleep"], p["sleep_routine"], p["sleep_exercise"]]
+    if "get_education" in tools_used:
         return [p["falls"], p["balance"], n["exercises"]]
-    elif any(w in lower for w in progress_kw):
+    if "get_progress_summary" in tools_used or "analyze_trends" in tools_used:
         return [n["check"], p["trends"], n["exercises"]]
-    elif any(w in lower for w in check_kw):
+    if "alert_caregiver" in tools_used:
+        return [n["check"], n["progress"], p["falls"]]
+
+    # Fallback: keyword matching on user message only (not reply, to avoid false matches)
+    msg_lower = message.lower()
+
+    if any(w in msg_lower for w in exercise_kw) or any(w in msg_lower for w in mobility_kw):
+        return [n["exercises"], p["balance"], p["nutrition"]]
+    elif any(w in msg_lower for w in sleep_kw):
+        return [n["sleep"], p["sleep_routine"], p["sleep_exercise"]]
+    elif any(w in msg_lower for w in check_kw):
         return [n["check"], n["exercises"], p["trends"]]
+    elif any(w in msg_lower for w in education_kw):
+        return [p["falls"], p["balance"], n["exercises"]]
+    elif any(w in msg_lower for w in progress_kw):
+        return [n["check"], p["trends"], n["exercises"]]
     else:
-        return [p["exercise_plan"], n["sleep"], p["trends"]]
+        return [n["check"], n["sleep"], p["trends"]]

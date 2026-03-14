@@ -18,6 +18,12 @@ const DEMO_DURATIONS: Record<string, string> = {
   chair_stand: '~20s',
 };
 
+// Demo video files (in public/demo/)
+const DEMO_VIDEOS: Record<string, string> = {
+  gait: '/demo/walk_test.mp4',
+  chair_stand: '/demo/chair.mp4',
+};
+
 function getDemoTips(testId: string, t: Translations): string[] {
   const a = t.assessment;
   if (testId === 'balance') return [a.demoBalanceTip1, a.demoBalanceTip2, a.demoBalanceTip3];
@@ -71,6 +77,7 @@ export function AssessmentPage() {
     stopRecording,
     startNextTest,
     resetAssessment,
+    abortAnalysis,
     setShowOverlay,
     setVoiceCoachEnabled,
     setStep,
@@ -216,14 +223,27 @@ export function AssessmentPage() {
           <h1>{currentTest.title}</h1>
           <p className="demo-subtitle">{currentTest.subtitle}</p>
 
-          {/* Demo video placeholder */}
-          <div className="demo-video-placeholder">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <rect x="4" y="8" width="40" height="32" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
-              <polygon points="20,16 34,24 20,32" fill="currentColor" opacity="0.5" />
-            </svg>
-            <span>{t.assessment.demoComingSoon}</span>
-          </div>
+          {/* Demo video */}
+          {DEMO_VIDEOS[currentTest.id] ? (
+            <div className="demo-video-wrapper">
+              <video
+                src={DEMO_VIDEOS[currentTest.id]}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="demo-video"
+              />
+            </div>
+          ) : (
+            <div className="demo-video-placeholder">
+              <svg viewBox="0 0 48 48" width="48" height="48">
+                <rect x="4" y="8" width="40" height="32" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                <polygon points="20,16 34,24 20,32" fill="currentColor" opacity="0.5" />
+              </svg>
+              <span>{t.assessment.demoComingSoon}</span>
+            </div>
+          )}
 
           {/* Setup tips */}
           <div className="demo-tips">
@@ -265,13 +285,26 @@ export function AssessmentPage() {
           <p>{t.assessment.nextUp} {nextTest.title}</p>
 
           {/* Demo for next test */}
-          <div className="demo-video-placeholder">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <rect x="4" y="8" width="40" height="32" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
-              <polygon points="20,16 34,24 20,32" fill="currentColor" opacity="0.5" />
-            </svg>
-            <span>{t.assessment.demoComingSoon}</span>
-          </div>
+          {DEMO_VIDEOS[nextTestId] ? (
+            <div className="demo-video-wrapper">
+              <video
+                src={DEMO_VIDEOS[nextTestId]}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="demo-video"
+              />
+            </div>
+          ) : (
+            <div className="demo-video-placeholder">
+              <svg viewBox="0 0 48 48" width="48" height="48">
+                <rect x="4" y="8" width="40" height="32" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                <polygon points="20,16 34,24 20,32" fill="currentColor" opacity="0.5" />
+              </svg>
+              <span>{t.assessment.demoComingSoon}</span>
+            </div>
+          )}
 
           <div className="demo-tips">
             <h3>{t.assessment.getReadyFor}</h3>
@@ -344,6 +377,9 @@ export function AssessmentPage() {
             ))}
           </div>
           <p className="analysis-reassurance">{t.assessment.analyzingNote}</p>
+          <button className="btn-secondary" onClick={abortAnalysis} style={{ marginTop: '1rem' }}>
+            Cancel
+          </button>
         </div>
       </div>
     );

@@ -204,6 +204,7 @@ export function useAssessmentFlow() {
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Pose detection
   const poseDetection = usePoseDetection(
@@ -447,6 +448,10 @@ export function useAssessmentFlow() {
     setAnalysisStage('uploading');
     setError(null);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+
     try {
       const formData = new FormData();
       formData.append('video', blob, 'check-video.webm');
@@ -454,7 +459,7 @@ export function useAssessmentFlow() {
       formData.append('test_type', currentTest.id);
       if (metricsRef.current) formData.append('pose_metrics', JSON.stringify(metricsRef.current));
 
-      const response = await fetch('/api/assessment/analyze-stream', { method: 'POST', body: formData, headers: authHeaders() });
+      const response = await fetch('/api/assessment/analyze-stream', { method: 'POST', body: formData, headers: authHeaders(), signal: controller.signal });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || t.assessment.checkFailed);
@@ -493,7 +498,7 @@ export function useAssessmentFlow() {
 
       if (intervention) setLatestIntervention(intervention);
 
-      if (!finalResult) throw new Error(t.assessment.noResult);
+      if (!finalResult || typeof finalResult.score !== 'number') throw new Error(t.assessment.noResult);
 
       const result = finalResult;
       setTestResults((prev) => ({ ...prev, [currentTest.id]: result }));
@@ -514,11 +519,23 @@ export function useAssessmentFlow() {
         setStep('result');
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        resetAssessment();
+        setError('Analysis timed out or was cancelled. Please try again.');
+        return;
+      }
       const message = err instanceof Error ? err.message : t.assessment.somethingWrong;
       resetAssessment();
       setError(message);
+    } finally {
+      clearTimeout(timeout);
+      abortRef.current = null;
     }
   };
+
+  const abortAnalysis = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const startNextTest = () => { setTestIndex((prev) => prev + 1); };
 
@@ -604,6 +621,7 @@ export function useAssessmentFlow() {
     stopRecording,
     startNextTest,
     resetAssessment,
+    abortAnalysis,
     computeTotalScore,
     setStep,
     triggerCameraStart: () => setPendingStart(true),

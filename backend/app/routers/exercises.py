@@ -39,7 +39,7 @@ ISSUE_EXERCISE_MAP = {
 }
 
 TIER_DAILY_TARGET = {"robust": 6, "pre_frail": 4, "frail": 3, "severely_frail": 2}
-TIER_FROM_SPPB = lambda s: "robust" if s >= 10 else "pre_frail" if s >= 6 else "frail" if s >= 4 else "severely_frail"
+TIER_FROM_SPPB = lambda s: "pre_frail" if s is None else "robust" if s >= 10 else "pre_frail" if s >= 6 else "frail" if s >= 4 else "severely_frail"
 
 
 class ExerciseCompleteRequest(BaseModel):

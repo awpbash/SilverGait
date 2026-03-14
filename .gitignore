@@ -90,7 +90,6 @@ $RECYCLE.BIN/
 
 # Video/media uploads (SPPB analysis)
 uploads/
-*.mp4
 *.webm
 *.mov
 *.avi

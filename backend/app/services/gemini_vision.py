@@ -295,6 +295,8 @@ Cross-reference these quantitative metrics with your visual assessment. Key indi
             )
 
             # Parse response
+            if not response.text:
+                raise ValueError("Gemini returned empty response")
             result_text = strip_markdown_fences(response.text.strip())
             logger.info(f"Gemini response: {result_text}")
 
@@ -420,6 +422,8 @@ Cross-reference these quantitative metrics with your visual assessment. Key indi
                 contents=[uploaded_file, prompt],
             )
 
+            if not response.text:
+                raise ValueError("Gemini returned empty response")
             result_text = strip_markdown_fences(response.text.strip())
 
             result_data = json.loads(result_text)

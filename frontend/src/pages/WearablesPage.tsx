@@ -59,7 +59,7 @@ export function WearablesPage() {
     try {
       const [metricsRes, weeklyRes, trendRes] = await Promise.all([
         healthApi.getDailyMetrics(userId),
-        fetch(`/api/health/weekly/${userId}`).then(r => r.json()),
+        fetch(`/api/health/weekly/${userId}`).then(r => r.ok ? r.json() : []),
         healthApi.getWeeklyTrend(userId),
       ]);
       setToday(metricsRes as any);

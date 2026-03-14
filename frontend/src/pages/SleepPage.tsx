@@ -46,7 +46,14 @@ export function SleepPage() {
           display_name: ctxData.display_name,
         });
         const sleep = plans.find(p => p.plan_type === 'sleep');
-        if (sleep) setSleepPlan(sleep.content);
+        if (sleep) {
+          try {
+            const parsed = JSON.parse(sleep.content);
+            setSleepPlan(parsed.content || sleep.content);
+          } catch {
+            setSleepPlan(sleep.content);
+          }
+        }
       } catch {
         // silent
       } finally {

@@ -4,6 +4,7 @@ Flow: get upload URL → upload audio to presigned S3 → transcribe/translate.
 Understands Singlish, code-switching, and Singapore's 4 official languages.
 """
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -108,6 +109,7 @@ class MERaLiONService:
 
         try:
             key = await self._upload_audio(audio_bytes, filename, content_type)
+            await asyncio.sleep(1)  # S3 propagation delay before cr8lab can access the file
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
@@ -123,6 +125,9 @@ class MERaLiONService:
             logger.info(f"MERaLiON transcribe: {len(text)} chars")
             return text
 
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"MERaLiON transcribe failed: {exc} — response: {exc.response.text[:300]}")
+            return None
         except Exception as exc:
             logger.error(f"MERaLiON transcribe failed: {exc}")
             return None
@@ -145,6 +150,7 @@ class MERaLiONService:
 
         try:
             key = await self._upload_audio(audio_bytes, filename, content_type)
+            await asyncio.sleep(1)
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
@@ -187,3 +193,5 @@ def _strip_speaker_labels(text: str) -> str:
     """Remove <Speaker N>: prefixes from MERaLiON output."""
     import re
     return re.sub(r"<Speaker \d+>:\s*", "", text)
+
+
