@@ -33,21 +33,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/** Clear stored session and force re-onboarding (e.g. DB wiped on Render restart). */
+export function resetSession() {
+  const stored = localStorage.getItem('SilverGait-user');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      parsed.state = { ...parsed.state, userId: '', sessionToken: null, hasOnboarded: false, synced: false };
+      localStorage.setItem('SilverGait-user', JSON.stringify(parsed));
+    } catch { /* ignore */ }
+  }
+  window.location.reload();
+}
+
 // On 401, clear session so app re-registers
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error?.response?.status === 401) {
-      const stored = localStorage.getItem('SilverGait-user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          parsed.state = { ...parsed.state, userId: '', sessionToken: null, hasOnboarded: false, synced: false };
-          localStorage.setItem('SilverGait-user', JSON.stringify(parsed));
-          window.location.reload();
-        } catch { /* ignore */ }
-      }
-    }
+    if (error?.response?.status === 401) resetSession();
     return Promise.reject(error);
   },
 );
@@ -66,6 +69,18 @@ export const authHeaders = (): Record<string, string> => {
   const token = getSessionToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
+
+/** Check if stored userId still exists in backend DB. Resets session if not. */
+export async function verifySession(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    await api.get(`/users/${userId}/context`);
+    return true;
+  } catch {
+    // 401 interceptor will handle the reset + reload
+    return false;
+  }
+}
 
 // Error handler with graceful "Retrying..." as per CLAUDE.md
 const handleApiError = (error: unknown): never => {

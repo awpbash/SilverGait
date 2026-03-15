@@ -3,11 +3,12 @@
  * Warm, calm palette aligned with Figma mockups
  */
 
-import { useMemo, lazy, Suspense } from 'react';
+import { useMemo, useEffect, lazy, Suspense } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav, VoiceAssistant, OnboardingModal, Loading } from './components';
 import { useUiStore, useUserStore } from './stores';
 import { useT } from './i18n';
+import { verifySession } from './services/api';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
 import { HelpPage } from './pages/HelpPage';
@@ -78,8 +79,15 @@ const MoreIcon = () => (
 
 function App() {
   const { viewMode, setViewMode } = useUiStore();
-  const { hasOnboarded } = useUserStore();
+  const { userId, hasOnboarded } = useUserStore();
   const t = useT();
+
+  // On mount, verify stored session is still valid (DB may have been wiped)
+  useEffect(() => {
+    if (hasOnboarded && userId) {
+      verifySession(userId); // resets + reloads on 401
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const navItems = useMemo(() => [
     { id: 'home', label: t.nav.home, icon: <HomeIcon /> },
