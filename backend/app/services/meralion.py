@@ -109,7 +109,7 @@ class MERaLiONService:
 
         try:
             key = await self._upload_audio(audio_bytes, filename, content_type)
-            await asyncio.sleep(1)  # S3 propagation delay before cr8lab can access the file
+            await asyncio.sleep(3)  # cr8lab needs time to index the uploaded file
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
