@@ -5043,6 +5043,14 @@ button:disabled {
   max-height: 320px;
 }
 
+.demo-video-wrapper.portrait {
+  max-width: 200px;
+}
+
+.demo-video-wrapper.portrait .demo-video {
+  max-height: 360px;
+}
+
 /* Demo tips (setup instructions) */
 .demo-tips {
   margin-bottom: 20px;

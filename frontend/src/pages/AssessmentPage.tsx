@@ -22,7 +22,11 @@ const DEMO_DURATIONS: Record<string, string> = {
 const DEMO_VIDEOS: Record<string, string> = {
   gait: '/demo/walk_test.mp4',
   chair_stand: '/demo/chair.mp4',
+  balance: '/demo/balance.mp4',
 };
+
+// Portrait-oriented demo videos (need different scaling)
+const PORTRAIT_VIDEOS = new Set(['balance']);
 
 function getDemoTips(testId: string, t: Translations): string[] {
   const a = t.assessment;
@@ -225,7 +229,7 @@ export function AssessmentPage() {
 
           {/* Demo video */}
           {DEMO_VIDEOS[currentTest.id] ? (
-            <div className="demo-video-wrapper">
+            <div className={`demo-video-wrapper${PORTRAIT_VIDEOS.has(currentTest.id) ? ' portrait' : ''}`}>
               <video
                 src={DEMO_VIDEOS[currentTest.id]}
                 autoPlay
@@ -286,7 +290,7 @@ export function AssessmentPage() {
 
           {/* Demo for next test */}
           {DEMO_VIDEOS[nextTestId] ? (
-            <div className="demo-video-wrapper">
+            <div className={`demo-video-wrapper${PORTRAIT_VIDEOS.has(nextTestId) ? ' portrait' : ''}`}>
               <video
                 src={DEMO_VIDEOS[nextTestId]}
                 autoPlay
