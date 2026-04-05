@@ -166,7 +166,7 @@ def initialize_rag(api_key: str) -> bool:
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i:i + BATCH_SIZE]
             result = genai_client.models.embed_content(
-                model="text-embedding-004",
+                model="gemini-embedding-001",
                 contents=batch,
             )
             embeddings.extend([e.values for e in result.embeddings])
@@ -231,7 +231,7 @@ def retrieve(
         # Embed the query
         genai_client = genai.Client(api_key=api_key)
         result = genai_client.models.embed_content(
-            model="text-embedding-004",
+            model="gemini-embedding-001",
             contents=[query],
         )
         query_embedding = result.embeddings[0].values

@@ -109,7 +109,7 @@ class MERaLiONService:
 
         try:
             key = await self._upload_audio(audio_bytes, filename, content_type)
-            await asyncio.sleep(3)  # cr8lab needs time to index the uploaded file
+            await asyncio.sleep(5)  # cr8lab needs time to index the uploaded file
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
@@ -122,6 +122,16 @@ class MERaLiONService:
 
             # Strip speaker labels for single-speaker voice input
             text = _strip_speaker_labels(text).strip()
+
+            # MERaLiON is an AudioLLM — when audio is unclear or not yet indexed,
+            # it generates chatbot responses instead of transcribing. Detect and
+            # fall through to Gemini STT.
+            _BAD = ["i'm sorry", "i didn't catch", "could you repeat", "please repeat",
+                     "i don't understand", "can you say that again", "no speech detected"]
+            if any(p in text.lower() for p in _BAD):
+                logger.warning(f"MERaLiON hallucinated instead of transcribing: '{text[:80]}' — falling back to Gemini")
+                return None
+
             logger.info(f"MERaLiON transcribe: {len(text)} chars")
             return text
 
