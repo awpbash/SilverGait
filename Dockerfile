@@ -24,4 +24,5 @@ COPY backend/ backend/
 ENV PORT=8000
 EXPOSE ${PORT}
 
-CMD cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+WORKDIR /app/backend
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
