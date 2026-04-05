@@ -226,6 +226,9 @@ const ms: Translations = {
     clinicalTransitionSpeed: 'Sit-to-Stand Speed',
     clinicalKneeRange: 'Knee Angle Range',
     talkToDoctor: 'Sila berbincang dengan doktor anda mengenai keputusan ini.',
+    confidenceHigh: 'Keyakinan tinggi',
+    confidenceMedium: 'Keyakinan sederhana',
+    confidenceLow: 'Keyakinan rendah',
   },
 
   // Halaman Senaman
@@ -481,6 +484,23 @@ const ms: Translations = {
     shareWeekExercises: 'Senaman Minggu Ini: {count}',
     shareRecommendations: 'Cadangan:',
     noData: 'Tiada data',
+    patientLabel: 'Pesakit',
+    daysSince: '{count} hari sejak semakan terakhir',
+    recheckDue: 'Perlu Semakan',
+    sppbBreakdown: 'Pecahan SPPB',
+    balanceLabel: 'Keseimbangan',
+    walkingLabel: 'Berjalan',
+    gettingUpLabel: 'Bangun',
+    sppbTrend: 'Trend SPPB',
+    movementIssues: 'Isu Pergerakan Terkini',
+    activePlans: 'Pelan Penjagaan Aktif',
+    planExercise: 'Pelan Senaman',
+    planSleep: 'Pelan Tidur',
+    planNutrition: 'Pelan Pemakanan',
+    planFalls: 'Pencegahan Jatuh',
+    planSocial: 'Penglibatan Sosial',
+    shareSubScores: 'Pecahan SPPB: Keseimbangan {balance}/4, Berjalan {gait}/4, Bangun {chair}/4',
+    shareDaysSince: 'Semakan terakhir: {count} hari lalu',
   },
 
   // Halaman Keselamatan

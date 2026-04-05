@@ -217,6 +217,9 @@ const ta: Translations = {
     clinicalTransitionSpeed: 'Sit-to-Stand Speed',
     clinicalKneeRange: 'Knee Angle Range',
     talkToDoctor: 'இந்த முடிவைப் பற்றி உங்கள் மருத்துவரிடம் பேசுங்கள்.',
+    confidenceHigh: 'உயர் நம்பிக்கை',
+    confidenceMedium: 'நடுத்தர நம்பிக்கை',
+    confidenceLow: 'குறைந்த நம்பிக்கை',
   },
 
   exercises: {
@@ -457,6 +460,23 @@ const ta: Translations = {
     shareWeekExercises: 'இந்த வார பயிற்சிகள்: {count}',
     shareRecommendations: 'பரிந்துரைகள்:',
     noData: 'தரவு இல்லை',
+    patientLabel: 'நோயாளி',
+    daysSince: 'கடைசி சோதனையிலிருந்து {count} நாட்கள்',
+    recheckDue: 'மறுசோதனை தேவை',
+    sppbBreakdown: 'SPPB விவரங்கள்',
+    balanceLabel: 'சமநிலை',
+    walkingLabel: 'நடை',
+    gettingUpLabel: 'எழுதல்',
+    sppbTrend: 'SPPB போக்கு',
+    movementIssues: 'சமீபத்திய இயக்க பிரச்சனைகள்',
+    activePlans: 'செயலில் உள்ள பராமரிப்பு திட்டங்கள்',
+    planExercise: 'பயிற்சி திட்டம்',
+    planSleep: 'தூக்க திட்டம்',
+    planNutrition: 'ஊட்டச்சத்து திட்டம்',
+    planFalls: 'விழுதல் தடுப்பு',
+    planSocial: 'சமூக ஈடுபாடு',
+    shareSubScores: 'SPPB விவரம்: சமநிலை {balance}/4, நடை {gait}/4, எழுதல் {chair}/4',
+    shareDaysSince: 'கடைசி சோதனை: {count} நாட்கள் முன்',
   },
 
   safety: {

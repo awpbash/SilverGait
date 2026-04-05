@@ -230,6 +230,9 @@ const en = {
     clinicalTransitionSpeed: 'Sit-to-Stand Speed',
     clinicalKneeRange: 'Knee Angle Range',
     talkToDoctor: 'Please talk to your doctor about this result.',
+    confidenceHigh: 'High confidence',
+    confidenceMedium: 'Medium confidence',
+    confidenceLow: 'Low confidence',
   },
 
   // Exercises Page

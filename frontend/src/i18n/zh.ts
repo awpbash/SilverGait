@@ -226,6 +226,9 @@ const zh: Translations = {
     clinicalTransitionSpeed: 'Sit-to-Stand Speed',
     clinicalKneeRange: 'Knee Angle Range',
     talkToDoctor: '请就此结果咨询您的医生。',
+    confidenceHigh: '高可信度',
+    confidenceMedium: '中可信度',
+    confidenceLow: '低可信度',
   },
 
   // Exercises Page
@@ -481,6 +484,23 @@ const zh: Translations = {
     shareWeekExercises: '本周运动次数：{count}',
     shareRecommendations: '建议：',
     noData: '没有数据',
+    patientLabel: '患者',
+    daysSince: '距上次检查 {count} 天',
+    recheckDue: '需要复查',
+    sppbBreakdown: 'SPPB 分项',
+    balanceLabel: '平衡',
+    walkingLabel: '走路',
+    gettingUpLabel: '起身',
+    sppbTrend: 'SPPB 趋势',
+    movementIssues: '近期行动问题',
+    activePlans: '进行中的照护计划',
+    planExercise: '运动计划',
+    planSleep: '睡眠计划',
+    planNutrition: '营养计划',
+    planFalls: '防跌倒',
+    planSocial: '社交参与',
+    shareSubScores: 'SPPB 分项：平衡 {balance}/4，走路 {gait}/4，起身 {chair}/4',
+    shareDaysSince: '上次检查：{count} 天前',
   },
 
   // Safety Page
