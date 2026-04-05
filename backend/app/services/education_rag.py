@@ -218,7 +218,7 @@ async def _init_pgvector(api_key: str, all_chunks: list[dict]) -> bool:
             await conn.execute(
                 sa_text("""
                     INSERT INTO education_chunks (content, topic, heading, source, tags, content_hash, embedding)
-                    VALUES (:content, :topic, :heading, :source, :tags, :hash, :embedding::vector)
+                    VALUES (:content, :topic, :heading, :source, :tags, :hash, CAST(:emb AS vector))
                 """),
                 {
                     "content": chunk["text"],
@@ -227,7 +227,7 @@ async def _init_pgvector(api_key: str, all_chunks: list[dict]) -> bool:
                     "source": chunk["source"],
                     "tags": chunk["tags"],
                     "hash": current_hash,
-                    "embedding": emb_str,
+                    "emb": emb_str,
                 },
             )
 
@@ -300,17 +300,17 @@ async def _retrieve_pgvector(api_key: str, query: str, topic: Optional[str], top
                 sql = sa_text("""
                     SELECT content FROM education_chunks
                     WHERE topic = :topic
-                    ORDER BY embedding <=> :embedding::vector
+                    ORDER BY embedding <=> CAST(:emb AS vector)
                     LIMIT :top_k
                 """)
-                params = {"topic": topic, "embedding": emb_str, "top_k": top_k}
+                params = {"topic": topic, "emb": emb_str, "top_k": top_k}
             else:
                 sql = sa_text("""
                     SELECT content FROM education_chunks
-                    ORDER BY embedding <=> :embedding::vector
+                    ORDER BY embedding <=> CAST(:emb AS vector)
                     LIMIT :top_k
                 """)
-                params = {"embedding": emb_str, "top_k": top_k}
+                params = {"emb": emb_str, "top_k": top_k}
 
             async with async_session() as session:
                 result = await session.execute(sql, params)
