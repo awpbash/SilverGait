@@ -93,6 +93,7 @@ def _chunk_document(filepath: Path) -> list[dict]:
 
 def _embed_texts(api_key: str, texts: list[str]) -> list[list[float]]:
     from google import genai
+    from google.genai import types
     client = genai.Client(api_key=api_key)
     embeddings = []
     BATCH_SIZE = 50
@@ -101,6 +102,7 @@ def _embed_texts(api_key: str, texts: list[str]) -> list[list[float]]:
         result = client.models.embed_content(
             model="gemini-embedding-001",
             contents=batch,
+            config=types.EmbedContentConfig(output_dimensionality=768),
         )
         embeddings.extend([e.values for e in result.embeddings])
     return embeddings
@@ -183,7 +185,7 @@ async def _init_pgvector(api_key: str, all_chunks: list[dict]) -> bool:
                 source VARCHAR(100),
                 tags VARCHAR(500),
                 content_hash VARCHAR(64),
-                embedding vector(3072)
+                embedding vector(768)
             )
         """))
 
@@ -283,6 +285,7 @@ def retrieve(
 async def _retrieve_pgvector(api_key: str, query: str, topic: Optional[str], top_k: int) -> list[str]:
     try:
         from google import genai
+        from google.genai import types
         from sqlalchemy import text as sa_text
         from ..core.database import async_session
 
@@ -291,6 +294,7 @@ async def _retrieve_pgvector(api_key: str, query: str, topic: Optional[str], top
             client.models.embed_content,
             model="gemini-embedding-001",
             contents=[query],
+            config=types.EmbedContentConfig(output_dimensionality=768),
         )
         query_emb = result.embeddings[0].values
         emb_str = "[" + ",".join(str(v) for v in query_emb) + "]"
@@ -331,10 +335,12 @@ def _retrieve_in_memory(api_key: str, query: str, topic: Optional[str], top_k: i
         return []
     try:
         from google import genai
+        from google.genai import types
         client = genai.Client(api_key=api_key)
         result = client.models.embed_content(
             model="gemini-embedding-001",
             contents=[query],
+            config=types.EmbedContentConfig(output_dimensionality=768),
         )
         query_emb = result.embeddings[0].values
 
