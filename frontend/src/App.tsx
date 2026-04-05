@@ -5,7 +5,7 @@
 
 import { useMemo, useEffect, lazy, Suspense } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { BottomNav, VoiceAssistant, OnboardingModal, Loading, ErrorBoundary } from './components';
+import { BottomNav, VoiceAssistant, OnboardingModal, Loading, ErrorBoundary, ToastContainer } from './components';
 import { useUiStore, useUserStore } from './stores';
 import { useT } from './i18n';
 import { verifySession } from './services/api';
@@ -124,6 +124,7 @@ function App() {
 
   return (
     <div className="app-shell" data-view={viewMode}>
+      <ToastContainer />
       {!hasOnboarded && <OnboardingModal />}
 
       {/* External toolbar — outside the phone frame */}
@@ -158,8 +159,9 @@ function App() {
         <main className="screen-frame">
           <div className="screen-scroll">
             <ErrorBoundary>
-            <Suspense fallback={<Loading message="Loading..." />}>
-              <Routes>
+            <Suspense fallback={<Loading variant="page" />}>
+              <div key={location.pathname} className="page-transition">
+              <Routes location={location}>
                 <Route path={ROUTES.home} element={<HomePage />} />
                 <Route path={ROUTES.assessment} element={<AssessmentPage />} />
                 <Route path={ROUTES.exercises} element={<ExercisesPage />} />
@@ -175,6 +177,7 @@ function App() {
                 <Route path={ROUTES.sleep} element={<SleepPage />} />
                 <Route path="*" element={<HomePage />} />
               </Routes>
+              </div>
             </Suspense>
             </ErrorBoundary>
           </div>

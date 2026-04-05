@@ -7,7 +7,7 @@ import { useExerciseFormFeedback, FORM_FEEDBACK_EXERCISES } from '../hooks/useEx
 import { useT, tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
 import { exerciseApi, contextApi } from '../services/api';
-import { useUserStore } from '../stores';
+import { useUserStore, useToastStore } from '../stores';
 
 interface Exercise {
   id: string;
@@ -390,10 +390,11 @@ export function ExercisesPage() {
 
     // Persist to backend
     exerciseApi.complete(userId, exercise.id, elapsed).catch(() => { /* offline ok */ });
+    useToastStore.getState().addToast('success', `${exercise.title} completed!`);
 
     const nextIdx = EXERCISES.findIndex((e, i) => i > currentIndex && !next.has(e.id));
     if (nextIdx >= 0) setCurrentIndex(nextIdx);
-  }, [completed, exercise.id, currentIndex, userId]);
+  }, [completed, exercise.id, exercise.title, currentIndex, userId]);
 
   const skip = useCallback(() => {
     setTimerActive(false);

@@ -3,7 +3,7 @@ import { startWavRecording, stopWavRecording, cancelWavRecording } from '../util
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader, Mascot } from '../components';
 import { Markdown } from '../components/Markdown';
-import { useUserStore, useChatStore } from '../stores';
+import { useUserStore, useChatStore, useToastStore } from '../stores';
 import type { ChatMessage } from '../stores';
 import { userApi, chatApi, authHeaders } from '../services/api';
 import { useT } from '../i18n';
@@ -149,6 +149,7 @@ export function HomePage() {
         { label: t.chat.howAmIDoing, route: '/progress' },
       ];
       updateMessage(botId, { text: t.chat.cantConnect, actions: fallbackActions });
+      useToastStore.getState().addToast('error', t.chat.cantConnect);
     } finally {
       setLoading(false);
       streamMsgId.current = null;
@@ -263,6 +264,7 @@ export function HomePage() {
               { label: t.chat.howAmIDoing, route: '/progress' },
             ];
             updateMessage(botId, { text: t.chat.cantConnect, actions: fallbackActions });
+            useToastStore.getState().addToast('error', t.chat.cantConnect);
           } finally {
             streamMsgId.current = null;
           }

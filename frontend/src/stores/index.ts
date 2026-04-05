@@ -4,3 +4,4 @@ export { useUiStore } from './uiStore';
 export { useGoalStore } from './goalStore';
 export { useChatStore } from './chatStore';
 export type { ChatMessage } from './chatStore';
+export { useToastStore } from './toastStore';

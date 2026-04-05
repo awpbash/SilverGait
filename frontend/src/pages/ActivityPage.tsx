@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppHeader, ScoreRing } from '../components';
+import { AppHeader, ScoreRing, EmptyState } from '../components';
 import { useAssessmentStore, useUserStore } from '../stores';
 import { useT, tpl } from '../i18n';
 import { computeTotal } from '../utils/scoring';
@@ -50,6 +50,25 @@ export function ActivityPage() {
     { done: didAssessment, label: t.activity.checklistAssessment, action: () => navigate('/check') },
     { done: todayCount >= 1, label: tpl(t.activity.checklistExercise, { count: String(Math.max(3 - todayCount, 0)) }), action: () => navigate('/exercises') },
   ];
+
+  const hasAssessment = !!latestAssessment;
+
+  if (!hasAssessment) {
+    return (
+      <div className="page">
+        <AppHeader />
+        <div className="page-title">
+          <h1>{t.activity.title}</h1>
+        </div>
+        <EmptyState
+          title="No progress yet"
+          message="Complete your first mobility check to start tracking your progress."
+          actionLabel={t.activity.startCheck}
+          onAction={() => navigate('/check')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="page">
