@@ -92,7 +92,7 @@ async def startup():
         # Initialize education RAG index (graceful fallback if unavailable)
         try:
             from .services.education_rag import initialize_rag
-            if initialize_rag(settings.gemini_api_key):
+            if await initialize_rag(settings.gemini_api_key):
                 logger.info("Education RAG index initialized")
             else:
                 logger.warning("Education RAG not available — education agent will use LLM-only mode")
