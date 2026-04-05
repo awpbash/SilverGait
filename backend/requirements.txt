@@ -14,6 +14,7 @@ google-genai>=1.0.0
 # Database
 sqlalchemy[asyncio]>=2.0
 aiosqlite
+asyncpg
 
 # HTTP Client
 httpx>=0.26.0
@@ -23,5 +24,5 @@ langgraph>=0.2.0
 langchain-core>=0.3.0
 langchain-google-genai>=2.0.0
 
-# RAG — Education document retrieval
-chromadb>=0.4.0
+# PostgreSQL vector search (pgvector extension)
+pgvector>=0.3.0

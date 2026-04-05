@@ -1,14 +1,26 @@
-"""SQLite database setup with SQLAlchemy async."""
+"""Database setup with SQLAlchemy async — PostgreSQL (Railway) or SQLite (local)."""
 
 import os
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-# DB file lives in backend/data/ (absolute path so it works regardless of CWD)
-DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-DB_PATH = DB_DIR / "silvergait.db"
-DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH.as_posix()}"
+# Use DATABASE_URL env var (Railway PostgreSQL) or fall back to local SQLite
+_DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+if _DATABASE_URL:
+    # Railway provides DATABASE_URL as postgres:// but SQLAlchemy needs postgresql+asyncpg://
+    if _DATABASE_URL.startswith("postgres://"):
+        _DATABASE_URL = _DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif _DATABASE_URL.startswith("postgresql://"):
+        _DATABASE_URL = _DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    DATABASE_URL = _DATABASE_URL
+    DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+else:
+    # Local dev: SQLite in backend/data/
+    DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+    DB_PATH = DB_DIR / "silvergait.db"
+    DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH.as_posix()}"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
