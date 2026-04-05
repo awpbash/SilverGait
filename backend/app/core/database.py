@@ -22,7 +22,11 @@ else:
     DB_PATH = DB_DIR / "silvergait.db"
     DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH.as_posix()}"
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+_engine_kwargs = {"echo": False}
+if _DATABASE_URL:
+    # PostgreSQL: connection pooling with health checks
+    _engine_kwargs.update(pool_pre_ping=True, pool_recycle=300, pool_size=5, max_overflow=10)
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

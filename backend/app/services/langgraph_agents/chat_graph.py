@@ -735,7 +735,7 @@ async def run_chat_pipeline_stream(
                 logger.info(f"CHAT GRAPH: executing {fc.name}({fc_args})")
                 try:
                     result = await _execute_tool(
-                        fc.name, fc_args, user_context, db, user_id, client, language=language, user_message=user_message
+                        fc.name, fc_args, user_context, db, user_id, client, language=language, user_message=message
                     )
                 except Exception as e:
                     logger.error(f"Tool {fc.name} failed: {e}")
