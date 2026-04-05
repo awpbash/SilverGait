@@ -1,6 +1,6 @@
 # SilverGait
 
-A **multimodal agentic system** for at-home elderly frailty assessment and management in Singapore.
+A **multimodal agentic system** for at-home elderly frailty assessment and management in Singapore. Click [here](https://silvergait.onrender.com) for demo!
 
 <p align="center">
   <img src="demo/hero/chat.png" width="27%" />
