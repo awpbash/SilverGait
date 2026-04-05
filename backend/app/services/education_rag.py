@@ -183,7 +183,7 @@ async def _init_pgvector(api_key: str, all_chunks: list[dict]) -> bool:
                 source VARCHAR(100),
                 tags VARCHAR(500),
                 content_hash VARCHAR(64),
-                embedding vector(768)
+                embedding vector(3072)
             )
         """))
 
