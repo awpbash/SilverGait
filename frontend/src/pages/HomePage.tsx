@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { startWavRecording, stopWavRecording, cancelWavRecording } from '../utils/wavRecorder';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppHeader } from '../components';
+import { AppHeader, Mascot } from '../components';
 import { Markdown } from '../components/Markdown';
 import { useUserStore, useChatStore } from '../stores';
 import type { ChatMessage } from '../stores';
@@ -18,7 +18,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { userId, sessionToken, displayName, preferredLanguage, synced, setSynced } = useUserStore();
-  const { messages, loading, setMessages, setLoading, addMessage, updateMessage, appendToMessage } = useChatStore();
+  const { messages, loading, historyLoaded, setMessages, setLoading, addMessage, updateMessage, appendToMessage, setHistoryLoaded } = useChatStore();
   const t = useT();
 
   const [isRecording, setIsRecording] = useState(false);
@@ -31,6 +31,8 @@ export function HomePage() {
   const streamMsgId = useRef<string | null>(null);
   const autoStopRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   const lang = preferredLanguage || 'en';
 
@@ -40,18 +42,43 @@ export function HomePage() {
     userApi.validateToken(sessionToken).then(() => setSynced(true)).catch(() => {});
   }, [sessionToken, synced, setSynced]);
 
-  // Reset chat when language changes — fresh conversation in new language
+  // Load chat history from backend, or show welcome message
   useEffect(() => {
     const name = displayName || '';
     const hour = new Date().getHours();
     const greeting = hour < 12 ? t.chat.greeting_morning : hour < 17 ? t.chat.greeting_afternoon : t.chat.greeting_evening;
     const nameStr = name ? `, ${name}` : '';
-
-    setMessages([{
+    const welcomeMsg: ChatMessage = {
       id: 'welcome',
       role: 'assistant',
       text: `${greeting}${nameStr}! ${t.chat.welcome}`,
-    }]);
+    };
+
+    // If we already have persisted messages, just prepend the welcome
+    if (historyLoaded && messages.length > 0 && messages[0]?.id !== 'welcome') {
+      setMessages([welcomeMsg, ...messages]);
+      return;
+    }
+
+    // Try fetching from backend on first load
+    if (!historyLoaded && userId) {
+      fetch(`${API_BASE}/chat/history/${userId}?limit=50`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then((history: Array<{ id: string; role: 'user' | 'assistant'; text: string }>) => {
+          setHistoryLoaded(true);
+          if (history.length > 0) {
+            setMessages([welcomeMsg, ...history]);
+          } else {
+            setMessages([welcomeMsg]);
+          }
+        })
+        .catch(() => {
+          setHistoryLoaded(true);
+          setMessages([welcomeMsg]);
+        });
+    } else {
+      setMessages([welcomeMsg]);
+    }
   }, [lang, displayName, t]);
 
   // Auto-record when arriving via voice FAB (?mic=1)
@@ -183,10 +210,6 @@ export function HomePage() {
   }, [speakingId, lang, userId]);
 
   // --- Voice (STT) — Browser SpeechRecognition, Gemini fallback ---
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-
-  const recognitionRef = useRef<any>(null);
 
   // Backend STT via WAV recording (no ffmpeg needed)
   const startGeminiFallbackSTT = useCallback(async () => {
@@ -295,9 +318,7 @@ export function HomePage() {
             <div key={msg.id} className={`chat-bubble ${msg.role}`}>
               {msg.role === 'assistant' && (
                 <div className="chat-avatar">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 4c-2.5 0-4 1.5-4 3.5 0 1.2.6 2.2 1.5 2.8C7.5 11.5 6 13.5 6 16c0 1 .5 2 2 2h8c1.5 0 2-1 2-2 0-2.5-1.5-4.5-3.5-5.7.9-.6 1.5-1.6 1.5-2.8C16 5.5 14.5 4 12 4z" fill="var(--olive-700)" />
-                  </svg>
+                  <Mascot size={22} />
                 </div>
               )}
               <div className="chat-content">

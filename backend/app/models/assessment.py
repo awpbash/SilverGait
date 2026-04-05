@@ -50,8 +50,8 @@ class AssessmentResult(BaseModel):
     user_id: str
     timestamp: datetime = Field(default_factory=datetime.now)
 
-    # Core Gemini output
-    score: int = Field(..., ge=0, le=4, description="Component score 0-4")
+    # Core Gemini output — 0-4 for single component, 0-12 for total
+    score: int = Field(..., ge=0, le=12, description="Component score 0-4, or total 0-12")
     issues: List[GaitIssue] = Field(default_factory=list, description="Detected gait/balance issues")
     test_type: Optional[AssessmentTest] = Field(
         default=None,

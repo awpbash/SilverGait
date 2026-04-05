@@ -39,10 +39,10 @@ export function MorePage() {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       ),
-      label: (t as any).more?.sleep || 'Sleep & Wellness',
-      description: (t as any).more?.sleepDesc || 'Personalized sleep advice',
+      label: t.more.sleep,
+      description: t.more.sleepDesc,
       route: '/sleep',
-      accent: '#5e5ce6',
+      accent: 'var(--purple)',
     },
     {
       id: 'wearables',
@@ -52,10 +52,10 @@ export function MorePage() {
           <path d="M7 12h2l2-3 2 6 2-3h2" />
         </svg>
       ),
-      label: (t as any).more?.wearables || 'Wearables',
-      description: (t as any).more?.wearablesDesc || 'Sync steps & sleep from your device',
+      label: t.more.wearables,
+      description: t.more.wearablesDesc,
       route: '/wearables',
-      accent: '#30d158',
+      accent: 'var(--green)',
     },
     {
       id: 'community',
@@ -70,7 +70,7 @@ export function MorePage() {
       label: t.more.challenges,
       description: t.more.challengesDesc,
       route: '/community',
-      accent: '#3478f6',
+      accent: 'var(--blue)',
     },
     {
       id: 'caregiver',
@@ -82,7 +82,7 @@ export function MorePage() {
       label: t.more.caregiver,
       description: t.more.caregiverDesc,
       route: '/caregiver',
-      accent: '#e8475f',
+      accent: 'var(--pink)',
     },
     {
       id: 'voice',
@@ -96,7 +96,7 @@ export function MorePage() {
       label: t.more.voiceSettings || 'Voice Settings',
       description: t.more.voiceSettingsDesc || 'Choose or clone a voice',
       route: '/voice-settings',
-      accent: '#8b5cf6',
+      accent: 'var(--violet)',
     },
     {
       id: 'help',
@@ -110,7 +110,7 @@ export function MorePage() {
       label: t.more.helpSafety,
       description: t.more.helpSafetyDesc,
       route: '/help',
-      accent: '#ff9f0a',
+      accent: 'var(--amber)',
     },
   ];
 

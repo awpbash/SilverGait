@@ -123,10 +123,11 @@ export const buildSummary = (
   assessmentTests: AssessmentTestConfig[],
   t: Translations,
 ): AssessmentResult => {
-  const balance = results.balance?.score ?? 0;
-  const gait = results.gait?.score ?? 0;
-  const chair = results.chair_stand?.score ?? 0;
-  const totalScore = balance + gait + chair;
+  // Use null for untested components (not 0) to avoid misclassification
+  const balance = completedTests.includes('balance') ? (results.balance?.score ?? 0) : null;
+  const gait = completedTests.includes('gait') ? (results.gait?.score ?? 0) : null;
+  const chair = completedTests.includes('chair_stand') ? (results.chair_stand?.score ?? 0) : null;
+  const totalScore = (balance ?? 0) + (gait ?? 0) + (chair ?? 0);
 
   const issues = new Set<GaitIssue>();
   const recommendations: string[] = [];
@@ -155,7 +156,7 @@ export const buildSummary = (
     timestamp: new Date().toISOString(),
     score: totalScore,
     issues: Array.from(issues),
-    sppb_breakdown: { balance_score: balance, gait_score: gait, chair_stand_score: chair },
+    sppb_breakdown: { balance_score: balance ?? 0, gait_score: gait ?? 0, chair_stand_score: chair ?? 0 },
     completed_tests: completedTests,
     confidence: confidenceCount ? confidenceTotal / confidenceCount : 0.7,
     recommendations: recommendations.slice(0, 3),

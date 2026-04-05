@@ -19,6 +19,14 @@ function getTierBadge(tier: string, t: Translations): { label: string; className
   return map[tier] || { label: t.caregiver.tierUnknown, className: 'moderate' };
 }
 
+const PLAN_LABELS: Record<string, keyof Translations['caregiver']> = {
+  exercise: 'planExercise',
+  sleep: 'planSleep',
+  nutrition: 'planNutrition',
+  falls_prevention: 'planFalls',
+  social: 'planSocial',
+};
+
 type AlertItem = {
   id: number;
   alert_type: string;
@@ -35,6 +43,37 @@ type FrailtyEntry = {
   cfs_score: number | null;
   katz_total: number | null;
 };
+
+function SppbSparkline({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const max = 12;
+  const w = 120;
+  const h = 36;
+  const pad = 4;
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((v / max) * (h - pad * 2));
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="sppb-sparkline">
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--olive-600)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {data.map((v, i) => {
+        const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+        const y = h - pad - ((v / max) * (h - pad * 2));
+        return <circle key={i} cx={x} cy={y} r="3" fill={i === data.length - 1 ? 'var(--olive-700)' : 'var(--olive-400)'} />;
+      })}
+    </svg>
+  );
+}
 
 export function CaregiverPage() {
   const { latestAssessment, history } = useAssessmentStore();
@@ -57,12 +96,20 @@ export function CaregiverPage() {
     cognitive_risk: string | null;
     social_isolation_risk: string | null;
     active_plans: Record<string, unknown>;
+    display_name?: string;
+    days_since_last_assessment?: number | null;
+    recheck_due?: boolean;
+    balance_score?: number | null;
+    gait_score?: number | null;
+    chair_score?: number | null;
+    sppb_trend?: number[];
+    recent_issues?: string[];
   } | null>(null);
 
   useEffect(() => {
-    contextApi.get(userId).then(setCtx).catch(() => {});
-    alertsApi.getAll(userId).then(setAlerts).catch(() => {});
-    frailtyApi.getHistory(userId).then(setFrailtyHistory).catch(() => {});
+    contextApi.get(userId).then(setCtx).catch(() => { /* caregiver context unavailable */ });
+    alertsApi.getAll(userId).then(setAlerts).catch(() => { /* alerts unavailable */ });
+    frailtyApi.getHistory(userId).then(setFrailtyHistory).catch(() => { /* history unavailable */ });
   }, [userId]);
 
   const breakdown = latestAssessment?.sppb_breakdown;
@@ -73,6 +120,15 @@ export function CaregiverPage() {
   const tier = ctx?.current_tier;
   const tierBadge = tier ? getTierBadge(tier, t) : null;
   const trend = ctx?.sppb_direction || 'stable';
+
+  const balanceScore = ctx?.balance_score ?? breakdown?.balance_score ?? null;
+  const gaitScore = ctx?.gait_score ?? breakdown?.gait_score ?? null;
+  const chairScore = ctx?.chair_score ?? breakdown?.chair_stand_score ?? null;
+  const sppbTrend = ctx?.sppb_trend || [];
+  const recentIssues = ctx?.recent_issues || [];
+  const activePlans = ctx?.active_plans || {};
+  const daysSince = ctx?.days_since_last_assessment;
+  const recheckDue = ctx?.recheck_due || false;
 
   const topRecommendations = latestAssessment?.recommendations?.slice(0, 3) || [
     t.caregiver.defaultRec1,
@@ -92,8 +148,12 @@ export function CaregiverPage() {
       '',
       tpl(t.caregiver.shareFrailtyTier, { tier: tierText }),
       tpl(t.caregiver.shareMobility, { score: scoreText }),
+      (balanceScore != null && gaitScore != null && chairScore != null)
+        ? tpl(t.caregiver.shareSubScores, { balance: balanceScore, gait: gaitScore, chair: chairScore })
+        : '',
       ctx?.cfs_score != null ? tpl(t.caregiver.shareCfs, { score: ctx.cfs_score }) : '',
       ctx?.katz_total != null ? tpl(t.caregiver.shareKatz, { score: ctx.katz_total }) : '',
+      daysSince != null ? tpl(t.caregiver.shareDaysSince, { count: daysSince }) : '',
       tpl(t.caregiver.shareStreak, { count: exerciseStats.streak }),
       tpl(t.caregiver.shareWeekExercises, { count: exerciseStats.totalExercises }),
       '',
@@ -110,7 +170,7 @@ export function CaregiverPage() {
 
   return (
     <div className="page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{t.caregiver.title}</h1>
@@ -118,6 +178,24 @@ export function CaregiverPage() {
       </div>
 
       <div className="stack">
+        {/* Patient name + recheck badge */}
+        {ctx?.display_name && (
+          <div className="caregiver-patient-header">
+            <div className="caregiver-patient-name">
+              <span className="label">{t.caregiver.patientLabel}</span>
+              <span className="name">{ctx.display_name}</span>
+            </div>
+            <div className="caregiver-recheck-row">
+              {daysSince != null && (
+                <span className="caregiver-days-since">{tpl(t.caregiver.daysSince, { count: daysSince })}</span>
+              )}
+              {recheckDue && (
+                <span className="caregiver-recheck-badge">{t.caregiver.recheckDue}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Urgent Alerts */}
         {urgentAlerts.length > 0 && (
           <div className="caregiver-alerts">
@@ -183,6 +261,46 @@ export function CaregiverPage() {
           </div>
         </div>
 
+        {/* SPPB Sub-score Breakdown */}
+        {(balanceScore != null || gaitScore != null || chairScore != null) && (
+          <div className="card">
+            <h2>{t.caregiver.sppbBreakdown}</h2>
+            <div className="sppb-subscores">
+              <div className="subscore-row">
+                <ScoreRing score={balanceScore ?? 0} maxScore={4} size="sm" label={t.caregiver.balanceLabel} />
+                <ScoreRing score={gaitScore ?? 0} maxScore={4} size="sm" label={t.caregiver.walkingLabel} />
+                <ScoreRing score={chairScore ?? 0} maxScore={4} size="sm" label={t.caregiver.gettingUpLabel} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SPPB Trend Sparkline */}
+        {sppbTrend.length >= 2 && (
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2>{t.caregiver.sppbTrend}</h2>
+              <SppbSparkline data={sppbTrend} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.8rem', color: 'var(--muted)' }}>
+              <span>{sppbTrend[0]}/12</span>
+              <span>{sppbTrend[sppbTrend.length - 1]}/12</span>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Movement Issues */}
+        {recentIssues.length > 0 && (
+          <div className="card">
+            <h2>{t.caregiver.movementIssues}</h2>
+            <div className="agent-contributing" style={{ marginTop: 8 }}>
+              {recentIssues.map((issue) => (
+                <span key={issue} className="agent-risk-chip risk-moderate">{issue}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Risk Factors */}
         {ctx && ((ctx.sleep_risk ?? 'low') !== 'low' || (ctx.mood_risk ?? 'low') !== 'low' || (ctx.cognitive_risk ?? 'low') !== 'low' || (ctx.social_isolation_risk ?? 'low') !== 'low') && (
           <div className="card">
@@ -192,6 +310,22 @@ export function CaregiverPage() {
               {ctx.mood_risk && ctx.mood_risk !== 'low' && <span className={`agent-risk-chip risk-${ctx.mood_risk}`}>{t.caregiver.riskMood}: {ctx.mood_risk}</span>}
               {ctx.cognitive_risk && ctx.cognitive_risk !== 'low' && <span className={`agent-risk-chip risk-${ctx.cognitive_risk}`}>{t.caregiver.riskCognitive}: {ctx.cognitive_risk}</span>}
               {ctx.social_isolation_risk && ctx.social_isolation_risk !== 'low' && <span className={`agent-risk-chip risk-${ctx.social_isolation_risk}`}>{t.caregiver.riskSocial}: {ctx.social_isolation_risk}</span>}
+            </div>
+          </div>
+        )}
+
+        {/* Active Care Plans */}
+        {Object.keys(activePlans).length > 0 && (
+          <div className="card">
+            <h2>{t.caregiver.activePlans}</h2>
+            <div className="agent-contributing" style={{ marginTop: 8 }}>
+              {Object.keys(activePlans).map((planType) => {
+                const labelKey = PLAN_LABELS[planType];
+                const label = labelKey ? t.caregiver[labelKey] as string : planType;
+                return (
+                  <span key={planType} className="agent-risk-chip risk-low">{label}</span>
+                );
+              })}
             </div>
           </div>
         )}

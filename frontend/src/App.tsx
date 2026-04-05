@@ -5,7 +5,7 @@
 
 import { useMemo, useEffect, lazy, Suspense } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { BottomNav, VoiceAssistant, OnboardingModal, Loading } from './components';
+import { BottomNav, VoiceAssistant, OnboardingModal, Loading, ErrorBoundary } from './components';
 import { useUiStore, useUserStore } from './stores';
 import { useT } from './i18n';
 import { verifySession } from './services/api';
@@ -157,6 +157,7 @@ function App() {
         {/* Screen content */}
         <main className="screen-frame">
           <div className="screen-scroll">
+            <ErrorBoundary>
             <Suspense fallback={<Loading message="Loading..." />}>
               <Routes>
                 <Route path={ROUTES.home} element={<HomePage />} />
@@ -175,6 +176,7 @@ function App() {
                 <Route path="*" element={<HomePage />} />
               </Routes>
             </Suspense>
+            </ErrorBoundary>
           </div>
 
           {/* Voice FAB — navigates to home chat */}

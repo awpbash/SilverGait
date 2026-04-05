@@ -11,6 +11,7 @@ from ..services.gemini_vision import GeminiVisionService
 from ..models.assessment import AssessmentResult
 from ..models.db_models import Assessment as AssessmentRow
 from ..core.database import get_db, async_session
+from ..core.rate_limit import assessment_limiter
 
 router = APIRouter(prefix="/assessment", tags=["SPPB Assessment"])
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ async def analyze_video(
     Analyze video for SPPB gait/balance scoring.
     Accepts video blob, returns structured assessment.
     """
+    await assessment_limiter.check(user_id)
     logger.info(f"Received video content type: {video.content_type}")
 
     content_type = video.content_type or ""
@@ -136,6 +138,7 @@ async def analyze_video_stream(
     Streams stage events: uploading, processing, analyzing, complete.
     LangGraph runs in background AFTER the stream completes.
     """
+    await assessment_limiter.check(user_id)
     content_type = video.content_type or ""
     base_type = content_type.split(";")[0].strip()
     allowed_types = ["video/mp4", "video/webm", "video/quicktime"]

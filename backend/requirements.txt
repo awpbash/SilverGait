@@ -16,9 +16,12 @@ sqlalchemy[asyncio]>=2.0
 aiosqlite
 
 # HTTP Client
-httpx==0.26.0
+httpx>=0.26.0
 
 # LangGraph Agent System
 langgraph>=0.2.0
 langchain-core>=0.3.0
 langchain-google-genai>=2.0.0
+
+# RAG — Education document retrieval
+chromadb>=0.4.0

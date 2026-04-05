@@ -326,20 +326,7 @@ Cross-reference these quantitative metrics with your visual assessment. Key indi
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Gemini response: {e}")
-            return AssessmentResult(
-                user_id=user_id,
-                score=2,
-                issues=[],
-                test_type=AssessmentTest(test_type) if test_type in self.PROMPTS else None,
-                confidence=0.3,
-                recommendations=[
-                    "Video analysis incomplete - please try again",
-                    "Ensure good lighting and clear view",
-                    "Walk at your normal pace"
-                ],
-                low_confidence_warning="This score is an estimate — the video could not be fully analyzed. Please try again for accurate results.",
-                pose_metrics=parsed_metrics,
-            )
+            raise ValueError(f"Video analysis failed — Gemini returned unparseable response. Please try again.")
         except Exception as e:
             logger.error(f"Gemini Vision analysis failed: {e}")
             raise
@@ -453,21 +440,7 @@ Cross-reference these quantitative metrics with your visual assessment. Key indi
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Gemini response: {e}")
-            fallback = AssessmentResult(
-                user_id=user_id,
-                score=2,
-                issues=[],
-                test_type=AssessmentTest(test_type) if test_type in self.PROMPTS else None,
-                confidence=0.3,
-                recommendations=[
-                    "Video analysis incomplete - please try again",
-                    "Ensure good lighting and clear view",
-                    "Walk at your normal pace"
-                ],
-                low_confidence_warning="This score is an estimate — the video could not be fully analyzed. Please try again for accurate results.",
-                pose_metrics=parsed_metrics,
-            )
-            yield ("complete", {"result": fallback.model_dump()})
+            yield ("error", {"detail": "Video analysis failed — could not interpret the result. Please try again with better lighting."})
 
         except Exception as e:
             logger.error(f"Streaming analysis failed: {e}")

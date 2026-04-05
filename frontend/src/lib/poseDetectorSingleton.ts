@@ -11,24 +11,24 @@ let detectorPromise: Promise<poseDetection.PoseDetector> | null = null;
 
 function initDetector(): Promise<poseDetection.PoseDetector> {
   return (async () => {
-    console.log('\u{1F504} [singleton] Initializing TensorFlow.js backend...');
+    // console.log('[singleton] Initializing TensorFlow.js backend...');
     await tf.setBackend('webgl');
     await tf.ready();
-    console.log('\u{2705} [singleton] TensorFlow.js backend ready:', tf.getBackend());
+    // console.log('[singleton] TensorFlow.js backend ready:', tf.getBackend());
 
-    console.log('\u{1F504} [singleton] Loading MoveNet model...');
+    // console.log('[singleton] Loading MoveNet model...');
     const detector = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
       { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING },
     );
 
     // Warm-up inference — compiles WebGL shaders so first real frame is fast
-    console.log('\u{1F504} [singleton] Running warm-up inference...');
+    // console.log('[singleton] Running warm-up inference...');
     const dummy = document.createElement('canvas');
     dummy.width = 1;
     dummy.height = 1;
     await detector.estimatePoses(dummy);
-    console.log('\u{2705} [singleton] MoveNet ready and warm');
+    // console.log('[singleton] MoveNet ready and warm');
 
     return detector;
   })();

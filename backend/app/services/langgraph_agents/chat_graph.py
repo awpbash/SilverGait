@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 import json
 import time
+import asyncio
 import logging
 from datetime import datetime
 from typing import TypedDict
@@ -123,14 +124,13 @@ TOOL_DECLARATIONS = types.Tool(
         ),
         types.FunctionDeclaration(
             name="get_education",
-            description="Get health education. CALL when user asks: nutrition, food, diet, what to eat, frailty, why do I fall, balance tips, what is SPPB.",
+            description="Get health education. CALL when user asks: nutrition, food, diet, what to eat, frailty, why do I fall, balance tips, what is SPPB, medication, sleep hygiene, home safety, walking aids, chronic disease, caregiver tips, mental wellness, social activities, physiotherapy, Singapore health resources.",
             parameters={
                 "type": "OBJECT",
                 "properties": {
                     "topic": {
                         "type": "STRING",
-                        "description": "One of: frailty, balance, falls_prevention, nutrition",
-                        "enum": ["frailty", "balance", "falls_prevention", "nutrition"],
+                        "description": "Topic keyword: frailty, balance, fall_prevention, nutrition, medication, sleep, home_safety, walking_aids, chronic_disease, caregiver, mental_wellness, social, physiotherapy, sppb, resources",
                     }
                 },
                 "required": ["topic"],
@@ -177,6 +177,24 @@ TOOL_DECLARATIONS = types.Tool(
 )
 
 GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_TIMEOUT = 30  # seconds — abort Gemini calls that hang
+
+
+def _collect_stream_with_timeout(response_stream, timeout: int = GEMINI_TIMEOUT):
+    """Collect all parts from a sync Gemini stream, with a timeout."""
+    all_text_parts: list[str] = []
+    function_calls: list = []
+
+    def _consume():
+        for chunk in response_stream:
+            if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
+                for part in chunk.candidates[0].content.parts:
+                    if hasattr(part, "function_call") and part.function_call:
+                        function_calls.append(part.function_call)
+                    elif hasattr(part, "text") and part.text:
+                        all_text_parts.append(part.text)
+
+    return _consume, all_text_parts, function_calls
 
 
 # ── State ───────────────────────────────────────────────────────────────
@@ -212,6 +230,7 @@ async def _execute_tool(
     user_id: str,
     gemini_client: genai.Client | None = None,
     language: str = "en",
+    user_message: str = "",
 ) -> str:
     """Execute a tool — management agents (LLM) or deterministic helpers."""
     logger.info(f"[_execute_tool] tool={tool_name} args={args} lang={language}")
@@ -233,7 +252,7 @@ async def _execute_tool(
     elif tool_name == "get_education":
         topic = args.get("topic", "frailty")
         if gemini_client:
-            result = run_education_agent(gemini_client, ctx, topic, language)
+            result = run_education_agent(gemini_client, ctx, topic, language, query=user_message)
         else:
             result = get_education(topic, ctx.current_tier)
 
@@ -377,14 +396,22 @@ async def agent_node(state: ChatState, api_key: str) -> dict:
                 for fc in function_calls
             ]})
 
-            function_response_parts = []
-            for fc in function_calls:
+            # Execute tools in parallel
+            async def _run_tool_nonstream(fc):
                 fc_args = dict(fc.args or {})
                 try:
-                    tool_result = await _execute_tool(fc.name, fc_args, ctx, db, state["user_id"], client, language=language)
+                    result = await _execute_tool(fc.name, fc_args, ctx, db, state["user_id"], client, language=language, user_message=user_message)
                 except Exception as e:
                     logger.error(f"Tool {fc.name} failed: {e}")
-                    tool_result = f"Tool {fc.name} is temporarily unavailable."
+                    result = f"Tool {fc.name} is temporarily unavailable."
+                return fc, fc_args, result
+
+            tool_results = await asyncio.gather(
+                *[_run_tool_nonstream(fc) for fc in function_calls]
+            )
+
+            function_response_parts = []
+            for fc, fc_args, tool_result in tool_results:
                 tool_calls.append({"name": fc.name, "args": fc_args, "result": tool_result})
                 function_response_parts.append({
                     "function_response": {"name": fc.name, "response": {"result": tool_result}}
@@ -459,7 +486,7 @@ async def safety_gate_node(state: ChatState) -> dict:
     from ...models.db_models import Alert
 
     # Fall detection — exclude "fall asleep", "falling asleep", "rainfall"
-    fall_patterns = [r"\bfell(?!\s+(?:asleep|ill))\b", r"\bfall(?:ing)?(?!\s+asleep)\b(?<!rain)", r"\bfallen(?!\s+asleep)\b", r"\bslipped?\b", r"\btripped?\b", r"\bstumble[ds]?\b", r"\bjatuh\b", r"\bterjatuh\b", r"跌倒", r"摔倒", r"摔了", r"跌了", r"விழுந்த", r"விழ"]
+    fall_patterns = [r"\bfell(?!\s+(?:asleep|ill))\b", r"\bfall(?:ing)?(?!\s+asleep)\b(?<!rain)", r"\bfallen(?!\s+asleep)\b", r"\bslipped?\b", r"\btripped?\b", r"\bstumble[ds]?\b", r"\bjatuh\b", r"\bterjatuh\b", r"\btergelincir\b", r"跌倒", r"摔倒", r"摔了", r"跌了", r"விழுந்த", r"விழ"]
     if any(re.search(p, user_msg) for p in fall_patterns):
         alert = Alert(
             user_id=user_id, alert_type="fall_reported", severity="urgent",
@@ -685,15 +712,12 @@ async def run_chat_pipeline_stream(
 
         # First pass: collect ALL chunks to detect function calls before streaming
         # This avoids streaming pre-tool text that gets duplicated after tool execution
-        all_parts = []
-        function_calls_detected = []
-        for chunk in response_stream:
-            if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
-                for part in chunk.candidates[0].content.parts:
-                    if hasattr(part, "function_call") and part.function_call:
-                        function_calls_detected.append(part.function_call)
-                    elif hasattr(part, "text") and part.text:
-                        all_parts.append(part.text)
+        _consume, all_parts, function_calls_detected = _collect_stream_with_timeout(response_stream)
+        try:
+            await asyncio.wait_for(asyncio.to_thread(_consume), timeout=GEMINI_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.error(f"CHAT GRAPH: Gemini first call timed out after {GEMINI_TIMEOUT}s")
+            raise TimeoutError(f"Gemini response timed out after {GEMINI_TIMEOUT}s")
 
         # If no tool calls, stream the collected text now
         if not function_calls_detected:
@@ -705,19 +729,25 @@ async def run_chat_pipeline_stream(
         if function_calls_detected and user_context:
             logger.info(f"CHAT GRAPH: Gemini requested tools: {[fc.name for fc in function_calls_detected]}")
 
-            # Execute each management agent
-            function_response_parts = []
-            for fc in function_calls_detected:
+            # Execute management agents in parallel for lower latency
+            async def _run_tool(fc):
                 fc_args = dict(fc.args or {})
                 logger.info(f"CHAT GRAPH: executing {fc.name}({fc_args})")
-
                 try:
-                    tool_result = await _execute_tool(
-                        fc.name, fc_args, user_context, db, user_id, client, language=language
+                    result = await _execute_tool(
+                        fc.name, fc_args, user_context, db, user_id, client, language=language, user_message=user_message
                     )
                 except Exception as e:
                     logger.error(f"Tool {fc.name} failed: {e}")
-                    tool_result = f"Tool {fc.name} is temporarily unavailable."
+                    result = f"Tool {fc.name} is temporarily unavailable."
+                return fc, fc_args, result
+
+            tool_results = await asyncio.gather(
+                *[_run_tool(fc) for fc in function_calls_detected]
+            )
+
+            function_response_parts = []
+            for fc, fc_args, tool_result in tool_results:
                 tool_calls.append({"name": fc.name, "args": fc_args, "result": tool_result})
                 function_response_parts.append({
                     "function_response": {"name": fc.name, "response": {"result": tool_result}}
@@ -742,12 +772,14 @@ async def run_chat_pipeline_stream(
                     max_output_tokens=600,
                 ),
             )
-            for chunk in response_stream2:
-                if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
-                    for part in chunk.candidates[0].content.parts:
-                        if hasattr(part, "text") and part.text:
-                            full_reply += part.text
-                            yield json.dumps({"type": "chunk", "text": part.text})
+            _consume2, text_parts2, _ = _collect_stream_with_timeout(response_stream2)
+            try:
+                await asyncio.wait_for(asyncio.to_thread(_consume2), timeout=GEMINI_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.error(f"CHAT GRAPH: Gemini second call timed out after {GEMINI_TIMEOUT}s")
+            for text in text_parts2:
+                full_reply += text
+                yield json.dumps({"type": "chunk", "text": text})
 
             # Fallback: if second stream empty, retry non-streaming, then pre-tool text, then ack
             if not full_reply.strip():

@@ -46,11 +46,26 @@ export function resetSession() {
   window.location.reload();
 }
 
-// On 401, clear session so app re-registers
+// On 401, warn user before clearing session
+let sessionExpiredShown = false;
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error?.response?.status === 401) resetSession();
+    if (error?.response?.status === 401 && !sessionExpiredShown) {
+      sessionExpiredShown = true;
+      // Show a non-blocking warning, then reset
+      const detail = error?.response?.data?.detail || '';
+      if (detail.includes('expired')) {
+        // Session expired — give user a heads-up
+        setTimeout(() => {
+          alert('Your session has expired. You will need to sign in again.');
+          resetSession();
+        }, 100);
+      } else {
+        // Invalid token (e.g. DB wiped) — reset immediately
+        resetSession();
+      }
+    }
     return Promise.reject(error);
   },
 );

@@ -16,7 +16,7 @@ interface SleepContext {
 
 export function SleepPage() {
   const t = useT();
-  const st = (t as any).sleep || {};
+  const st = t.sleep;
   const navigate = useNavigate();
   const { userId } = useUserStore();
   const lang = useUserStore((s: { preferredLanguage: string }) => s.preferredLanguage);
@@ -100,7 +100,7 @@ export function SleepPage() {
 
   return (
     <div className="page sleep-page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{st.title || 'Sleep & Wellness'}</h1>

@@ -115,6 +115,7 @@ CLAUDE.md
 # Database files
 backend/data/*.db
 backend/data/*.log*
+backend/data/chroma_db/
 *.sqlite
 *.sqlite3
 

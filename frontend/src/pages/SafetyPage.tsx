@@ -125,7 +125,7 @@ export function SafetyPage() {
 
   return (
     <div className="page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{t.safety.title}</h1>

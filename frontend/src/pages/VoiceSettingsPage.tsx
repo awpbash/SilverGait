@@ -232,7 +232,7 @@ export function VoiceSettingsPage() {
 
   return (
     <div className="page voice-settings-page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{t.voiceSettings.title}</h1>

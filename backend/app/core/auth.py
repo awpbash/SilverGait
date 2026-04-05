@@ -44,6 +44,13 @@ async def get_current_user(
     if session.expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="Session expired")
 
+    # Auto-extend: if token is within 30 days of expiry, refresh it
+    settings = get_settings()
+    days_left = (session.expires_at - datetime.utcnow()).days
+    if days_left < 30:
+        session.expires_at = datetime.utcnow() + timedelta(days=settings.session_expiry_days)
+        await db.commit()
+
     # Enforce user isolation: if a {user_id} path param exists, it must match
     user_id_param = request.path_params.get("user_id")
     if user_id_param and user_id_param != session.user_id:

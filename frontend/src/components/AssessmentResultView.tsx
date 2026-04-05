@@ -88,6 +88,13 @@ export function AssessmentResultView({
 
         <div className="result-score-ring">
           <ScoreRing score={totalScore} maxScore={maxScore} size="lg" label={scoreLabel} />
+          {typeof assessment.confidence === 'number' && (
+            <div className={`confidence-badge ${assessment.confidence >= 0.7 ? 'high' : assessment.confidence >= 0.4 ? 'medium' : 'low'}`}>
+              {assessment.confidence >= 0.7 ? t.assessment.confidenceHigh || 'High confidence'
+                : assessment.confidence >= 0.4 ? t.assessment.confidenceMedium || 'Medium confidence'
+                : t.assessment.confidenceLow || 'Low confidence'}
+            </div>
+          )}
         </div>
 
         {delta !== null && (

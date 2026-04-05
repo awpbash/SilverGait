@@ -14,8 +14,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 class Settings(BaseSettings):
     """Environment settings. Only Gemini API key required."""
 
-    # Gemini Vision API (Required)
-    gemini_api_key: str
+    # Gemini Vision API (Required — app logs critical warning if empty)
+    gemini_api_key: str = ""
 
     # HPB (Optional - demo mode if not set)
     hpb_api_url: str = "https://api.healthhub.sg/v1"
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Server
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,*"
 
     class Config:
         env_file = str(_PROJECT_ROOT / ".env")

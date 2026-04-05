@@ -99,16 +99,36 @@ async def score_node(state: AssessmentState) -> dict:
     if state.get("sppb_balance") is not None and state.get("sppb_gait") is not None and state.get("sppb_chair") is not None:
         updates["sppb_total"] = score_sppb(state["sppb_balance"], state["sppb_gait"], state["sppb_chair"])
     else:
-        # Fetch latest SPPB from assessments
+        # Fetch latest SPPB from assessments — check comprehensive first,
+        # then fall back to summing the latest individual test scores
         from ...models.db_models import Assessment
         result = await db.execute(
             select(Assessment.total_score)
-            .where(Assessment.user_id == user_id, Assessment.test_type == "comprehensive")
+            .where(Assessment.user_id == user_id, Assessment.total_score.isnot(None))
             .order_by(desc(Assessment.timestamp))
             .limit(1)
         )
         row = result.first()
-        updates["sppb_total"] = row[0] if row else None
+        if row and row[0] is not None:
+            updates["sppb_total"] = row[0]
+        else:
+            # Try aggregating latest individual test scores
+            latest_scores = {}
+            for test_type in ["balance", "gait", "chair_stand"]:
+                r = await db.execute(
+                    select(Assessment.score)
+                    .where(Assessment.user_id == user_id, Assessment.test_type == test_type)
+                    .order_by(desc(Assessment.timestamp))
+                    .limit(1)
+                )
+                sr = r.first()
+                if sr and sr[0] is not None:
+                    latest_scores[test_type] = sr[0]
+            if latest_scores:
+                updates["sppb_total"] = sum(latest_scores.values())
+                logger.info(f"ASSESSMENT GRAPH [score_node]: aggregated individual SPPB scores: {latest_scores}")
+            else:
+                updates["sppb_total"] = None
 
     logger.info(f"ASSESSMENT GRAPH [score_node]: user={user_id} katz={updates.get('katz_total')} cfs={updates.get('cfs_score')} sppb={updates.get('sppb_total')}")
     return updates

@@ -3,6 +3,7 @@
  */
 export { Loading } from './Loading';
 export { ErrorMessage } from './ErrorMessage';
+export { ErrorBoundary } from './ErrorBoundary';
 export { BottomNav } from './BottomNav';
 export { VoiceAssistant } from './VoiceAssistant';
 export { AppHeader } from './AppHeader';
@@ -13,3 +14,4 @@ export { GoalSettingModal } from './GoalSettingModal';
 export { OnboardingModal } from './OnboardingModal';
 export { CameraRecordingView } from './CameraRecordingView';
 export { AssessmentResultView } from './AssessmentResultView';
+export { Mascot } from './Mascot';

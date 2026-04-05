@@ -3,8 +3,8 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,8 +43,8 @@ TIER_FROM_SPPB = lambda s: "pre_frail" if s is None else "robust" if s >= 10 els
 
 
 class ExerciseCompleteRequest(BaseModel):
-    user_id: str
-    exercise_id: str
+    user_id: str = Field(..., max_length=64)
+    exercise_id: str = Field(..., max_length=64)
     duration_secs: int | None = None
 
 
@@ -79,7 +79,7 @@ async def complete_exercise(req: ExerciseCompleteRequest, db: AsyncSession = Dep
 
 
 @router.get("/exercises/stats/{user_id}")
-async def exercise_stats(user_id: str, days: int = 7, db: AsyncSession = Depends(get_db)):
+async def exercise_stats(user_id: str, days: int = Query(default=7, ge=1, le=365), db: AsyncSession = Depends(get_db)):
     """Get exercise stats for a user over the last N days."""
     cutoff = date.today() - timedelta(days=days - 1)
 

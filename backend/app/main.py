@@ -70,12 +70,12 @@ app.add_middleware(
 )
 
 # Include routers — public (no auth)
-app.include_router(health_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")  # public: needed during onboarding TTS/STT
 
 # Include routers — protected (require valid session token)
 _auth = [Depends(get_current_user)]
+app.include_router(health_router, prefix="/api", dependencies=_auth)
 app.include_router(assessment_router, prefix="/api", dependencies=_auth)
 app.include_router(chat_router, prefix="/api", dependencies=_auth)
 app.include_router(exercises_router, prefix="/api", dependencies=_auth)
@@ -83,11 +83,21 @@ app.include_router(exercises_router, prefix="/api", dependencies=_auth)
 
 @app.on_event("startup")
 async def startup():
-    """Initialize database on startup."""
+    """Initialize database and RAG index on startup."""
     await init_db()
     logger.info("Database initialized")
     if not settings.gemini_api_key:
         logger.critical("GEMINI_API_KEY not set — chat and assessment features will fail!")
+    else:
+        # Initialize education RAG index (graceful fallback if unavailable)
+        try:
+            from .services.education_rag import initialize_rag
+            if initialize_rag(settings.gemini_api_key):
+                logger.info("Education RAG index initialized")
+            else:
+                logger.warning("Education RAG not available — education agent will use LLM-only mode")
+        except Exception as e:
+            logger.warning(f"Education RAG initialization failed (non-fatal): {e}")
 
 
 @app.get("/api/health")

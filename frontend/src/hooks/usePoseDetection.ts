@@ -92,7 +92,7 @@ export function usePoseDetection(
     }
 
     // Start detection
-    console.log('\u{1F3A5} Starting pose detection loop');
+    // Pose detection loop started
     setIsDetecting(true);
 
     let lastProcessTime = 0;
@@ -103,7 +103,7 @@ export function usePoseDetection(
     const loop = async () => {
       // Check if still active
       if (!isActiveRef.current || !detectorRef.current) {
-        console.log('\u{23F9}\u{FE0F} Pose detection stopped');
+        // Pose detection stopped
         setIsDetecting(false);
         return;
       }

@@ -69,10 +69,7 @@ export function usePoseMetrics(
     }
     timeSeriesRef.current = ts;
 
-    console.log(
-      `Pose metrics: ${framesRef.current.length} frames collected`,
-      summaryRef.current
-    );
+    // Pose metrics flushed: framesRef.current.length frames
   }, []);
 
   /** Imperatively flush: build time series from whatever frames we have */

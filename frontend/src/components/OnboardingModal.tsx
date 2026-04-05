@@ -3,6 +3,7 @@ import { useUserStore } from '../stores';
 import { useT, tpl } from '../i18n';
 import { userApi, healthSnapshotApi } from '../services/api';
 import { startWavRecording, stopWavRecording } from '../utils/wavRecorder';
+import { Mascot } from './Mascot';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -481,9 +482,7 @@ export function OnboardingModal() {
         {step === 'welcome' && (
           <>
             <div className="onboarding-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                <path d="M12 4c-2.5 0-4 1.5-4 3.5 0 1.2.6 2.2 1.5 2.8C7.5 11.5 6 13.5 6 16c0 1 .5 2 2 2h8c1.5 0 2-1 2-2 0-2.5-1.5-4.5-3.5-5.7.9-.6 1.5-1.6 1.5-2.8C16 5.5 14.5 4 12 4z" fill="var(--olive-700)" />
-              </svg>
+              <Mascot size={56} mood="encouraging" />
             </div>
             <h2 className="onboarding-title">{ob.welcome}</h2>
             <p className="onboarding-subtitle">{ob.subtitle}</p>

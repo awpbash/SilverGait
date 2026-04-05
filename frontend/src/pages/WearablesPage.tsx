@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AppHeader } from '../components';
 import { useT } from '../i18n';
 import { useUserStore } from '../stores';
-import { healthApi } from '../services/api';
+import { healthApi, authHeaders } from '../services/api';
 
 interface DailyMetrics {
   steps: number;
@@ -39,7 +39,7 @@ const DEVICES: { id: DeviceType; name: string; icon: string; color: string }[] =
 export function WearablesPage() {
   const t = useT();
   const { userId } = useUserStore();
-  const wearableT = (t as any).wearables || {};
+  const wearableT = t.wearables;
 
   const [connectedDevice, setConnectedDevice] = useState<DeviceType | null>(() => {
     const saved = localStorage.getItem(`silvergait_wearable_${userId}`);
@@ -59,12 +59,12 @@ export function WearablesPage() {
     try {
       const [metricsRes, weeklyRes, trendRes] = await Promise.all([
         healthApi.getDailyMetrics(userId),
-        fetch(`/api/health/weekly/${userId}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/health/weekly/${userId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
         healthApi.getWeeklyTrend(userId),
       ]);
-      setToday(metricsRes as any);
+      setToday(metricsRes as unknown as DailyMetrics);
       setWeeklyHistory(weeklyRes);
-      setTrend(trendRes as any);
+      setTrend(trendRes as unknown as WeeklyTrend);
     } catch (e) {
       console.error('Failed to fetch wearable data:', e);
     } finally {
@@ -117,7 +117,7 @@ export function WearablesPage() {
 
   return (
     <div className="page wearables-page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
       <div className="page-title">
         <h1>{wearableT.title || 'Wearables'}</h1>
         <p className="page-subtitle">{wearableT.subtitle || 'Sync your device for steps & sleep'}</p>

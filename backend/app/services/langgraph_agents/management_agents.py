@@ -142,18 +142,32 @@ NO preamble. NO closing paragraph. NO headers. Just 5 bullets. Under 100 words t
 
 # ── Education Agent ────────────────────────────────────────────────────
 
-def run_education_agent(client: genai.Client, ctx: UserContext, topic: str = "frailty", language: str = "en") -> str:
-    """Generate personalized health education content. 1 LLM call."""
+def run_education_agent(client: genai.Client, ctx: UserContext, topic: str = "frailty", language: str = "en", query: str = "") -> str:
+    """Generate personalized health education content. 1 LLM call. Optionally uses RAG chunks."""
     tier = ctx.current_tier or "pre_frail"
     sppb = ctx.sppb_total or 0
     cfs_label = f"CFS {ctx.cfs_score}/9" if ctx.cfs_score else "not assessed"
+
+    # Try RAG retrieval
+    rag_section = ""
+    if query:
+        try:
+            from ..education_rag import retrieve
+            from ...core.config import get_settings
+            api_key = get_settings().gemini_api_key
+            chunks = retrieve(api_key, query, topic=topic, top_k=3)
+            if chunks:
+                rag_section = "\n\nReference material (use these as your primary source, adapt for the patient):\n---\n" + "\n---\n".join(chunks) + "\n---\n"
+                logger.info(f"[education_agent] RAG: {len(chunks)} chunks retrieved for query={query!r}")
+        except Exception as e:
+            logger.warning(f"[education_agent] RAG retrieval failed, continuing without: {e}")
 
     prompt = f"""You are an AI wellness assistant sharing health education tips with an elderly person in Singapore. You are NOT a doctor — for medical concerns, always suggest they consult their doctor.
 
 Patient: {ctx.display_name or 'User'} | Tier: {tier} | SPPB: {sppb}/12 | CFS: {cfs_label}
 Topic: {topic}
-
-Give exactly 5 bullet points about "{topic}". Each bullet: bold the key point, then ≤15 words of simple explanation. Personalize to their tier ({tier}). Include Singapore-specific tips.
+{rag_section}
+Give exactly 5 bullet points about "{topic}". Each bullet: bold the key point, then ≤15 words of simple explanation. Personalize to their tier ({tier}). Include Singapore-specific tips.{' Ground your response in the reference material above.' if rag_section else ''}
 
 Format:
 - **Key Point** — short explanation

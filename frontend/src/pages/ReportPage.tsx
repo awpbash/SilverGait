@@ -137,7 +137,7 @@ export function ReportPage() {
 
   return (
     <div className="page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{t.report.title}</h1>

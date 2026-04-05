@@ -1,4 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../stores';
+import { useT } from '../i18n';
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'EN' },
@@ -7,15 +9,36 @@ const LANGUAGE_OPTIONS = [
   { value: 'tamil', label: 'தமிழ்' },
 ];
 
-export function AppHeader() {
+interface AppHeaderProps {
+  showBack?: boolean;
+  backTo?: string;
+}
+
+export function AppHeader({ showBack, backTo }: AppHeaderProps) {
   const { preferredLanguage, setPreferredLanguage } = useUserStore();
+  const navigate = useNavigate();
+  const t = useT();
 
   return (
     <header className="app-header">
-      <div className="brand">
-        <img src="/images/sg-health.svg" alt="SilverGait" className="brand-icon" />
-        <span>SilverGait</span>
-      </div>
+      {showBack ? (
+        <button
+          type="button"
+          className="header-back-btn"
+          onClick={() => backTo ? navigate(backTo) : window.history.back()}
+          aria-label={t.common.back}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          <span>{t.common.back}</span>
+        </button>
+      ) : (
+        <div className="brand">
+          <img src="/images/sg-health.svg" alt="SilverGait" className="brand-icon" />
+          <span>SilverGait</span>
+        </div>
+      )}
       <div className="header-lang">
         <select
           value={preferredLanguage}

@@ -11,8 +11,29 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'tf-pose': [
+            '@tensorflow/tfjs-core',
+            '@tensorflow/tfjs-backend-webgl',
+            '@tensorflow-models/pose-detection',
+          ],
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            'zustand',
+            'axios',
+          ],
+        },
+      },
+    },
+  },
   server: {
-    allowedHosts:['geometric-deprecatorily-eleni.ngrok-free.dev'],
+    allowedHosts: ['geometric-deprecatorily-eleni.ngrok-free.dev'],
     port: 5173,
     proxy: {
       '/api': {

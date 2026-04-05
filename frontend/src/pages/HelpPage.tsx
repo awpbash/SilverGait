@@ -22,7 +22,7 @@ export function HelpPage() {
 
   return (
     <div className="page">
-      <AppHeader />
+      <AppHeader showBack backTo="/more" />
 
       <div className="page-title">
         <h1>{t.help.title}</h1>

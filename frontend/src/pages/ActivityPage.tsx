@@ -20,7 +20,7 @@ export function ActivityPage() {
     contextApi.get(userId).then((data) => {
       setTrend(data.sppb_direction || 'stable');
       setTier(data.current_tier);
-    }).catch(() => {});
+    }).catch(() => { /* context fetch failed — uses local defaults */ });
   }, [userId]);
 
   const breakdown = latestAssessment?.sppb_breakdown;

@@ -27,6 +27,10 @@
   --green: #34c759;
   --amber: #ff9f0a;
   --red: #ff3b30;
+  --purple: #5e5ce6;
+  --blue: #3478f6;
+  --pink: #e8475f;
+  --violet: #8b5cf6;
 
   /* Depth */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
@@ -90,7 +94,7 @@ button:disabled {
   align-items: center;
   justify-content: flex-start;
   padding: 0 16px 24px;
-  --frame-width: 390px;
+  --frame-width: clamp(320px, 90vw, 430px);
 }
 
 /* External toolbar — above the phone */
@@ -99,7 +103,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 390px;
+  max-width: var(--frame-width);
   padding: 12px 0 8px;
   gap: 12px;
 }
@@ -129,18 +133,18 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
 }
 
 .device-lang-control select {
   appearance: none;
   border: none;
   background: transparent;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--olive-700);
   font-weight: 600;
   padding-right: 14px;
@@ -203,9 +207,7 @@ button:disabled {
 
 .screen-frame {
   width: 100%;
-  height: 80vh;
-  min-height: 580px;
-  max-height: 844px;
+  height: clamp(580px, 82vh, 844px);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -269,18 +271,18 @@ button:disabled {
 }
 
 .app-shell[data-view='desktop'] {
-  --frame-width: 980px;
+  --frame-width: min(980px, 95vw);
 }
 
-/* On real mobile devices — fill the screen, no bezel */
-@media (max-width: 480px) {
+/* On real mobile/tablet devices — fill the screen, no bezel */
+@media (max-width: 768px) {
   .app-shell {
     padding: 0;
     background: var(--cream-50);
   }
 
   .device-toolbar {
-    padding: 8px 16px 4px;
+    display: none;
   }
 
   .phone-bezel {
@@ -289,6 +291,7 @@ button:disabled {
     box-shadow: none;
     background: var(--cream-50);
     width: 100%;
+    max-width: 100%;
     zoom: 1;
   }
 
@@ -299,8 +302,9 @@ button:disabled {
 
   .screen-frame {
     border-radius: 0;
-    height: auto;
-    min-height: calc(100vh - 56px);
+    height: 100vh;
+    height: 100dvh; /* dynamic viewport height for mobile browsers */
+    min-height: 0;
     max-height: none;
   }
 }
@@ -357,6 +361,29 @@ button:disabled {
   justify-content: space-between;
   padding: 32px 16px 4px;
   min-height: 36px;
+}
+
+.header-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--olive-700);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.header-back-btn:active {
+  background: var(--accent-soft);
+}
+
+.header-back-btn svg {
+  flex-shrink: 0;
 }
 
 .header-lang select {
@@ -578,7 +605,7 @@ button:disabled {
   text-decoration: none;
   cursor: pointer;
   padding: 8px;
-  min-height: 44px;
+  min-height: 48px;
   transition: opacity var(--transition);
 }
 
@@ -688,6 +715,44 @@ button:disabled {
   color: #c33;
 }
 
+.error-card {
+  background: #fff2f0;
+  border: 1px solid #ffd6d1;
+  text-align: center;
+}
+
+.error-card-text {
+  font-size: 1rem;
+  color: #c33;
+  margin: 0 0 16px;
+}
+
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 60vh;
+}
+.error-boundary h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  color: var(--olive-900, #1a1a1a);
+}
+.error-boundary p {
+  font-size: 0.95rem;
+  color: var(--olive-600, #666);
+  margin: 0 0 24px;
+  max-width: 280px;
+}
+.error-boundary-actions {
+  display: flex;
+  gap: 12px;
+}
+
 /* ========================================
    Bottom Navigation — frosted glass
    ======================================== */
@@ -717,7 +782,7 @@ button:disabled {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   min-height: 52px;
@@ -771,7 +836,7 @@ button:disabled {
   color: #ffffff;
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -789,12 +854,12 @@ button:disabled {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   border: none;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 48px;
   white-space: nowrap;
   transition: background var(--transition);
 }
@@ -932,7 +997,7 @@ button:disabled {
 .camera-placeholder {
   border: 2px dashed var(--border);
   border-radius: var(--radius-md);
-  height: 180px;
+  min-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -955,7 +1020,8 @@ button:disabled {
   position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
-  height: 200px;
+  min-height: 180px;
+  aspect-ratio: 16 / 10;
   border: 1px solid var(--border);
   background: #eef3ef;
 }
@@ -1133,7 +1199,15 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
+  padding: 32px 16px;
+}
+
+.loading-text {
+  font-size: 1rem;
+  color: var(--muted);
+  margin: 0;
 }
 
 .spinner {
@@ -1269,6 +1343,28 @@ button:disabled {
 
 .result-score-ring {
   margin: 16px 0 12px;
+}
+
+.confidence-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.confidence-badge.high {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.confidence-badge.medium {
+  background: #fff3e0;
+  color: #e65100;
+}
+.confidence-badge.low {
+  background: #fbe9e7;
+  color: #c62828;
 }
 
 .result-trend {
@@ -1529,7 +1625,7 @@ button:disabled {
 .clinical-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
 }
 
 .clinical-table td {
@@ -1560,7 +1656,7 @@ button:disabled {
 }
 
 .clinical-footnote {
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   color: var(--muted);
   margin: 12px 0 0;
   font-style: italic;
@@ -1744,8 +1840,8 @@ button:disabled {
 
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: var(--cream-100);
@@ -1883,7 +1979,7 @@ button:disabled {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .overlay-toggle:hover {
@@ -2053,7 +2149,7 @@ button:disabled {
   width: 26px;
   height: 26px;
   margin-top: 2px;
-  background: var(--accent-soft);
+  background: transparent;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2181,13 +2277,13 @@ button:disabled {
   color: #f0f5f2;
   border: none;
   border-radius: 18px;
-  padding: 7px 14px;
-  font-size: 0.8rem;
+  padding: 10px 16px;
+  font-size: 0.88rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: transform var(--transition), opacity var(--transition);
-  min-height: 36px;
+  min-height: 48px;
 }
 
 .chat-action-btn:active {
@@ -2208,14 +2304,14 @@ button:disabled {
   background: var(--accent-soft);
   border: 1.5px solid var(--accent);
   border-radius: 16px;
-  padding: 6px 12px;
-  font-size: 0.78rem;
+  padding: 8px 14px;
+  font-size: 0.88rem;
   color: var(--olive-800);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: all var(--transition);
-  min-height: 34px;
+  min-height: 44px;
 }
 
 .chat-chip:active {
@@ -2238,14 +2334,14 @@ button:disabled {
   flex: 1;
   min-width: 0;
   border: 1.5px solid var(--accent);
-  border-radius: 20px;
-  padding: 8px 14px;
-  font-size: 0.88rem;
+  border-radius: 24px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
   font-family: inherit;
   background: var(--cream-100);
   color: var(--olive-900);
   outline: none;
-  min-height: 38px;
+  min-height: 48px;
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 
@@ -2260,8 +2356,8 @@ button:disabled {
 }
 
 .chat-send-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: var(--olive-700);
@@ -2285,8 +2381,8 @@ button:disabled {
 
 /* Mic button in chat input bar */
 .chat-mic-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1.5px solid var(--accent);
   background: var(--cream-100);
@@ -2333,16 +2429,16 @@ button:disabled {
 .chat-read-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   background: none;
   border: 1px solid var(--accent);
   border-radius: 16px;
-  padding: 5px 12px;
-  font-size: 0.78rem;
+  padding: 8px 14px;
+  font-size: 0.88rem;
   font-family: inherit;
   color: var(--olive-700);
   cursor: pointer;
-  min-height: 30px;
+  min-height: 44px;
   transition: all var(--transition);
   align-self: flex-start;
 }
@@ -2358,8 +2454,8 @@ button:disabled {
   position: absolute;
   bottom: 140px;
   right: 24px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid var(--accent);
   background: var(--cream-100);
@@ -2370,7 +2466,7 @@ button:disabled {
   cursor: pointer;
   box-shadow: var(--shadow-md);
   z-index: 10;
-  min-height: 36px;
+  min-height: 44px;
   transition: all var(--transition);
 }
 
@@ -2442,11 +2538,11 @@ button:disabled {
   background: var(--card);
   cursor: pointer;
   white-space: nowrap;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--muted);
   transition: all var(--transition);
-  min-height: 44px;
+  min-height: 48px;
 }
 
 .exercise-pill.active {
@@ -2493,7 +2589,7 @@ button:disabled {
 }
 
 .exercise-pill-name {
-  max-width: 100px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2515,7 +2611,7 @@ button:disabled {
 }
 
 .exercise-recommended-badge {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--olive-700);
   background: var(--olive-100);
@@ -2649,9 +2745,9 @@ button:disabled {
 
 .exercise-nav-row .btn-ghost {
   width: auto;
-  min-height: 44px;
+  min-height: 48px;
   padding: 10px 16px;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2661,11 +2757,11 @@ button:disabled {
   background: none;
   border: none;
   color: var(--danger);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   padding: 10px 14px;
-  min-height: 44px;
+  min-height: 48px;
   opacity: 0.8;
   transition: opacity var(--transition);
 }
@@ -2689,7 +2785,7 @@ button:disabled {
   background: #ffffff;
   border-radius: var(--radius-lg);
   padding: 28px 24px;
-  max-width: 360px;
+  max-width: min(360px, 92vw);
   width: 100%;
   text-align: center;
   box-shadow: var(--shadow-lg);
@@ -2731,7 +2827,7 @@ button:disabled {
   background: var(--cream-50);
   border-radius: var(--radius-lg);
   padding: 32px 24px;
-  max-width: 380px;
+  max-width: min(380px, 92vw);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -2807,7 +2903,7 @@ button:disabled {
 
 .onboarding-disclaimer p {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.4;
 }
@@ -3104,7 +3200,7 @@ button:disabled {
 
 .activity-breakdown {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 10px;
 }
 
@@ -3121,7 +3217,7 @@ button:disabled {
 }
 
 .breakdown-label {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3144,7 +3240,7 @@ button:disabled {
   align-items: flex-end;
   justify-content: space-between;
   gap: 6px;
-  height: 80px;
+  min-height: 80px;
 }
 
 .chart-bar-wrapper {
@@ -3172,7 +3268,7 @@ button:disabled {
 }
 
 .chart-bar-label {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
 }
@@ -3363,6 +3459,69 @@ button:disabled {
 .risk-badge.high {
   background: #ffeef0;
   color: #d32f2f;
+}
+
+/* Caregiver patient header */
+.caregiver-patient-header {
+  padding: 16px 0;
+}
+
+.caregiver-patient-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.caregiver-patient-name .label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.caregiver-patient-name .name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.caregiver-recheck-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.caregiver-days-since {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.caregiver-recheck-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--amber) 15%, var(--card));
+  color: #b45309;
+}
+
+/* SPPB sub-scores */
+.sppb-subscores {
+  margin-top: 12px;
+}
+
+.subscore-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+}
+
+/* SPPB sparkline */
+.sppb-sparkline {
+  flex-shrink: 0;
 }
 
 /* Caregiver alerts */
@@ -4783,7 +4942,7 @@ button:disabled {
   background: var(--sage-50);
   border-bottom: 1px solid var(--border);
 }
-.wearable-status-left { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+.wearable-status-left { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
 .wearable-status-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -4794,7 +4953,7 @@ button:disabled {
 .wearable-status-time { color: var(--muted); font-size: 0.88rem; }
 .wearable-status-actions { display: flex; align-items: center; gap: 0.5rem; }
 .wearable-sync-btn {
-  width: 32px; height: 32px;
+  width: 44px; height: 44px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card-bg);
@@ -4874,8 +5033,8 @@ button:disabled {
   line-height: 1.1;
 }
 .wearable-metric-unit { font-size: 0.92rem; font-weight: 600; opacity: 0.6; margin-left: 0.1rem; }
-.wearable-metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
-.wearable-metric-goal { font-size: 0.68rem; color: var(--muted); opacity: 0.7; margin-top: 0.1rem; }
+.wearable-metric-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; }
+.wearable-metric-goal { font-size: 0.78rem; color: var(--muted); opacity: 0.7; margin-top: 0.1rem; }
 
 .wearable-metric-bar {
   height: 4px;
@@ -4946,7 +5105,7 @@ button:disabled {
 @keyframes bar-in { to { opacity: 1; } }
 
 .wearable-bar-value {
-  font-size: 0.6rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 0.25rem;
@@ -4977,7 +5136,7 @@ button:disabled {
 .wearable-bar-fill.sleep-fill { background: #5e5ce6; }
 .wearable-bar-fill.sleep-fill[data-low="true"] { background: #ff453a; }
 .wearable-bar-label {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--muted);
   margin-top: 0.3rem;
   position: absolute;
