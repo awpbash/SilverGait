@@ -63,6 +63,8 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 button,
@@ -88,13 +90,13 @@ button:disabled {
 
 .app-shell {
   min-height: 100vh;
-  background: #e8e4df;
+  background: linear-gradient(145deg, #e8e4df 0%, #d4cfc8 50%, #c9c3bb 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   padding: 0 16px 24px;
-  --frame-width: clamp(320px, 90vw, 430px);
+  --frame-width: min(430px, 95vw);
 }
 
 /* External toolbar — above the phone */
@@ -158,43 +160,46 @@ button:disabled {
   pointer-events: none;
 }
 
-/* Phone bezel */
+/* Phone bezel — iPhone 15-style frame */
 .phone-bezel {
   position: relative;
   width: var(--frame-width);
   max-width: 100%;
   background: #1a1a1a;
-  border-radius: 48px;
-  padding: 12px;
+  border-radius: 52px;
+  padding: 14px;
   box-shadow:
-    0 0 0 2px #333,
-    0 20px 60px rgba(0, 0, 0, 0.3),
-    0 8px 20px rgba(0, 0, 0, 0.15);
+    inset 0 0 0 1.5px #3a3a3a,
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 25px 80px rgba(0, 0, 0, 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
-  zoom: 0.9;
 }
 
+/* Dynamic Island (replaces old notch) */
 .phone-notch {
   position: absolute;
-  top: 12px;
+  top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 126px;
-  height: 30px;
-  background: #1a1a1a;
-  border-radius: 0 0 18px 18px;
+  width: 120px;
+  height: 34px;
+  background: #000;
+  border-radius: 20px;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .phone-notch-cam {
-  width: 10px;
-  height: 10px;
-  background: #2a2a2a;
+  width: 8px;
+  height: 8px;
+  background: #0d1117;
   border-radius: 50%;
-  border: 1.5px solid #3a3a3a;
+  border: 1.5px solid #1a2332;
+  box-shadow: 0 0 4px rgba(30, 80, 180, 0.15);
 }
 
 .phone-home-indicator {
@@ -202,17 +207,17 @@ button:disabled {
   height: 5px;
   background: #555;
   border-radius: 4px;
-  margin: 8px auto 4px;
+  margin: 6px auto 4px;
 }
 
 .screen-frame {
   width: 100%;
-  height: clamp(580px, 82vh, 844px);
+  height: clamp(600px, 88vh, 900px);
   display: flex;
   flex-direction: column;
   position: relative;
   background: var(--cream-50);
-  border-radius: 36px;
+  border-radius: 40px;
   overflow: hidden;
 }
 
@@ -250,7 +255,6 @@ button:disabled {
   padding: 4px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   background: var(--cream-50);
-  zoom: 1;
 }
 
 .app-shell[data-view='desktop'] .phone-notch,
@@ -274,7 +278,7 @@ button:disabled {
   --frame-width: min(980px, 95vw);
 }
 
-/* On real mobile/tablet devices — fill the screen, no bezel */
+/* ── Real mobile/tablet — full-screen native feel, no bezel ── */
 @media (max-width: 768px) {
   .app-shell {
     padding: 0;
@@ -292,7 +296,6 @@ button:disabled {
     background: var(--cream-50);
     width: 100%;
     max-width: 100%;
-    zoom: 1;
   }
 
   .phone-notch,
@@ -303,9 +306,20 @@ button:disabled {
   .screen-frame {
     border-radius: 0;
     height: 100vh;
-    height: 100dvh; /* dynamic viewport height for mobile browsers */
+    height: 100dvh;
     min-height: 0;
     max-height: none;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .bottom-nav {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  /* Content fills full width on mobile */
+  .page {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 
@@ -1279,7 +1293,7 @@ button:disabled {
 }
 
 .score-label {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--olive-700);
 }
@@ -1345,7 +1359,7 @@ button:disabled {
 }
 
 .result-partial {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   margin: 0 0 8px;
 }
@@ -1359,7 +1373,7 @@ button:disabled {
   margin-top: 8px;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -1382,7 +1396,7 @@ button:disabled {
   gap: 4px;
   padding: 5px 12px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -1587,7 +1601,7 @@ button:disabled {
   background: transparent;
   border: 1px dashed var(--border);
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
@@ -1665,7 +1679,7 @@ button:disabled {
 }
 
 .clinical-footnote {
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   color: var(--muted);
   margin: 12px 0 0;
   font-style: italic;
@@ -1718,7 +1732,7 @@ button:disabled {
 .result-agent-duration {
   display: inline-block;
   margin-top: 8px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--olive-700);
   background: var(--olive-100);
@@ -1752,7 +1766,7 @@ button:disabled {
 }
 
 .movement-graph-title {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text);
   margin: 0 0 6px;
@@ -2189,7 +2203,8 @@ button:disabled {
   font-size: 0.9rem;
   line-height: 1.45;
   color: var(--olive-900);
-  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .chat-text p + p {
@@ -2597,7 +2612,7 @@ button:disabled {
 .exercise-pill.completed .exercise-pill-num {
   background: var(--green);
   color: #fff;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
 }
 
 .exercise-pill-name {
@@ -2623,7 +2638,7 @@ button:disabled {
 }
 
 .exercise-recommended-badge {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--olive-700);
   background: var(--olive-100);
@@ -2687,7 +2702,7 @@ button:disabled {
 }
 
 .exercise-completed-badge {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -2950,7 +2965,7 @@ button:disabled {
 }
 
 .onboarding-question-counter {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   text-align: center;
   font-weight: 600;
@@ -3135,7 +3150,7 @@ button:disabled {
 }
 
 .onboarding-voice-status {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--olive-700);
   text-align: center;
   margin: 0 0 8px;
@@ -3417,7 +3432,7 @@ button:disabled {
 }
 
 .faq-chevron {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   transition: transform var(--transition);
 }
@@ -3511,7 +3526,7 @@ button:disabled {
 }
 
 .caregiver-recheck-badge {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 20px;
@@ -3835,7 +3850,7 @@ button:disabled {
 }
 
 .challenge-progress-text {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
 }
 
@@ -3843,7 +3858,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
@@ -4465,7 +4480,7 @@ button:disabled {
 }
 
 .voice-card-badge {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--olive-700);
   background: color-mix(in srgb, var(--olive-700) 12%, transparent);
@@ -4840,7 +4855,7 @@ button:disabled {
 }
 
 .agent-score-item span {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: var(--muted);
   text-align: center;
 }
@@ -4882,7 +4897,7 @@ button:disabled {
 }
 
 .agent-routes-label {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   font-weight: 500;
 }
@@ -4942,7 +4957,7 @@ button:disabled {
 .wearable-device-icon { font-size: 1.8rem; }
 .wearable-device-info { flex: 1; }
 .wearable-device-info strong { display: block; font-size: 0.95rem; color: var(--text); }
-.wearable-device-info span { font-size: 0.78rem; color: var(--muted); }
+.wearable-device-info span { font-size: 0.85rem; color: var(--muted); }
 .wearable-device-chevron { width: 18px; height: 18px; color: var(--muted); }
 
 /* Connected status bar */
@@ -5046,7 +5061,7 @@ button:disabled {
 }
 .wearable-metric-unit { font-size: 0.92rem; font-weight: 600; opacity: 0.6; margin-left: 0.1rem; }
 .wearable-metric-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; }
-.wearable-metric-goal { font-size: 0.78rem; color: var(--muted); opacity: 0.7; margin-top: 0.1rem; }
+.wearable-metric-goal { font-size: 0.85rem; color: var(--muted); opacity: 0.7; margin-top: 0.1rem; }
 
 .wearable-metric-bar {
   height: 4px;
@@ -5076,7 +5091,7 @@ button:disabled {
 }
 .wearable-alert svg { width: 22px; height: 22px; flex-shrink: 0; color: #ff9800; margin-top: 0.1rem; }
 .wearable-alert strong { display: block; font-size: 0.92rem; color: #e65100; }
-.wearable-alert span { font-size: 0.78rem; color: #bf360c; }
+.wearable-alert span { font-size: 0.85rem; color: #bf360c; }
 
 /* Bar charts */
 .wearable-chart-section { padding: 1rem 1.25rem 0.5rem; }
@@ -5092,7 +5107,7 @@ button:disabled {
 .wearable-trend-badge[data-positive="false"] { background: #fce4ec; color: #c62828; }
 
 .wearable-sleep-avg {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--muted);
   margin-bottom: 0.75rem;
 }
@@ -5117,7 +5132,7 @@ button:disabled {
 @keyframes bar-in { to { opacity: 1; } }
 
 .wearable-bar-value {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 0.25rem;
@@ -5228,7 +5243,7 @@ button:disabled {
 }
 
 .demo-tips h3 {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -5251,7 +5266,7 @@ button:disabled {
 
 .demo-duration {
   display: inline-block;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   color: var(--muted);
   margin-top: 8px;
   font-weight: 600;
@@ -5292,7 +5307,7 @@ button:disabled {
 }
 
 .plan-freq {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--olive-600);
   background: var(--olive-50);
@@ -5432,7 +5447,7 @@ button:disabled {
 }
 
 .sleep-risk-label {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
@@ -5716,7 +5731,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;

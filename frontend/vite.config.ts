@@ -33,7 +33,7 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ['geometric-deprecatorily-eleni.ngrok-free.dev'],
+    allowedHosts: true,
     port: 5173,
     proxy: {
       '/api': {

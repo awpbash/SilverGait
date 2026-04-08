@@ -9,13 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     corepack enable && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Python deps
+# Python deps (cached layer — only rebuilds when requirements.txt changes)
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Frontend build
+# Frontend build (separate layer for caching)
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
+RUN cd frontend && pnpm install --frozen-lockfile
+
 COPY frontend/ frontend/
-RUN cd frontend && pnpm install --frozen-lockfile && pnpm run build
+RUN cd frontend && pnpm run build && rm -rf node_modules .corepack
 
 # Copy backend + education docs
 COPY backend/ backend/

@@ -1,0 +1,74 @@
+# Dependencies (rebuilt in Docker)
+node_modules/
+frontend/node_modules/
+.corepack/
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+
+# Build outputs (rebuilt in Docker)
+frontend/dist/
+frontend/build/
+
+# Environment / secrets
+.env
+.env.*
+backend/.env
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Database / logs
+backend/data/*.db
+backend/data/*.log*
+backend/data/chroma_db/
+*.sqlite
+*.sqlite3
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.code-workspace
+
+# Git / CI
+.git/
+.github/
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Media uploads
+uploads/
+*.webm
+*.mov
+*.avi
+
+# Claude AI
+.claude/
+CLAUDE.md
+claude_history.json
+
+# Docs (not needed at runtime)
+docs/
+*.md
+!backend/education_docs/**
+
+# Misc
+*.log
+*.tmp
+*.bak
+coverage/
