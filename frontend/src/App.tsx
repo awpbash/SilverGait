@@ -91,12 +91,21 @@ function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show landing page for new users
-  if (!hasOnboarded && !showOnboarding) {
+  // New users: landing page → onboarding modal → app
+  if (!hasOnboarded) {
+    if (!showOnboarding) {
+      return (
+        <>
+          <ToastContainer />
+          <LandingPage onGetStarted={() => setShowOnboarding(true)} />
+        </>
+      );
+    }
+    // Show onboarding modal full-screen (no app shell behind it)
     return (
       <>
         <ToastContainer />
-        <LandingPage onGetStarted={() => setShowOnboarding(true)} />
+        <OnboardingModal />
       </>
     );
   }
@@ -137,7 +146,6 @@ function App() {
   return (
     <div className="app-shell" data-view={viewMode}>
       <ToastContainer />
-      {(!hasOnboarded && showOnboarding) && <OnboardingModal />}
 
       {/* External toolbar — outside the phone frame */}
       <div className="device-toolbar">
