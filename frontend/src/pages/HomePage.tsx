@@ -91,9 +91,11 @@ export function HomePage() {
     }
   }, []);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom — use scrollTop instead of scrollIntoView
+  // to avoid mobile browsers shifting the entire viewport
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatScrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   // Track scroll position for "jump to bottom" button
@@ -120,7 +122,8 @@ export function HomePage() {
   }, []);
 
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatScrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   };
 
   // --- Chat ---
