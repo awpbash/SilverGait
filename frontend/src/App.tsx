@@ -83,6 +83,39 @@ function App() {
   const { userId, hasOnboarded } = useUserStore();
   const t = useT();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // All hooks must be called before any conditional returns
+  const navItems = useMemo(() => [
+    { id: 'home', label: t.nav.home, icon: <HomeIcon /> },
+    { id: 'assessment', label: t.nav.check, icon: <CheckIcon /> },
+    { id: 'exercises', label: t.nav.exercise, icon: <ExerciseIcon /> },
+    { id: 'activity', label: t.nav.progress, icon: <ProgressIcon /> },
+    { id: 'more', label: t.nav.more, icon: <MoreIcon /> },
+  ], [t]);
+
+  const activeId = useMemo<PageId | ''>(() => {
+    const path = location.pathname;
+    if (path === ROUTES.home) return 'home';
+    if (path.startsWith(ROUTES.assessment)) return 'assessment';
+    if (path.startsWith(ROUTES.exercises)) return 'exercises';
+    if (path.startsWith(ROUTES.activity)) return 'activity';
+    if (path.startsWith(ROUTES.more)) return 'more';
+    if (path.startsWith(ROUTES.help)) return 'more';
+    if (path.startsWith(ROUTES.caregiver)) return 'more';
+    if (path.startsWith(ROUTES.safety)) return 'more';
+    if (path.startsWith(ROUTES.community)) return 'more';
+    if (path.startsWith(ROUTES.report)) return 'more';
+    if (path.startsWith(ROUTES.voiceSettings)) return 'more';
+    if (path.startsWith(ROUTES.wearables)) return 'more';
+    if (path.startsWith(ROUTES.sleep)) return 'more';
+    return '';
+  }, [location.pathname]);
+
+  const handleNavigate = (page: PageId) => {
+    navigate(ROUTES[page]);
+  };
 
   // On mount, verify stored session is still valid (DB may have been wiped)
   useEffect(() => {
@@ -101,7 +134,6 @@ function App() {
         </>
       );
     }
-    // Show onboarding modal full-screen (no app shell behind it)
     return (
       <>
         <ToastContainer />
@@ -109,39 +141,6 @@ function App() {
       </>
     );
   }
-
-  const navItems = useMemo(() => [
-    { id: 'home', label: t.nav.home, icon: <HomeIcon /> },
-    { id: 'assessment', label: t.nav.check, icon: <CheckIcon /> },
-    { id: 'exercises', label: t.nav.exercise, icon: <ExerciseIcon /> },
-    { id: 'activity', label: t.nav.progress, icon: <ProgressIcon /> },
-    { id: 'more', label: t.nav.more, icon: <MoreIcon /> },
-  ], [t]);
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const activeId = useMemo<PageId | ''>(() => {
-    const path = location.pathname;
-    if (path === ROUTES.home) return 'home';
-    if (path.startsWith(ROUTES.assessment)) return 'assessment';
-    if (path.startsWith(ROUTES.exercises)) return 'exercises';
-    if (path.startsWith(ROUTES.activity)) return 'activity';
-    // Pages accessible via "More" highlight the More tab
-    if (path.startsWith(ROUTES.more)) return 'more';
-    if (path.startsWith(ROUTES.help)) return 'more';
-    if (path.startsWith(ROUTES.caregiver)) return 'more';
-    if (path.startsWith(ROUTES.safety)) return 'more';
-    if (path.startsWith(ROUTES.community)) return 'more';
-    if (path.startsWith(ROUTES.report)) return 'more';
-    if (path.startsWith(ROUTES.voiceSettings)) return 'more';
-    if (path.startsWith(ROUTES.wearables)) return 'more';
-    if (path.startsWith(ROUTES.sleep)) return 'more';
-    return '';
-  }, [location.pathname]);
-
-  const handleNavigate = (page: PageId) => {
-    navigate(ROUTES[page]);
-  };
 
   return (
     <div className="app-shell" data-view={viewMode}>
