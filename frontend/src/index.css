@@ -2126,6 +2126,7 @@ button:disabled {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  max-height: 100%;
   padding: 0 14px !important;
   gap: 0 !important;
   overflow: hidden;
@@ -2142,7 +2143,9 @@ button:disabled {
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px 0 10px;
   display: flex;
   flex-direction: column;
@@ -5806,6 +5809,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   animation: pageEnter 0.3s var(--ease);
 }
 
@@ -5996,7 +6000,7 @@ button:disabled {
   background: var(--olive-50);
   color: var(--olive-700);
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 

@@ -198,6 +198,7 @@ export function ExercisesPage() {
 
   // Fetch personalized exercise order
   useEffect(() => {
+    if (!userId) return;
     exerciseApi.getPersonalized(userId).then((data) => {
       setExerciseOrder(data.exercises.map((e) => e.id));
       setRecommendedIds(new Set(data.exercises.filter((e) => e.recommended).map((e) => e.id)));
