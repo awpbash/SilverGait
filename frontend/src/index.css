@@ -223,7 +223,10 @@ button:disabled {
 
 .screen-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   scrollbar-width: thin;
