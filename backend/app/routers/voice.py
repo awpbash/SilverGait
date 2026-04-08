@@ -21,7 +21,6 @@ from ..services.voice import (
     build_reply_text,
     build_voice_action,
 )
-from ..services.sealion import SeaLionService
 from ..services.meralion import MERaLiONService
 
 router = APIRouter(tags=["voice"])
@@ -31,7 +30,6 @@ elevenlabs_service = ElevenLabsTTSService()
 meralion_service = MERaLiONService()
 intent_service = VoiceIntentService()
 language_service = VoiceLanguageService()
-sealion_service = SeaLionService()
 
 
 @router.get("/voice/status")
@@ -43,7 +41,7 @@ async def voice_status():
         "stt_provider": "meralion" if meralion_service.enabled else "gemini",
         "tts_ready": elevenlabs_service.enabled or voice_service.enabled,
         "tts_provider": "elevenlabs" if elevenlabs_service.enabled else "gemini",
-        "sealion_ready": sealion_service.enabled,
+        "sealion_ready": False,
         "stream_tts": settings.voice_stream_tts,
         "tts_format": "mp3" if elevenlabs_service.enabled else "wav",
     }
@@ -100,7 +98,7 @@ async def voice_turn(
         reply_language = detected.language
 
     if reply_language != "en":
-        reply_text = await sealion_service.rewrite_for_locale(reply_text, dialect=reply_language)  # type: ignore[arg-type]
+        pass  # SeaLion locale rewrite removed — MERaLiON handles multilingual STT directly
 
     speech_b64 = None
     audio_mime = None
