@@ -771,7 +771,7 @@ button:disabled {
    ======================================== */
 
 .bottom-nav {
-  position: sticky;
+  position: relative;
   bottom: 0;
   left: 0;
   right: 0;
@@ -782,7 +782,6 @@ button:disabled {
   justify-content: space-around;
   padding: 6px 0 8px;
   z-index: 100;
-  margin-top: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 }
@@ -812,7 +811,7 @@ button:disabled {
 .nav-item.active::before {
   content: '';
   position: absolute;
-  inset: 4px -2px;
+  inset: 2px -4px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.15);
   z-index: -1;
