@@ -3,12 +3,13 @@
  * Warm, calm palette aligned with Figma mockups
  */
 
-import { useMemo, useEffect, lazy, Suspense } from 'react';
+import { useMemo, useEffect, useState, lazy, Suspense } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav, VoiceAssistant, OnboardingModal, Loading, ErrorBoundary, ToastContainer } from './components';
 import { useUiStore, useUserStore } from './stores';
 import { useT } from './i18n';
 import { verifySession } from './services/api';
+import { LandingPage } from './pages/LandingPage';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
 import { HelpPage } from './pages/HelpPage';
@@ -81,6 +82,7 @@ function App() {
   const { viewMode, setViewMode } = useUiStore();
   const { userId, hasOnboarded } = useUserStore();
   const t = useT();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // On mount, verify stored session is still valid (DB may have been wiped)
   useEffect(() => {
@@ -88,6 +90,16 @@ function App() {
       verifySession(userId); // resets + reloads on 401
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show landing page for new users
+  if (!hasOnboarded && !showOnboarding) {
+    return (
+      <>
+        <ToastContainer />
+        <LandingPage onGetStarted={() => setShowOnboarding(true)} />
+      </>
+    );
+  }
 
   const navItems = useMemo(() => [
     { id: 'home', label: t.nav.home, icon: <HomeIcon /> },
@@ -125,7 +137,7 @@ function App() {
   return (
     <div className="app-shell" data-view={viewMode}>
       <ToastContainer />
-      {!hasOnboarded && <OnboardingModal />}
+      {(!hasOnboarded && showOnboarding) && <OnboardingModal />}
 
       {/* External toolbar — outside the phone frame */}
       <div className="device-toolbar">

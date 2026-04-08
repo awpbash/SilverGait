@@ -260,10 +260,19 @@ export function useAssessmentFlow() {
     }
   }, [step, currentTestId]);
 
-  // Encouragement
-  const encouragement = useMemo(() => {
-    if (step !== 'recording') return '';
-    return getEncouragement(currentTestId, liveMetrics?.trunkLean ?? null, currentTestId === 'chair_stand' ? chairReps : 0, t);
+  // Encouragement — only update when the message text actually changes
+  const [encouragement, setEncouragement] = useState('');
+  const lastEncMsgRef = useRef('');
+  useEffect(() => {
+    if (step !== 'recording') {
+      if (lastEncMsgRef.current !== '') { lastEncMsgRef.current = ''; setEncouragement(''); }
+      return;
+    }
+    const msg = getEncouragement(currentTestId, liveMetrics?.trunkLean ?? null, currentTestId === 'chair_stand' ? chairReps : 0, t);
+    if (msg !== lastEncMsgRef.current) {
+      lastEncMsgRef.current = msg;
+      setEncouragement(msg);
+    }
   }, [step, currentTestId, liveMetrics?.trunkLean, chairReps, t]);
 
   // Start button
