@@ -100,16 +100,17 @@ class AssessmentState(TypedDict, total=False):
 
 ### Chat Tools (Gemini Function Calling)
 
-Gemini calls these tools via native function calling. Four invoke LLM sub-agents; two are deterministic:
+Gemini calls these tools via native function calling. Four invoke LLM sub-agents; three are deterministic. If the LLM client is unavailable, LLM tools fall back to the deterministic content library.
 
 | Tool | What it does | LLM |
 |---|---|---|
 | `get_exercise_plan()` | Calls Exercise Agent → personalized program based on tier/SPPB/deficits | 1 Gemini Flash Lite |
 | `get_sleep_advice()` | Calls Sleep Agent → CBT-I + sleep hygiene plan | 1 Gemini Flash Lite |
-| `get_education(topic)` | Calls Education Agent → frailty/balance/nutrition education | 1 Gemini Flash Lite |
+| `get_education(topic)` | Calls Education Agent → RAG retrieval + frailty/balance/nutrition education | 1 Gemini Flash Lite |
 | `analyze_trends()` | Calls Monitoring Agent → health trend analysis | 1 Gemini Flash Lite |
 | `get_progress_summary()` | Computes SPPB/Katz trends, exercise streak | 0 (deterministic) |
 | `alert_caregiver(message)` | INSERT alert with severity=warning | 0 (deterministic) |
+| `navigate_to_page(page)` | Directs user to an app page (/check, /exercises, /progress, /sleep, /caregiver) | 0 (deterministic) |
 
 ### State Schema
 
@@ -181,7 +182,7 @@ Pre-written, expert-reviewed content. NOT LLM-generated.
 
 ### Phase 2: First Assessment (1 LLM call  - Gemini video)
 1. Video recording (balance → gait → chair stand)
-2. Gemini 2.5 Flash → SPPB sub-scores
+2. Gemini 2.5 Flash Lite → SPPB sub-scores
 3. Assessment Graph (trigger="assessment") → complete tier with all scores
 
 ### Phase 3: Daily Routine (1 LLM call  - Gemini video)
@@ -265,5 +266,4 @@ VIDEO ASSESSMENT        → POST /assessment/analyze-stream → Assessment Graph
 PROFILE UPDATE          → POST /health-snapshot → Assessment Graph (trigger=profile_update)
 BIWEEKLY RECHECK        → POST /health-snapshot → Assessment Graph (trigger=biweekly_recheck)
 CHAT MESSAGE            → POST /chat/stream → Chat Graph
-DAILY SYSTEM CHECK      → Cron: check exercise_logs + health_snapshots → alerts
 ```

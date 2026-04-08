@@ -773,10 +773,10 @@
 
 <nav class="topnav">
   <a href="index.html">Overview</a>
-  <a href="langgraph-diagrams.html">Diagrams</a>
-  <a href="architecture.html" class="active">Architecture</a>
-  <a href="kinematics.html">Kinematics</a>
-  <a href="research.html">Research</a>
+  <a href="architecture.html" class="active">Architecture &amp; API</a>
+  <a href="langgraph-diagrams.html">Agent Pipelines</a>
+  <a href="kinematics.html">CV &amp; SPPB</a>
+  <a href="research.html">Clinical Evidence</a>
 </nav>
 
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
@@ -1005,6 +1005,12 @@ else:
             <td>INSERT alert record with severity=warning, notifies caregiver</td>
             <td>0</td>
           </tr>
+          <tr>
+            <td>navigate_to_page(page)</td>
+            <td><span class="node-badge badge-det" style="font-size:0.62rem">deterministic</span></td>
+            <td>Directs user to an app page (/check, /exercises, /progress, /sleep, /caregiver)</td>
+            <td>0</td>
+          </tr>
         </tbody>
       </table>
 
@@ -1100,7 +1106,7 @@ else:
           <div class="phase-num">Phase 2</div>
           <div class="phase-name">First Assessment</div>
           <span class="phase-llm-badge llm-one">1 LLM call</span>
-          <div class="phase-desc">Video recording: balance → gait → chair stand sequence. Gemini 2.5 Flash analyzes video → SPPB sub-scores. Assessment Graph (trigger="assessment") → complete tier with all three scores combined.</div>
+          <div class="phase-desc">Video recording: balance → gait → chair stand sequence. Gemini 2.5 Flash Lite analyzes video → SPPB sub-scores. Assessment Graph (trigger="assessment") → complete tier with all three scores combined.</div>
         </div>
         <div class="phase-card">
           <div class="phase-num">Phase 3</div>
@@ -1361,13 +1367,6 @@ else:
           <div class="trigger-cell trigger-cell-endpoint">POST /api/chat/stream</div>
           <div class="trigger-cell-arrow">→</div>
           <div class="trigger-cell trigger-cell-graph">Chat Graph</div>
-        </div>
-        <div class="trigger-row">
-          <div class="trigger-cell trigger-cell-event">DAILY SYSTEM CHECK</div>
-          <div class="trigger-cell-arrow">→</div>
-          <div class="trigger-cell trigger-cell-endpoint">Cron: check exercise_logs + health_snapshots</div>
-          <div class="trigger-cell-arrow">→</div>
-          <div class="trigger-cell trigger-cell-graph">alerts table (no graph)</div>
         </div>
       </div>
     </section>

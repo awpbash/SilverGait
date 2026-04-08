@@ -116,17 +116,53 @@
 
   .sep { height:1px; background:var(--border); margin:64px 0; transition:background .3s; }
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-  @media(max-width:768px) { .page{padding:32px 16px 60px} .diagram-wrap{padding:20px 8px} .data-flow-grid,.api-grid{grid-template-columns:1fr} .theme-toggle{top:12px;right:12px;width:38px;height:38px} }
+
+  /* Sidebar — matches architecture.html / research.html / kinematics.html */
+  :root, [data-theme="light"] {
+    --sidebar-bg: #1a2a3a; --sidebar-text: #a8b8c8; --sidebar-head: #e0dcd6; --sidebar-act: #d09040; --sidebar-w: 280px;
+  }
+  [data-theme="dark"] {
+    --sidebar-bg: #0e1218; --sidebar-text: #7a8898; --sidebar-head: #b0a898; --sidebar-act: #d09040;
+  }
+
+  .layout { display:flex; min-height:100vh; }
+
+  #sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--sidebar-bg);
+    position: sticky; top: 46px; height: calc(100vh - 46px); overflow-y: auto;
+    padding: 2rem 1.5rem; display: flex; flex-direction: column; flex-shrink: 0;
+    z-index: 100; transition: background .3s;
+  }
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .sidebar-brand { color: var(--sidebar-head); font-family: 'DM Serif Display',serif; font-size: 1rem; letter-spacing: 0.02em; margin-bottom: 0.2rem; line-height: 1.3; }
+  .sidebar-tagline { color: var(--sidebar-text); font-family: 'IBM Plex Mono',monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .toc-label { color: var(--sidebar-text); font-family: 'IBM Plex Mono',monospace; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.6rem; font-weight: 500; }
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0; padding: 0; }
+  .toc-item a { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.42rem 0.75rem; border-radius: 6px; color: var(--sidebar-text); text-decoration: none; font-family: 'IBM Plex Sans',sans-serif; font-size: 0.78rem; line-height: 1.4; transition: background .22s, color .22s; border-left: 2px solid transparent; }
+  .toc-item a:hover, .toc-item a.active { background: rgba(255,255,255,0.07); color: var(--sidebar-head); border-left-color: var(--sidebar-act); }
+  .toc-num { font-family: 'IBM Plex Mono',monospace; font-size: 0.63rem; color: rgba(255,255,255,0.2); min-width: 1.2rem; transition: color .22s; }
+  .toc-item a:hover .toc-num, .toc-item a.active .toc-num { color: var(--sidebar-act); }
+  .sidebar-footer { margin-top: auto; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.08); color: var(--sidebar-text); font-family: 'IBM Plex Mono',monospace; font-size: 0.6rem; letter-spacing: 0.06em; line-height: 1.6; }
+
+  main { flex: 1; min-width: 0; }
+
+  @media(max-width:768px) {
+    #sidebar { display:none; }
+    .page{padding:32px 16px 60px} .diagram-wrap{padding:20px 8px} .data-flow-grid,.api-grid{grid-template-columns:1fr} .theme-toggle{top:12px;right:12px;width:38px;height:38px}
+  }
 </style>
 </head>
 <body>
 
 <nav class="topnav">
   <a href="index.html">Overview</a>
-  <a href="langgraph-diagrams.html" class="active">Diagrams</a>
-  <a href="architecture.html">Architecture</a>
-  <a href="kinematics.html">Kinematics</a>
-  <a href="research.html">Research</a>
+  <a href="architecture.html">Architecture &amp; API</a>
+  <a href="langgraph-diagrams.html" class="active">Agent Pipelines</a>
+  <a href="kinematics.html">CV &amp; SPPB</a>
+  <a href="research.html">Clinical Evidence</a>
 </nav>
 
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
@@ -134,18 +170,37 @@
   <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
 </button>
 
-<div class="page">
+<div class="layout">
+
+  <nav id="sidebar">
+    <div class="sidebar-brand">SilverGait</div>
+    <div class="sidebar-tagline">Agent Pipelines</div>
+    <div class="toc-label">Contents</div>
+    <ul class="toc-list">
+      <li class="toc-item"><a href="#s1"><span class="toc-num">01</span>Assessment Graph</a></li>
+      <li class="toc-item"><a href="#s2"><span class="toc-num">02</span>Chat Graph</a></li>
+      <li class="toc-item"><a href="#s3"><span class="toc-num">03</span>Vision &amp; Voice</a></li>
+      <li class="toc-item"><a href="#s4"><span class="toc-num">04</span>Data Flow</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      SilverGait<br>
+      DBA5102 · NUS MSBA
+    </div>
+  </nav>
+
+  <main>
+  <div class="page">
 
   <header class="page-header">
     <div class="kicker">SilverGait Technical Reference</div>
-    <h1>LangGraph Pipeline Architecture</h1>
+    <h1>Agent Pipeline Architecture</h1>
     <p class="subtitle">Two-graph system for elderly frailty management. Assessment is fully deterministic. Chat orchestrates LLM sub-agents via Gemini function calling.</p>
   </header>
 
   <!-- ═══════════════════════════════════════════ -->
   <!-- SECTION 1: Assessment Graph                 -->
   <!-- ═══════════════════════════════════════════ -->
-  <div class="section">
+  <div class="section" id="s1">
     <div class="section-number">01</div>
     <h2>Assessment Graph</h2>
     <div class="section-meta">0 LLM calls &middot; Fully deterministic &middot; assessment_graph.py</div>
@@ -265,7 +320,7 @@
   <!-- ═══════════════════════════════════════════ -->
   <!-- SECTION 2: Chat Graph                       -->
   <!-- ═══════════════════════════════════════════ -->
-  <div class="section">
+  <div class="section" id="s2">
     <div class="section-number">02</div>
     <h2>Chat Graph</h2>
     <div class="section-meta">1&ndash;5 LLM calls &middot; Gemini function calling &middot; chat_graph.py</div>
@@ -406,7 +461,7 @@
   <!-- ═══════════════════════════════════════════ -->
   <!-- SECTION 3: Vision & Voice Pipelines         -->
   <!-- ═══════════════════════════════════════════ -->
-  <div class="section">
+  <div class="section" id="s3">
     <div class="section-number">03</div>
     <h2>Vision &amp; Voice Pipelines</h2>
     <div class="section-meta">Gemini Vision &middot; MERaLiON STT &middot; ElevenLabs TTS &middot; fallback chains</div>
@@ -580,7 +635,7 @@
   <!-- ═══════════════════════════════════════════ -->
   <!-- SECTION 4: Data Flow                        -->
   <!-- ═══════════════════════════════════════════ -->
-  <div class="section">
+  <div class="section" id="s4">
     <div class="section-number">04</div>
     <h2>Data Flow</h2>
     <div class="section-meta">Assessment writes &middot; Chat reads &amp; writes &middot; SQLite (append-only snapshots)</div>
@@ -676,15 +731,19 @@
   <!-- Footer -->
   <div style="text-align:center;margin-top:64px;padding-top:32px;border-top:1px solid var(--border);">
     <p style="font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text-muted);letter-spacing:.06em;">
-      SilverGait &middot; DBA5102 &middot; Two-Graph LangGraph Architecture &middot; Generated March 2026
+      SilverGait &middot; DBA5102 &middot; NUS MSBA
     </p>
   </div>
 
+</div>
+</main>
 </div>
 
 <script>
 function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('sg-theme',n)}
 (function(){const s=localStorage.getItem('sg-theme');if(s)document.documentElement.setAttribute('data-theme',s);else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.setAttribute('data-theme','dark')})();
+// Active TOC highlight on scroll
+(function(){const links=document.querySelectorAll('.toc-item a'),sections=Array.from(links).map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);if(!sections.length)return;const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));const a=document.querySelector('.toc-item a[href="#'+e.target.id+'"]');if(a)a.classList.add('active')}})},{rootMargin:'-20% 0px -70% 0px'});sections.forEach(s=>obs.observe(s))})();
 </script>
 </body>
 </html>
