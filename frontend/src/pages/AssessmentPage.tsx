@@ -153,7 +153,7 @@ export function AssessmentPage() {
           {error && (
             <div className="alert error" onClick={() => setError(null)} style={{ cursor: 'pointer' }}>
               <p>{error}</p>
-              <small>{t.assessment.tapToDismiss || 'Tap to dismiss'}</small>
+              <small>Tap to dismiss</small>
             </div>
           )}
 

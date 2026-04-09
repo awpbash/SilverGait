@@ -123,7 +123,7 @@ export function CameraRecordingView({
             <button
               className="overlay-toggle"
               onClick={onFlipCamera}
-              disabled={step === 'recording' || step === 'countdown'}
+              disabled={step === 'recording'}
               aria-label="Flip camera"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
