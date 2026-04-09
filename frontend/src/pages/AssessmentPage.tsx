@@ -59,6 +59,7 @@ export function AssessmentPage() {
     testMetrics,
     // Camera props
     currentTest,
+    currentTestId,
     cameraReady,
     countdown,
     recordingTime,
