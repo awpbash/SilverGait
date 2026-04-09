@@ -208,6 +208,8 @@ export function useAssessmentFlow() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const facingModeRef = useRef<'environment' | 'user'>('environment');
+  const [isFrontCamera, setIsFrontCamera] = useState(false);
 
   // Pose detection
   const poseDetection = usePoseDetection(
@@ -372,22 +374,36 @@ export function useAssessmentFlow() {
   }, [searchParams, step]);
 
   // --- Actions ---
+  /** Acquire camera stream for the current facingModeRef, detect actual facing mode. */
+  const acquireCamera = async (): Promise<MediaStream> => {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingModeRef.current }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+    } catch {
+      // Fallback to any camera
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+    // Detect actual facing mode from the track settings
+    const track = stream.getVideoTracks()[0];
+    const settings = track?.getSettings?.();
+    const actualFacing = settings?.facingMode;
+    if (actualFacing === 'user' || actualFacing === 'environment') {
+      facingModeRef.current = actualFacing;
+    }
+    setIsFrontCamera(facingModeRef.current === 'user');
+    return stream;
+  };
+
   const startCamera = async () => {
     try {
       setError(null);
       setCameraReady(false);
       setStep('setup');
 
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
-
+      const stream = await acquireCamera();
       streamRef.current = stream;
       await new Promise((resolve) => setTimeout(resolve, 150));
       const video = videoRef.current;
@@ -398,6 +414,31 @@ export function useAssessmentFlow() {
       setError(t.assessment.cameraPermission);
     }
   };
+
+  const flipCamera = useCallback(async () => {
+    // Toggle facing mode
+    facingModeRef.current = facingModeRef.current === 'environment' ? 'user' : 'environment';
+    // Stop current stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraReady(false);
+    // Reset pose filter bank (old keypoint positions are stale)
+    poseDetection.poseRef.current = null;
+    poseDetection.confidenceRef.current = 0;
+    try {
+      const stream = await acquireCamera();
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) return;
+      video.srcObject = stream;
+      try { await video.play(); } catch { /* ok */ }
+      setCameraReady(true);
+    } catch {
+      setError(t.assessment.cameraPermission);
+    }
+  }, [t, poseDetection]);
 
   const normalizeTests = (value: string | null): AssessmentTestId[] => {
     if (!value) return [];
@@ -488,7 +529,14 @@ export function useAssessmentFlow() {
       formData.append('video', blob, 'check-video.webm');
       formData.append('user_id', userIdRef.current);
       formData.append('test_type', currentTest.id);
-      if (metricsRef.current) formData.append('pose_metrics', JSON.stringify(metricsRef.current));
+      if (metricsRef.current) {
+        // Override aggregated rep count with the accurate real-time count for chair stand
+        const metricsToSend = { ...metricsRef.current };
+        if (currentTestId === 'chair_stand' && chairRepRef.current > 0) {
+          metricsToSend.refinedRepCount = chairRepRef.current;
+        }
+        formData.append('pose_metrics', JSON.stringify(metricsToSend));
+      }
 
       const response = await fetch('/api/assessment/analyze-stream', { method: 'POST', body: formData, headers: authHeaders(), signal: controller.signal });
       if (!response.ok) {
@@ -521,7 +569,8 @@ export function useAssessmentFlow() {
               if (stage === 'complete' && event.intervention) intervention = event.intervention;
               if (stage === 'error') throw new Error(event.detail || 'Analysis failed');
             } catch (e) {
-              if (e instanceof Error && e.message !== 'Analysis failed') { /* skip */ } else throw e;
+              // Re-throw all intentional errors (from stage === 'error'), only skip JSON parse errors
+              if (e instanceof SyntaxError) { /* skip malformed SSE line */ } else throw e;
             }
           }
         }
@@ -558,6 +607,8 @@ export function useAssessmentFlow() {
       const message = err instanceof Error ? err.message : t.assessment.somethingWrong;
       resetAssessment();
       setError(message);
+      // Auto-clear error after 6s so it doesn't persist on intro screen
+      setTimeout(() => setError(null), 6000);
     } finally {
       clearTimeout(timeout);
       abortRef.current = null;
@@ -632,6 +683,7 @@ export function useAssessmentFlow() {
 
     // Pose / metrics
     videoRef,
+    isFrontCamera,
     poseDetection,
     liveMetrics,
     voiceCoach,
@@ -653,6 +705,8 @@ export function useAssessmentFlow() {
     startNextTest,
     resetAssessment,
     abortAnalysis,
+    flipCamera,
+    setError,
     computeTotalScore,
     setStep,
     triggerCameraStart: () => setPendingStart(true),

@@ -908,6 +908,11 @@ button:disabled {
   object-fit: cover;
 }
 
+/* Mirror front camera preview (and pose overlay) so it feels like a mirror */
+.mirror {
+  transform: scaleX(-1);
+}
+
 .camera-overlay-fit {
   position: absolute;
   inset: 0;
@@ -1986,11 +1991,16 @@ button:disabled {
 }
 
 /* Overlay toggle button */
-.overlay-toggle {
+.camera-toolbar {
   position: absolute;
   bottom: 16px;
   right: 16px;
   z-index: 30;
+  display: flex;
+  gap: 8px;
+}
+
+.overlay-toggle {
   display: flex;
   align-items: center;
   gap: 6px;

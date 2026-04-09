@@ -67,6 +67,7 @@ export function AssessmentPage() {
     encouragement,
     startButtonText,
     startButtonDisabled,
+    isFrontCamera,
     poseConfidence,
     voiceCoachEnabled,
     videoRef,
@@ -83,6 +84,8 @@ export function AssessmentPage() {
     startNextTest,
     resetAssessment,
     abortAnalysis,
+    flipCamera,
+    setError,
     setShowOverlay,
     setVoiceCoachEnabled,
     setStep,
@@ -147,7 +150,12 @@ export function AssessmentPage() {
             </div>
           </div>
 
-          {error && <div className="alert error"><p>{error}</p></div>}
+          {error && (
+            <div className="alert error" onClick={() => setError(null)} style={{ cursor: 'pointer' }}>
+              <p>{error}</p>
+              <small>{t.assessment.tapToDismiss || 'Tap to dismiss'}</small>
+            </div>
+          )}
 
           <button onClick={handleStartComprehensive} className="btn-primary">
             {t.assessment.comprehensive}
@@ -350,6 +358,7 @@ export function AssessmentPage() {
         encouragement={encouragement}
         startButtonText={startButtonText}
         startButtonDisabled={startButtonDisabled}
+        isFrontCamera={isFrontCamera}
         poseConfidence={poseConfidence}
         voiceCoachEnabled={voiceCoachEnabled}
         voiceCoachCue={voiceCoach.currentCue}
@@ -359,6 +368,7 @@ export function AssessmentPage() {
         onSetVoiceCoachEnabled={setVoiceCoachEnabled}
         onBeginCountdown={beginCountdown}
         onStopRecording={stopRecording}
+        onFlipCamera={flipCamera}
         onReset={resetAssessment}
       />
     );

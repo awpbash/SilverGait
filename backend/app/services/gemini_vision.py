@@ -9,7 +9,7 @@ import os
 
 from ..core.config import get_settings
 from ..models.assessment import AssessmentResult, GaitIssue, AssessmentTest
-from ..utils.text import strip_markdown_fences
+from ..utils.text import extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +24,18 @@ class GeminiVisionService:
 
     # Shared instruction appended to all prompts when pose metrics are available
     FUSION_INSTRUCTION = """
-SCORING METHOD — SENSOR FUSION (pose metrics + video):
+SCORING METHOD -SENSOR FUSION (pose metrics + video):
 This assessment combines TWO data sources:
-1. POSE ESTIMATION — quantitative metrics from MoveNet 2D body tracking (appended below if available). These provide a suggested SPPB score based on measured timing, cadence, sway, and joint angles.
-2. VIDEO ANALYSIS — your visual assessment of the same video, providing context the pose model cannot capture.
+1. POSE ESTIMATION -quantitative metrics from MoveNet 2D body tracking (appended below if available). These provide a suggested SPPB score based on measured timing, cadence, sway, and joint angles.
+2. VIDEO ANALYSIS -your visual assessment of the same video, providing context the pose model cannot capture.
 
 HOW TO COMBINE:
-- START from the pose-suggested score (it is based on measured data — timing, reps, cadence).
+- START from the pose-suggested score (it is based on measured data -timing, reps, cadence).
 - Then CORRECT ±1 based on your video assessment. Your job is to catch what the pose model gets wrong:
-  a) CAMERA ANGLE DISTORTION — all pose metrics are 2D projections. If the camera is angled (not perpendicular to movement), joint angles and distances will be distorted. A knee bend may read 120° when it's actually 90° due to perspective. Correct for this.
-  b) OCCLUSION / TRACKING ERRORS — if limbs overlap or leave frame, metrics may be noisy or wrong. Trust the video over suspect numbers.
-  c) CONTEXT THE MODEL MISSES — stepping, grabbing support, fear of falling, hand use, facial expression of effort — only visible in video.
-  d) DISTANCE CALIBRATION — pixel-based metrics (sway velocity, step length) vary with camera distance. Closer camera = bigger numbers. Use visual context to judge.
+  a) CAMERA ANGLE DISTORTION -all pose metrics are 2D projections. If the camera is angled (not perpendicular to movement), joint angles and distances will be distorted. A knee bend may read 120 deg when it's actually 90 deg due to perspective. Correct for this.
+  b) OCCLUSION / TRACKING ERRORS -if limbs overlap or leave frame, metrics may be noisy or wrong. Trust the video over suspect numbers.
+  c) CONTEXT THE MODEL MISSES -stepping, grabbing support, fear of falling, hand use, facial expression of effort -only visible in video.
+  d) DISTANCE CALIBRATION -pixel-based metrics (sway velocity, step length) vary with camera distance. Closer camera = bigger numbers. Use visual context to judge.
 
 If no pose metrics are provided, score purely from video.
 If pose metrics are provided but look unreliable (very low frame count, extreme values), weight your video assessment more heavily."""
@@ -45,12 +45,12 @@ If pose metrics are provided but look unreliable (very low frame count, extreme 
 The participant walks a short distance at their normal pace. Score 0-4 per SPPB gait speed protocol (Guralnik et al., 1994).
 
 Watch the video and assess:
-1. Overall walking speed — estimate whether they cross ~4 metres in <4.82s, 4.82-6.20s, 6.21-8.70s, or >8.70s
+1. Overall walking speed -estimate whether they cross ~4 metres in <4.82s, 4.82-6.20s, 6.21-8.70s, or >8.70s
 2. Gait quality: stride length, step symmetry, arm swing, trunk stability, rhythm
 3. Compensatory patterns: shuffling, wide base, hesitation, reduced arm swing
 
 SPPB Gait Speed Scoring (0-4):
-- 4 = Gait speed ≥0.83 m/s (<4.82s for 4m). Normal stride, symmetric, good arm swing.
+- 4 = Gait speed >=0.83 m/s (<4.82s for 4m). Normal stride, symmetric, good arm swing.
 - 3 = Gait speed 0.65-0.82 m/s (4.82-6.20s). Mostly normal, minor issues.
 - 2 = Gait speed 0.46-0.64 m/s (6.21-8.70s). Short steps, wide base, or irregular rhythm.
 - 1 = Gait speed <0.46 m/s (>8.70s). Shuffling, marked asymmetry, or near-inability.
@@ -67,7 +67,7 @@ Watch the video and assess:
 1. Can they hold feet-together without stepping, grabbing support, or falling?
 2. How long do they maintain the position?
 3. Postural sway magnitude
-4. Compensatory movements — arm waving, trunk lean, weight shifting
+4. Compensatory movements -arm waving, trunk lean, weight shifting
 
 SPPB Balance Scoring (0-4):
 - 4 = Holds full duration, minimal sway, no compensatory movements.
@@ -81,7 +81,7 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
 
     CHAIR_STAND_PROMPT = f"""You are scoring a repeated chair stand test from the SPPB (Short Physical Performance Battery).
 
-The participant sits with arms crossed over their chest (standard SPPB protocol) and performs 5 sit-to-stand repetitions as fast as safely possible. Arms crossed is CORRECT — do NOT penalize.
+The participant sits with arms crossed over their chest (standard SPPB protocol) and performs 5 sit-to-stand repetitions as fast as safely possible. Arms crossed is CORRECT -do NOT penalize.
 
 Watch the video and assess:
 1. Number of complete sit-to-stand reps (target: 5)
@@ -90,10 +90,10 @@ Watch the video and assess:
 4. Movement quality: smoothness, trunk lean, consistency
 
 SPPB Chair Stand Scoring (0-4, based on time for 5 stands):
-- 4 = 5 stands in ≤11.19s. Smooth, arms crossed, consistent.
+- 4 = 5 stands in <=11.19s. Smooth, arms crossed, consistent.
 - 3 = 5 stands in 11.20-13.69s. Adequate speed, minor slowing.
 - 2 = 5 stands in 13.70-16.69s. Slow, fatigue, or needs to uncross arms.
-- 1 = 5 stands in ≥16.70s, or <5 reps completed, or requires hands.
+- 1 = 5 stands in >=16.70s, or <5 reps completed, or requires hands.
 - 0 = Unable to stand without physical assistance.
 {FUSION_INSTRUCTION}
 Score ONLY 0-4. Return ONLY valid JSON (no markdown):
@@ -117,12 +117,12 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
 
         if test_type == AssessmentTest.BALANCE.value:
             if metrics.get("swayVelocity", 0) > 3.0:
-                flags.append("HIGH SWAY VELOCITY (>3.0 px/frame) — indicates postural instability")
+                flags.append("HIGH SWAY VELOCITY (>3.0 px/frame) -indicates postural instability")
             if metrics.get("trunkLeanVariability", 0) > 4.0:
-                flags.append("HIGH TRUNK LEAN VARIABILITY (>4.0° SD) — inconsistent postural control")
+                flags.append("HIGH TRUNK LEAN VARIABILITY (>4.0 deg SD) -inconsistent postural control")
             trunk_max = metrics.get("trunkLean", {}).get("max", 0)
             if trunk_max > 15:
-                flags.append(f"EXCESSIVE TRUNK LEAN ({trunk_max}° max, threshold 15°)")
+                flags.append(f"EXCESSIVE TRUNK LEAN ({trunk_max} deg max, threshold 15 deg)")
 
         elif test_type == AssessmentTest.GAIT.value:
             if metrics.get("stepSymmetryIndex", 0) > 20:
@@ -137,7 +137,7 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
 
         elif test_type == AssessmentTest.CHAIR_STAND.value:
             if metrics.get("peakTrunkLeanDuringRise", 0) > 25:
-                flags.append(f"EXCESSIVE FORWARD LEAN DURING RISE ({metrics.get('peakTrunkLeanDuringRise', 0)}°, threshold 25°)")
+                flags.append(f"EXCESSIVE FORWARD LEAN DURING RISE ({metrics.get('peakTrunkLeanDuringRise', 0)} deg, threshold 25 deg)")
             if metrics.get("repConsistency", 0) > 25:
                 flags.append(f"INCONSISTENT REP TIMING (CV {metrics.get('repConsistency', 0)}%, threshold 25%)")
             reps = metrics.get("refinedRepCount", 0)
@@ -145,6 +145,13 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
                 flags.append(f"LOW REP COUNT ({reps} reps, target 5)")
 
         return flags
+
+    @staticmethod
+    def _fmt(val, unit="", na="N/A"):
+        """Format a metric value, showing N/A for zero/missing (avoids misleading Gemini with 0-degree readings)."""
+        if val is None or val == 0:
+            return na
+        return f"{val}{unit}"
 
     @staticmethod
     def _build_metrics_supplement(test_type: str, metrics: dict) -> str:
@@ -162,13 +169,14 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
         stance = metrics.get("stanceWidth", {})
         arm = metrics.get("armSwing", {})
         phases = metrics.get("movementPhases", 0)
+        fmt = GeminiVisionService._fmt
 
         header = f"\n\n--- POSE ESTIMATION DATA ({fc} frames, {dur}ms duration) ---"
 
         flags = GeminiVisionService._generate_clinical_flags(test_type, metrics)
         flags_block = ""
         if flags:
-            flags_block = "\n\nCLINICAL FLAGS:\n" + "\n".join(f"⚠ {f}" for f in flags)
+            flags_block = "\n\nCLINICAL FLAGS:\n" + "\n".join(f"!! {f}" for f in flags)
 
         if test_type == AssessmentTest.BALANCE.value:
             sway_vel = metrics.get("swayVelocity", 0)
@@ -197,18 +205,18 @@ Score ONLY 0-4. Return ONLY valid JSON (no markdown):
             return header + f"""
 BALANCE MEASURED DATA:
 - Recording duration: {dur}ms
-- Sway velocity: {sway_vel} px/frame
-- Sway area: {sway_area} px²
-- Total sway displacement: {total_disp} px
-- Max sway deviation from center: {sway_max} px
-- Trunk lean: avg {trunk.get('avg', 0)}°, max {trunk.get('max', 0)}°
-- Trunk lean variability (SD): {trunk_var}°
+- Sway velocity: {fmt(sway_vel)} px/frame
+- Sway area: {fmt(sway_area)} px2
+- Total sway displacement: {fmt(total_disp)} px
+- Max sway deviation from center: {fmt(sway_max)} px
+- Trunk lean: avg {fmt(trunk.get('avg', 0), ' deg')}, max {fmt(trunk.get('max', 0), ' deg')}
+- Trunk lean variability (SD): {fmt(trunk_var, ' deg')}
 - Instability signal count: {instability_signals} (0=very stable, 6=very unstable)
 - Suggested SPPB score from pose data: {suggested}
 {flags_block}
 Your role: Watch the video to verify. The pose data suggests score {suggested}. Confirm or adjust:
-- Did they step, grab support, or widen stance? → lower the score
-- Did they hold steady for the full duration? → keep or raise the score
+- Did they step, grab support, or widen stance? -> lower the score
+- Did they hold steady for the full duration? -> keep or raise the score
 - NOTE: Sway metrics are in pixel units and vary with camera distance (closer = larger numbers). If the camera is very close, sway values may look worse than reality. Use the video to judge actual stability.
 Only override if the video clearly shows something the pose data missed (e.g., a step, hands grabbing support, or the camera being unusually close/far)."""
 
@@ -240,31 +248,31 @@ Only override if the video clearly shows something the pose data missed (e.g., a
             elif cadence > 0:
                 suggested = 1
             else:
-                # No steps detected — rely entirely on video
+                # No steps detected -rely entirely on video
                 suggested = None
 
             # Quality deductions can lower the score by up to 1 point
             if suggested is not None and quality_deductions >= 3:
                 suggested = max(1, suggested - 1)
 
-            suggested_str = str(suggested) if suggested is not None else "UNABLE TO DETERMINE (no steps detected — score from video only)"
+            suggested_str = str(suggested) if suggested is not None else "UNABLE TO DETERMINE (no steps detected -score from video only)"
 
             return header + f"""
 GAIT MEASURED DATA:
 - Steps detected: {step_count}
-- Cadence: {cadence} steps/min (proxy for gait speed)
-- Step symmetry: {symmetry}% (0% = perfect)
-- Double support ratio: {dsr}
-- Gait rhythm variability: {rhythm_cv}%
-- Arm swing symmetry: {arm.get('symmetry', 0)}
-- Trunk lean: avg {trunk.get('avg', 0)}°
+- Cadence: {fmt(cadence)} steps/min (proxy for gait speed)
+- Step symmetry: {fmt(symmetry, '%')}
+- Double support ratio: {fmt(dsr)}
+- Gait rhythm variability: {fmt(rhythm_cv, '%')}
+- Arm swing symmetry: {fmt(arm.get('symmetry', 0))}
+- Trunk lean: avg {fmt(trunk.get('avg', 0), ' deg')}
 - Quality deductions: {quality_deductions} (asymmetry, double support, irregular rhythm, poor arm swing)
 - Suggested SPPB score from pose data: {suggested_str}
 {flags_block}
 Your role: Watch the video to verify. The pose data suggests score {suggested_str}. Confirm or adjust:
 - Does the walking speed match the cadence data, or does the video show faster/slower movement?
 - Are there gait issues the pose data missed (e.g., shuffling, hesitation, fear of falling)?
-- NOTE: Step detection works best when the person walks laterally (across the camera view). If they walk toward/away from the camera, step count and cadence may be unreliable — weight your visual assessment more.
+- NOTE: Step detection works best when the person walks laterally (across the camera view). If they walk toward/away from the camera, step count and cadence may be unreliable -weight your visual assessment more.
 Only override the suggested score if the video clearly contradicts the measured data."""
 
         elif test_type == AssessmentTest.CHAIR_STAND.value:
@@ -297,16 +305,18 @@ CHAIR STAND MEASURED DATA:
 - Repetitions detected: {rep_count} / 5
 - Average time per rep: {avg_rep}ms
 - Estimated total rep time: {est_rep_duration_ms}ms ({est_rep_s:.1f}s) (excludes idle time before/after reps)
-- Raw recording duration: {dur}ms (includes idle — do NOT use for scoring)
-- Suggested SPPB score: {suggested} (cutoffs: ≤11.19s→4, ≤13.69s→3, ≤16.69s→2, else→1)
-- Peak trunk lean during rise: {peak_lean}° (2D projection — may be distorted by camera angle)
-- Rep consistency (CV): {rep_cv}%
-- Knee angle: min {knee.get('min', 0)}° (seated) → max {knee.get('max', 0)}° (standing) (2D projected)
+- Raw recording duration: {dur}ms (includes idle -do NOT use for scoring)
+- Suggested SPPB score: {suggested} (cutoffs: <=11.19s->4, <=13.69s->3, <=16.69s->2, else->1)
+- Peak trunk lean during rise: {fmt(peak_lean, ' deg')}
+- Rep consistency (CV): {fmt(rep_cv, '%')}
+- Knee angle: min {fmt(knee.get('min', 0), ' deg')} (seated), max {fmt(knee.get('max', 0), ' deg')} (standing)
 {flags_block}
-Your role: Verify the rep count by watching the video. The pose model detected {rep_count} reps in ~{est_rep_s:.1f}s → score {suggested}. Confirm or adjust:
-- Did you count a different number of complete sit-to-stand reps?
-- Did they uncross arms or use hands for support?
-- Does the movement look faster or slower than {est_rep_s:.1f}s suggests?"""
+The pose model detected {rep_count} reps in ~{est_rep_s:.1f}s -> score {suggested}.
+TRUST the measured rep count ({rep_count}) and timing ({est_rep_s:.1f}s) - these come from real-time body tracking during the actual test. Do NOT re-count reps from the video.
+Only adjust the score if the video shows:
+- Arms uncrossed or hands used for support (lower the score)
+- The person did not fully stand or fully sit between reps (lower the score)
+- Obvious tracking error (e.g., the person clearly did more/fewer reps than {rep_count})"""
 
         return ""
 
@@ -373,7 +383,7 @@ Your role: Verify the rep count by watching the video. The pose model detected {
 
             logger.info(f"Video ready, state: {uploaded_file.state.name}")
 
-            # Build prompt — base + optional metrics supplement
+            # Build prompt -base + optional metrics supplement
             prompt = self.PROMPTS.get(test_type, self.GAIT_PROMPT)
             if parsed_metrics and parsed_metrics.get("frameCount", 0) > 0:
                 supplement = self._build_metrics_supplement(test_type, parsed_metrics)
@@ -391,10 +401,10 @@ Your role: Verify the rep count by watching the video. The pose model detected {
             # Parse response
             if not response.text:
                 raise ValueError("Gemini returned empty response")
-            result_text = strip_markdown_fences(response.text.strip())
-            logger.info(f"Gemini response: {result_text}")
+            raw_text = response.text.strip()
+            logger.info(f"Gemini raw response ({len(raw_text)} chars): {raw_text[:300]}")
 
-            result_data = json.loads(result_text)
+            result_data = extract_json(raw_text)
 
             # Validate and convert issues
             issues = []
@@ -418,9 +428,9 @@ Your role: Verify the rep count by watching the video. The pose model detected {
                 pose_metrics=parsed_metrics,
             )
 
-        except json.JSONDecodeError as e:
+        except ValueError as e:
             logger.error(f"Failed to parse Gemini response: {e}")
-            raise ValueError(f"Video analysis failed — Gemini returned unparseable response. Please try again.")
+            raise ValueError(f"Video analysis failed - could not parse result. Please try again.")
         except Exception as e:
             logger.error(f"Gemini Vision analysis failed: {e}")
             raise
@@ -505,9 +515,10 @@ Your role: Verify the rep count by watching the video. The pose model detected {
 
             if not response.text:
                 raise ValueError("Gemini returned empty response")
-            result_text = strip_markdown_fences(response.text.strip())
+            raw_text = response.text.strip()
+            logger.info(f"Gemini stream raw response ({len(raw_text)} chars): {raw_text[:300]}")
 
-            result_data = json.loads(result_text)
+            result_data = extract_json(raw_text)
 
             issues = []
             for issue in result_data.get("issues", []):
@@ -532,9 +543,9 @@ Your role: Verify the rep count by watching the video. The pose model detected {
 
             yield ("complete", {"result": result.model_dump()})
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Gemini response: {e}")
-            yield ("error", {"detail": "Video analysis failed — could not interpret the result. Please try again with better lighting."})
+        except ValueError as e:
+            logger.error(f"Failed to extract JSON from Gemini response: {e}")
+            yield ("error", {"detail": "Video analysis failed - could not interpret result. Please try again."})
 
         except Exception as e:
             logger.error(f"Streaming analysis failed: {e}")

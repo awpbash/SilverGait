@@ -17,11 +17,21 @@ export interface UsePoseDetectionReturn {
   error: string | null;
 }
 
-/** Map confidence value to a tier: 0 = low, 1 = medium, 2 = high */
-function confidenceTier(value: number): number {
-  if (value >= 0.7) return 2;
-  if (value >= 0.4) return 1;
-  return 0;
+/**
+ * Map confidence to tier with hysteresis to prevent jitter at boundaries.
+ * Going UP requires passing the threshold + margin.
+ * Going DOWN requires dropping below threshold - margin.
+ */
+const TIER_UP   = [0.45, 0.75]; // thresholds to promote: 0->1 needs 0.45, 1->2 needs 0.75
+const TIER_DOWN = [0.35, 0.65]; // thresholds to demote:  1->0 needs <0.35, 2->1 needs <0.65
+
+function confidenceTierWithHysteresis(value: number, currentTier: number): number {
+  let tier = currentTier;
+  // Check promotion
+  if (tier < 2 && value >= TIER_UP[tier]) tier = tier + 1;
+  // Check demotion (re-check in case we just promoted)
+  if (tier > 0 && value < TIER_DOWN[tier - 1]) tier = tier - 1;
+  return tier;
 }
 
 export function usePoseDetection(
@@ -156,8 +166,8 @@ export function usePoseDetection(
               lastStateUpdateTime = now;
             }
 
-            // Only update confidence state when tier changes
-            const tier = confidenceTier(avgConfidence);
+            // Only update confidence state when tier changes (with hysteresis)
+            const tier = confidenceTierWithHysteresis(avgConfidence, lastConfidenceTier < 0 ? 0 : lastConfidenceTier);
             if (tier !== lastConfidenceTier) {
               setConfidence(avgConfidence);
               lastConfidenceTier = tier;
@@ -171,10 +181,9 @@ export function usePoseDetection(
               lastStateUpdateTime = now;
             }
 
-            const tier = confidenceTier(0);
-            if (tier !== lastConfidenceTier) {
+            if (lastConfidenceTier !== 0) {
               setConfidence(0);
-              lastConfidenceTier = tier;
+              lastConfidenceTier = 0;
             }
           }
 

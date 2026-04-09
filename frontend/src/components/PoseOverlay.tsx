@@ -12,6 +12,7 @@ interface PoseOverlayProps {
   isActive: boolean;
   showOverlay?: boolean;
   testType?: AssessmentTestId;
+  mirror?: boolean;
 }
 
 // MoveNet keypoint connections — body segments for thick "energy limb" rendering
@@ -83,6 +84,7 @@ export const PoseOverlay = memo(function PoseOverlay({
   isActive,
   showOverlay = true,
   testType,
+  mirror = false,
 }: PoseOverlayProps) {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -266,7 +268,7 @@ export const PoseOverlay = memo(function PoseOverlay({
 
   return (
     <>
-      <canvas ref={canvasRef} className="pose-overlay" />
+      <canvas ref={canvasRef} className={`pose-overlay${mirror ? ' mirror' : ''}`} />
       <div className={`pose-feedback tier-${lastTierRef.current === 2 ? 'good' : lastTierRef.current === 1 ? 'medium' : 'low'}`}>
         {feedbackText}
       </div>

@@ -23,6 +23,7 @@ interface CameraRecordingViewProps {
   startButtonText: string;
   startButtonDisabled: boolean;
   poseConfidence: number;
+  isFrontCamera: boolean;
   voiceCoachEnabled: boolean;
   voiceCoachCue: string | null;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -35,6 +36,7 @@ interface CameraRecordingViewProps {
   onSetVoiceCoachEnabled: (fn: (v: boolean) => boolean) => void;
   onBeginCountdown: () => void;
   onStopRecording: () => void;
+  onFlipCamera: () => void;
   onReset: () => void;
 }
 
@@ -51,6 +53,7 @@ export function CameraRecordingView({
   encouragement,
   startButtonText,
   startButtonDisabled,
+  isFrontCamera,
   poseConfidence,
   voiceCoachEnabled,
   voiceCoachCue,
@@ -60,6 +63,7 @@ export function CameraRecordingView({
   onSetVoiceCoachEnabled,
   onBeginCountdown,
   onStopRecording,
+  onFlipCamera,
   onReset,
 }: CameraRecordingViewProps) {
   return (
@@ -86,7 +90,7 @@ export function CameraRecordingView({
 
       {/* Camera viewport */}
       <div className="camera-viewport">
-        <video ref={videoRef} className="camera-video-fit" playsInline muted autoPlay />
+        <video ref={videoRef} className={`camera-video-fit${isFrontCamera ? ' mirror' : ''}`} playsInline muted autoPlay />
 
         <PoseOverlay
           videoRef={videoRef}
@@ -95,23 +99,42 @@ export function CameraRecordingView({
           isActive={(step === 'setup' || step === 'countdown' || step === 'recording') && poseDetection.isReady}
           showOverlay={showOverlay}
           testType={currentTestId}
+          mirror={isFrontCamera}
         />
 
-        {(step === 'setup' || step === 'recording') && poseDetection.isReady && (
-          <button
-            className={`overlay-toggle${showOverlay ? ' active' : ''}`}
-            onClick={() => onSetShowOverlay((v) => !v)}
-            aria-label="Toggle body overlay"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="5" r="3" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="11" x2="16" y2="11" />
-              <line x1="10" y1="22" x2="12" y2="16" />
-              <line x1="14" y1="22" x2="12" y2="16" />
-            </svg>
-            {showOverlay ? t.exercises.bodyOn : t.exercises.bodyOff}
-          </button>
+        {(step === 'setup' || step === 'recording') && (
+          <div className="camera-toolbar">
+            {poseDetection.isReady && (
+              <button
+                className={`overlay-toggle${showOverlay ? ' active' : ''}`}
+                onClick={() => onSetShowOverlay((v) => !v)}
+                aria-label="Toggle body overlay"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="5" r="3" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="11" x2="16" y2="11" />
+                  <line x1="10" y1="22" x2="12" y2="16" />
+                  <line x1="14" y1="22" x2="12" y2="16" />
+                </svg>
+                {showOverlay ? t.exercises.bodyOn : t.exercises.bodyOff}
+              </button>
+            )}
+            <button
+              className="overlay-toggle"
+              onClick={onFlipCamera}
+              disabled={step === 'recording' || step === 'countdown'}
+              aria-label="Flip camera"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M20 7l-4-4-4 4" />
+                <path d="M16 3v10" />
+                <path d="M4 17l4 4 4-4" />
+                <path d="M8 21V11" />
+              </svg>
+              Flip
+            </button>
+          </div>
         )}
 
         {!cameraReady && step === 'setup' && (
@@ -148,8 +171,11 @@ export function CameraRecordingView({
         </ul>
       )}
 
-      {step === 'setup' && cameraReady && poseConfidence >= 0.4 && poseConfidence < 0.7 && (
-        <p className="camera-hint-subtle">{t.assessment.stepBack}</p>
+      {step === 'setup' && cameraReady && (
+        <p className="camera-hint-subtle" style={{
+          opacity: poseConfidence >= 0.4 && poseConfidence < 0.7 ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+        }}>{t.assessment.stepBack}</p>
       )}
 
       {step === 'recording' && (
