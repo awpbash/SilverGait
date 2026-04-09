@@ -340,6 +340,7 @@ export function AssessmentPage() {
         t={t}
         step={step}
         currentTest={currentTest}
+        currentTestId={currentTestId}
         progressLabel={progressLabel}
         cameraReady={cameraReady}
         countdown={countdown}

@@ -269,6 +269,14 @@ function avg(arr: number[]): number {
   return arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
 }
 
+/** Safe min/max that won't blow the stack on large arrays (unlike Math.max(...arr)). */
+function safeMin(arr: number[]): number {
+  return arr.reduce((m, v) => (v < m ? v : m), arr[0]);
+}
+function safeMax(arr: number[]): number {
+  return arr.reduce((m, v) => (v > m ? v : m), arr[0]);
+}
+
 /**
  * Aggregate an array of per-frame metrics into a summary.
  */
@@ -336,12 +344,12 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
   }
 
   // Knee angle stats
-  const kneeMin = kneeAngles.length > 0 ? Math.min(...kneeAngles) : 0;
-  const kneeMax = kneeAngles.length > 0 ? Math.max(...kneeAngles) : 0;
+  const kneeMin = kneeAngles.length > 0 ? safeMin(kneeAngles) : 0;
+  const kneeMax = kneeAngles.length > 0 ? safeMax(kneeAngles) : 0;
 
   // Hip angle stats
-  const hipMin = hipAngles.length > 0 ? Math.min(...hipAngles) : 0;
-  const hipMax = hipAngles.length > 0 ? Math.max(...hipAngles) : 0;
+  const hipMin = hipAngles.length > 0 ? safeMin(hipAngles) : 0;
+  const hipMax = hipAngles.length > 0 ? safeMax(hipAngles) : 0;
 
   // Sway: total frame-to-frame displacement + max deviation from mean position
   let totalDisplacement = 0;
@@ -361,9 +369,9 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
 
   // Arm swing amplitude: range of wrist Y positions relative to shoulder
   const leftAmp =
-    leftWristYs.length > 1 ? Math.max(...leftWristYs) - Math.min(...leftWristYs) : 0;
+    leftWristYs.length > 1 ? safeMax(leftWristYs) - safeMin(leftWristYs) : 0;
   const rightAmp =
-    rightWristYs.length > 1 ? Math.max(...rightWristYs) - Math.min(...rightWristYs) : 0;
+    rightWristYs.length > 1 ? safeMax(rightWristYs) - safeMin(rightWristYs) : 0;
   const maxAmp = Math.max(leftAmp, rightAmp);
   const armSymmetry = maxAmp > 0 ? Math.min(leftAmp, rightAmp) / maxAmp : 1;
 
@@ -391,8 +399,8 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
   if (hipCenters.length > 1) {
     const xs = hipCenters.map((p) => p.x);
     const ys = hipCenters.map((p) => p.y);
-    const width = Math.max(...xs) - Math.min(...xs);
-    const height = Math.max(...ys) - Math.min(...ys);
+    const width = safeMax(xs) - safeMin(xs);
+    const height = safeMax(ys) - safeMin(ys);
     swayArea = width * height;
   }
 
@@ -540,8 +548,8 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
 
   if (hipYs.length > 6) {
     const smoothedHipY = movingAverage(hipYs, 3);
-    const yRange = Math.max(...smoothedHipY) - Math.min(...smoothedHipY);
-    const minProminence = yRange * 0.15;
+    const yRange = safeMax(smoothedHipY) - safeMin(smoothedHipY);
+    const minProminence = yRange * 0.10;
 
     // Find valleys (standing = low Y in screen coords) and peaks (sitting = high Y)
     const valleys: { idx: number; ts: number }[] = [];
@@ -568,8 +576,8 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
       }
     }
 
-    // Count valley-to-valley cycles = repetitions
-    refinedRepCount = Math.max(0, valleys.length - 1);
+    // Each valley = one stand-up (low hip Y). Count valleys directly as reps.
+    refinedRepCount = valleys.length;
 
     // Per-rep durations for consistency
     if (valleys.length > 1) {
@@ -599,7 +607,7 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
       }
     }
     peakTrunkLeanDuringRise =
-      risingTrunkLeans.length > 0 ? Math.max(...risingTrunkLeans) : 0;
+      risingTrunkLeans.length > 0 ? safeMax(risingTrunkLeans) : 0;
     transitionSpeed =
       risingKneeVelocities.length > 0 ? avg(risingKneeVelocities) : 0;
   }
@@ -624,11 +632,11 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
     },
     trunkLean: {
       avg: r(avg(trunkLeans)),
-      max: r(trunkLeans.length > 0 ? Math.max(...trunkLeans) : 0),
+      max: r(trunkLeans.length > 0 ? safeMax(trunkLeans) : 0),
     },
     shoulderLevel: {
       avg: r(avg(shoulderLevels)),
-      max: r(shoulderLevels.length > 0 ? Math.max(...shoulderLevels) : 0),
+      max: r(shoulderLevels.length > 0 ? safeMax(shoulderLevels) : 0),
     },
     sway: {
       totalDisplacement: r(totalDisplacement),
@@ -636,8 +644,8 @@ export function aggregateMetrics(frames: FrameMetrics[]): PoseMetricsSummary {
     },
     stanceWidth: {
       avg: r(avg(stanceWidths)),
-      min: r(stanceWidths.length > 0 ? Math.min(...stanceWidths) : 0),
-      max: r(stanceWidths.length > 0 ? Math.max(...stanceWidths) : 0),
+      min: r(stanceWidths.length > 0 ? safeMin(stanceWidths) : 0),
+      max: r(stanceWidths.length > 0 ? safeMax(stanceWidths) : 0),
     },
     armSwing: {
       leftAmplitude: r(leftAmp),

@@ -191,10 +191,12 @@ export function useAssessmentFlow() {
   const [showOverlay, setShowOverlay] = useState(true);
   const [latestIntervention, setLatestIntervention] = useState<InterventionAction | null>(null);
 
-  // Chair stand rep counter
+  // Chair stand rep counter — adaptive threshold from observed hip Y range
   const chairRepRef = useRef(0);
   const chairWasFlexedRef = useRef(false);
   const [chairReps, setChairReps] = useState(0);
+  const hipYMinRef = useRef<number>(Infinity);
+  const hipYMaxRef = useRef<number>(-Infinity);
 
   const userIdRef = useRef<string>(`user_${Date.now()}`);
   const currentTestId = testOrder[testIndex] ?? ASSESSMENT_TESTS[0].id;
@@ -238,24 +240,43 @@ export function useAssessmentFlow() {
     movementPhases: 0,
   });
 
-  // Chair stand rep counting
+  // Chair stand rep counting — adaptive threshold from running min/max hip Y
   useEffect(() => {
     if (step !== 'recording' || currentTestId !== 'chair_stand') return;
     const bodyY = liveMetrics?.bodyVerticalPosition ?? null;
     if (bodyY === null) return;
-    const threshold = 0.5;
-    const isDown = bodyY > threshold;
-    if (chairWasFlexedRef.current && !isDown) {
+
+    // Track observed range of hip Y (screen coords: sitting = high Y, standing = low Y)
+    if (bodyY < hipYMinRef.current) hipYMinRef.current = bodyY;
+    if (bodyY > hipYMaxRef.current) hipYMaxRef.current = bodyY;
+
+    const range = hipYMaxRef.current - hipYMinRef.current;
+    // Need at least some range to distinguish sitting from standing
+    if (range < 20) return;
+
+    // Sitting = hip Y in upper 40% of range, Standing = hip Y in lower 40%
+    const sitThreshold = hipYMinRef.current + range * 0.6;
+    const standThreshold = hipYMinRef.current + range * 0.4;
+    const isSitting = bodyY > sitThreshold;
+    const isStanding = bodyY < standThreshold;
+
+    // Count a rep when transitioning from sitting to standing
+    if (chairWasFlexedRef.current && isStanding) {
       chairRepRef.current += 1;
       setChairReps(chairRepRef.current);
+      chairWasFlexedRef.current = false;
     }
-    chairWasFlexedRef.current = isDown;
+    if (isSitting) {
+      chairWasFlexedRef.current = true;
+    }
   }, [liveMetrics?.bodyVerticalPosition, step, currentTestId]);
 
   useEffect(() => {
     if (step === 'recording' && currentTestId === 'chair_stand') {
       chairRepRef.current = 0;
       chairWasFlexedRef.current = false;
+      hipYMinRef.current = Infinity;
+      hipYMaxRef.current = -Infinity;
       setChairReps(0);
     }
   }, [step, currentTestId]);

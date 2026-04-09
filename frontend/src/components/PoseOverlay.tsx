@@ -3,12 +3,15 @@ import type { PoseLandmarks } from '../hooks/usePoseDetection';
 import { useT } from '../i18n';
 import type { Translations } from '../i18n/en';
 
+type AssessmentTestId = 'balance' | 'gait' | 'chair_stand';
+
 interface PoseOverlayProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   poseRef: RefObject<PoseLandmarks | null>;
   confidenceRef: RefObject<number>;
   isActive: boolean;
   showOverlay?: boolean;
+  testType?: AssessmentTestId;
 }
 
 // MoveNet keypoint connections — body segments for thick "energy limb" rendering
@@ -69,12 +72,17 @@ const PALETTES = {
   low:    { limb: 'rgba(179, 157, 219, 0.75)',  glow: 'rgba(179, 157, 219, 0.4)',  torso: 'rgba(179, 157, 219, 0.08)' },
 };
 
+// Arm connection indices to skip during chair_stand (arms crossed on chest)
+const ARM_CONNECTION_INDICES = new Set([1, 2, 3, 4]); // indices in POSE_CONNECTIONS: left upper arm, left forearm, right upper arm, right forearm
+const ARM_JOINT_INDICES = new Set([7, 8, 9, 10]); // elbows and wrists
+
 export const PoseOverlay = memo(function PoseOverlay({
   videoRef,
   poseRef,
   confidenceRef,
   isActive,
   showOverlay = true,
+  testType,
 }: PoseOverlayProps) {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -184,10 +192,13 @@ export const PoseOverlay = memo(function PoseOverlay({
               }
 
               // Draw thick glowing limb connections (energy body style)
+              // Skip arm connections for chair_stand (arms are crossed on chest)
+              const hideArms = testType === 'chair_stand';
               ctx.lineCap = 'round';
               ctx.lineJoin = 'round';
 
-              POSE_CONNECTIONS.forEach(([i, j]) => {
+              POSE_CONNECTIONS.forEach(([i, j], connIdx) => {
+                if (hideArms && ARM_CONNECTION_INDICES.has(connIdx)) return;
                 const kp1 = kps[i];
                 const kp2 = kps[j];
 
@@ -216,6 +227,7 @@ export const PoseOverlay = memo(function PoseOverlay({
               // Joint nodes — subtle pulsing circles at key joints only (no face dots)
               const JOINT_INDICES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
               JOINT_INDICES.forEach((idx) => {
+                if (hideArms && ARM_JOINT_INDICES.has(idx)) return;
                 const kp = kps[idx];
                 if (kp && kp.score > 0.3) {
                   const r = 5 * breathScale;

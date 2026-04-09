@@ -22,64 +22,82 @@ class GeminiVisionService:
 
     ISSUE_LIST = '"shuffling", "sway", "asymmetry", "slow_speed", "unsteady_turns", "reduced_arm_swing", "wide_base", "hesitation", "irregular_rhythm", "excessive_trunk_lean", "poor_sit_to_stand"'
 
-    GAIT_PROMPT = f"""You are analyzing a video of an elderly person walking for a mobility assessment (SPPB - Short Physical Performance Battery).
+    # Shared instruction appended to all prompts when pose metrics are available
+    FUSION_INSTRUCTION = """
+SCORING METHOD — SENSOR FUSION (pose metrics + video):
+This assessment combines TWO data sources:
+1. POSE ESTIMATION — quantitative metrics from MoveNet 2D body tracking (appended below if available). These provide a suggested SPPB score based on measured timing, cadence, sway, and joint angles.
+2. VIDEO ANALYSIS — your visual assessment of the same video, providing context the pose model cannot capture.
 
-Watch the video carefully and evaluate:
-1. Walking speed (normal, slow, very slow)
-2. Balance and stability (steady, some sway, unsteady)
-3. Gait pattern (normal stride, shuffling, asymmetric)
-4. Arm swing (normal, reduced, absent)
-5. Step rhythm regularity
-6. Any signs of hesitation or fear of falling
+HOW TO COMBINE:
+- START from the pose-suggested score (it is based on measured data — timing, reps, cadence).
+- Then CORRECT ±1 based on your video assessment. Your job is to catch what the pose model gets wrong:
+  a) CAMERA ANGLE DISTORTION — all pose metrics are 2D projections. If the camera is angled (not perpendicular to movement), joint angles and distances will be distorted. A knee bend may read 120° when it's actually 90° due to perspective. Correct for this.
+  b) OCCLUSION / TRACKING ERRORS — if limbs overlap or leave frame, metrics may be noisy or wrong. Trust the video over suspect numbers.
+  c) CONTEXT THE MODEL MISSES — stepping, grabbing support, fear of falling, hand use, facial expression of effort — only visible in video.
+  d) DISTANCE CALIBRATION — pixel-based metrics (sway velocity, step length) vary with camera distance. Closer camera = bigger numbers. Use visual context to judge.
 
-SPPB Gait Speed Scoring Guide:
-- 4 = Excellent mobility, smooth confident walking, good cadence (100-120 steps/min)
-- 3 = Good mobility, minor issues (slight asymmetry or reduced arm swing)
-- 2 = Fair mobility, noticeable difficulties (irregular rhythm, wide base, slow cadence <80)
-- 1 = Poor mobility, significant issues (shuffling, high double-support time, very slow)
-- 0 = Unable to complete or severe impairment
+If no pose metrics are provided, score purely from video.
+If pose metrics are provided but look unreliable (very low frame count, extreme values), weight your video assessment more heavily."""
 
-Return ONLY valid JSON in this exact format (no markdown, no code blocks):
-{{"score": <0-4>, "issues": [<list of issues from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
+    GAIT_PROMPT = f"""You are scoring a 4-metre gait speed test from the SPPB (Short Physical Performance Battery).
 
-    BALANCE_PROMPT = f"""You are analyzing a video of an elderly person performing a balance test (SPPB - Short Physical Performance Battery).
+The participant walks a short distance at their normal pace. Score 0-4 per SPPB gait speed protocol (Guralnik et al., 1994).
 
-Evaluate:
-1. Ability to stand still without stepping
-2. Sway magnitude and velocity
-3. Trunk lean and its variability
-4. Need for support or arm movements
-5. Foot placement stability
+Watch the video and assess:
+1. Overall walking speed — estimate whether they cross ~4 metres in <4.82s, 4.82-6.20s, 6.21-8.70s, or >8.70s
+2. Gait quality: stride length, step symmetry, arm swing, trunk stability, rhythm
+3. Compensatory patterns: shuffling, wide base, hesitation, reduced arm swing
 
-SPPB Balance Scoring Guide:
-- 4 = Steady throughout, minimal sway velocity, trunk lean <5 degrees
-- 3 = Minor sway but maintains position, trunk lean variability <4 degrees
-- 2 = Noticeable wobble, needs adjustment, trunk lean >10 degrees at times
-- 1 = Unable to hold position, steps or grabs support, large sway area
-- 0 = Unable to attempt safely
+SPPB Gait Speed Scoring (0-4):
+- 4 = Gait speed ≥0.83 m/s (<4.82s for 4m). Normal stride, symmetric, good arm swing.
+- 3 = Gait speed 0.65-0.82 m/s (4.82-6.20s). Mostly normal, minor issues.
+- 2 = Gait speed 0.46-0.64 m/s (6.21-8.70s). Short steps, wide base, or irregular rhythm.
+- 1 = Gait speed <0.46 m/s (>8.70s). Shuffling, marked asymmetry, or near-inability.
+- 0 = Unable to complete the walk.
+{FUSION_INSTRUCTION}
+Score ONLY 0-4. Return ONLY valid JSON (no markdown):
+{{"score": <0-4>, "issues": [<from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
 
-Return ONLY valid JSON in this exact format (no markdown, no code blocks):
-{{"score": <0-4>, "issues": [<list of issues from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
+    BALANCE_PROMPT = f"""You are scoring a standing balance test from the SPPB (Short Physical Performance Battery).
 
-    CHAIR_STAND_PROMPT = f"""You are analyzing a video of an elderly person performing a chair stand test (SPPB - Short Physical Performance Battery).
+The participant stands with feet together and holds the position for 10 seconds. Score 0-4 per SPPB balance protocol (Guralnik et al., 1994).
 
-Evaluate:
-1. Ability to stand up and sit down safely
-2. Number of repetitions completed
-3. Speed and control of each repetition
-4. Trunk lean during rising (excessive lean suggests using momentum)
-5. Consistency across repetitions
-6. Use of hands or need for support
+Watch the video and assess:
+1. Can they hold feet-together without stepping, grabbing support, or falling?
+2. How long do they maintain the position?
+3. Postural sway magnitude
+4. Compensatory movements — arm waving, trunk lean, weight shifting
 
-SPPB Chair Stand Scoring Guide:
-- 4 = 5 stands in <11.2s, smooth without hands, consistent timing
-- 3 = 5 stands in 11.2-13.6s, minor slowness, low trunk lean
-- 2 = 5 stands in 13.7-16.6s, or needs arms, inconsistent reps
-- 1 = 5 stands in >16.7s, or incomplete, excessive trunk lean (>25 deg)
-- 0 = Unable to stand without assistance
+SPPB Balance Scoring (0-4):
+- 4 = Holds full duration, minimal sway, no compensatory movements.
+- 3 = Holds full duration but with noticeable sway or minor corrections. No stepping.
+- 2 = Holds position with significant sway or frequent corrections. May nearly step.
+- 1 = Unable to hold full duration. Steps, grabs support, or widens stance early.
+- 0 = Unable to attempt or immediately loses balance.
+{FUSION_INSTRUCTION}
+Score ONLY 0-4. Return ONLY valid JSON (no markdown):
+{{"score": <0-4>, "issues": [<from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
 
-Return ONLY valid JSON in this exact format (no markdown, no code blocks):
-{{"score": <0-4>, "issues": [<list of issues from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
+    CHAIR_STAND_PROMPT = f"""You are scoring a repeated chair stand test from the SPPB (Short Physical Performance Battery).
+
+The participant sits with arms crossed over their chest (standard SPPB protocol) and performs 5 sit-to-stand repetitions as fast as safely possible. Arms crossed is CORRECT — do NOT penalize.
+
+Watch the video and assess:
+1. Number of complete sit-to-stand reps (target: 5)
+2. Total time for all reps
+3. Whether arms stay crossed (uncrossing = difficulty)
+4. Movement quality: smoothness, trunk lean, consistency
+
+SPPB Chair Stand Scoring (0-4, based on time for 5 stands):
+- 4 = 5 stands in ≤11.19s. Smooth, arms crossed, consistent.
+- 3 = 5 stands in 11.20-13.69s. Adequate speed, minor slowing.
+- 2 = 5 stands in 13.70-16.69s. Slow, fatigue, or needs to uncross arms.
+- 1 = 5 stands in ≥16.70s, or <5 reps completed, or requires hands.
+- 0 = Unable to stand without physical assistance.
+{FUSION_INSTRUCTION}
+Score ONLY 0-4. Return ONLY valid JSON (no markdown):
+{{"score": <0-4>, "issues": [<from: {ISSUE_LIST}>], "confidence": <0.0-1.0>, "recommendations": [<3 brief actionable suggestions>]}}"""
 
     PROMPTS = {
         AssessmentTest.GAIT.value: GAIT_PROMPT,
@@ -156,18 +174,43 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
             sway_vel = metrics.get("swayVelocity", 0)
             sway_area = metrics.get("swayArea", 0)
             trunk_var = metrics.get("trunkLeanVariability", 0)
+            sway_max = sway.get('maxDeviation', 0)
+            total_disp = sway.get('totalDisplacement', 0)
+
+            # Derive suggested SPPB balance score from pose metrics
+            # Primary signal: did they maintain position? Proxy: sway magnitude + trunk variability
+            # These thresholds are relative (pixel-based) so we use ranking, not absolutes
+            instability_signals = 0
+            if sway_vel > 4.0: instability_signals += 2      # large frame-to-frame sway
+            elif sway_vel > 2.5: instability_signals += 1
+            if trunk_var > 6.0: instability_signals += 2     # highly variable trunk
+            elif trunk_var > 3.5: instability_signals += 1
+            if sway_max > 30: instability_signals += 1       # large deviation from center
+            if trunk.get('max', 0) > 15: instability_signals += 1  # peak trunk lean
+
+            if instability_signals == 0: suggested = 4
+            elif instability_signals <= 1: suggested = 3
+            elif instability_signals <= 3: suggested = 2
+            elif instability_signals <= 5: suggested = 1
+            else: suggested = 0
+
             return header + f"""
-BALANCE METRICS:
-- Sway velocity: {sway_vel} px/frame (healthy elderly: <2.0, at-risk: >3.0)
-- Sway area (bounding box): {sway_area} px² (lower = more stable)
-- Total sway displacement: {sway.get('totalDisplacement', 0)} px
-- Max sway deviation: {sway.get('maxDeviation', 0)} px
-- Trunk lean: avg {trunk.get('avg', 0)}°, max {trunk.get('max', 0)}° (healthy: <5° avg, <10° max)
-- Trunk lean variability (SD): {trunk_var}° (healthy: <3.0°, at-risk: >4.0°)
-- Shoulder levelness: avg deviation {shoulder.get('avg', 0)}px, max {shoulder.get('max', 0)}px
-- Stance width: {stance.get('avg', 0)} px
+BALANCE MEASURED DATA:
+- Recording duration: {dur}ms
+- Sway velocity: {sway_vel} px/frame
+- Sway area: {sway_area} px²
+- Total sway displacement: {total_disp} px
+- Max sway deviation from center: {sway_max} px
+- Trunk lean: avg {trunk.get('avg', 0)}°, max {trunk.get('max', 0)}°
+- Trunk lean variability (SD): {trunk_var}°
+- Instability signal count: {instability_signals} (0=very stable, 6=very unstable)
+- Suggested SPPB score from pose data: {suggested}
 {flags_block}
-Cross-reference these quantitative metrics with your visual assessment. Prioritize sway velocity and trunk lean variability as primary balance indicators."""
+Your role: Watch the video to verify. The pose data suggests score {suggested}. Confirm or adjust:
+- Did they step, grab support, or widen stance? → lower the score
+- Did they hold steady for the full duration? → keep or raise the score
+- NOTE: Sway metrics are in pixel units and vary with camera distance (closer = larger numbers). If the camera is very close, sway values may look worse than reality. Use the video to judge actual stability.
+Only override if the video clearly shows something the pose data missed (e.g., a step, hands grabbing support, or the camera being unusually close/far)."""
 
         elif test_type == AssessmentTest.GAIT.value:
             gait_speed = metrics.get("estimatedGaitSpeed", 0)
@@ -177,42 +220,93 @@ Cross-reference these quantitative metrics with your visual assessment. Prioriti
             symmetry = metrics.get("stepSymmetryIndex", 0)
             dsr = metrics.get("doubleSupportRatio", 0)
             rhythm_cv = metrics.get("gaitRhythmVariability", 0)
+
+            # Derive suggested SPPB gait score from pose metrics
+            # Cadence is the strongest proxy for gait speed from 2D pose data
+            # Normal elderly: 100-120 steps/min ≈ 0.8-1.2 m/s
+            # We combine cadence + gait quality signals
+            quality_deductions = 0
+            if symmetry > 20: quality_deductions += 1        # asymmetric gait
+            if dsr > 0.4: quality_deductions += 1            # high double support
+            if rhythm_cv > 12: quality_deductions += 1       # irregular rhythm
+            if arm.get('symmetry', 1) < 0.5: quality_deductions += 1  # poor arm swing
+
+            if cadence >= 100:
+                suggested = 4
+            elif cadence >= 85:
+                suggested = 3
+            elif cadence >= 65:
+                suggested = 2
+            elif cadence > 0:
+                suggested = 1
+            else:
+                # No steps detected — rely entirely on video
+                suggested = None
+
+            # Quality deductions can lower the score by up to 1 point
+            if suggested is not None and quality_deductions >= 3:
+                suggested = max(1, suggested - 1)
+
+            suggested_str = str(suggested) if suggested is not None else "UNABLE TO DETERMINE (no steps detected — score from video only)"
+
             return header + f"""
-GAIT METRICS:
-- Estimated gait speed: {gait_speed} px/s (relative; higher = faster)
+GAIT MEASURED DATA:
 - Steps detected: {step_count}
-- Cadence: {cadence} steps/min (healthy elderly: 100-120, at-risk: <80)
-- Step length estimate: {step_len} px (relative; consistent = good)
-- Step symmetry index: {symmetry}% (0% = perfect, >20% = asymmetric gait)
-- Double support ratio: {dsr} (healthy: <0.3, at-risk: >0.4)
-- Gait rhythm variability (CV): {rhythm_cv}% (healthy: <8%, at-risk: >10%)
-- Knee flexion: avg {knee.get('avg', 0)}°, range {knee.get('range', 0)}° (healthy walking: 60-70° range)
-- Hip angle: avg {hip.get('avg', 0)}°, range {hip.get('range', 0)}°
-- Arm swing: L={arm.get('leftAmplitude', 0)}px R={arm.get('rightAmplitude', 0)}px, symmetry {arm.get('symmetry', 0)} (1.0 = perfect)
+- Cadence: {cadence} steps/min (proxy for gait speed)
+- Step symmetry: {symmetry}% (0% = perfect)
+- Double support ratio: {dsr}
+- Gait rhythm variability: {rhythm_cv}%
+- Arm swing symmetry: {arm.get('symmetry', 0)}
 - Trunk lean: avg {trunk.get('avg', 0)}°
-- Stance width: avg {stance.get('avg', 0)} px
+- Quality deductions: {quality_deductions} (asymmetry, double support, irregular rhythm, poor arm swing)
+- Suggested SPPB score from pose data: {suggested_str}
 {flags_block}
-Cross-reference these quantitative metrics with your visual assessment. Key indicators: cadence, step symmetry, rhythm variability, and double support ratio."""
+Your role: Watch the video to verify. The pose data suggests score {suggested_str}. Confirm or adjust:
+- Does the walking speed match the cadence data, or does the video show faster/slower movement?
+- Are there gait issues the pose data missed (e.g., shuffling, hesitation, fear of falling)?
+- NOTE: Step detection works best when the person walks laterally (across the camera view). If they walk toward/away from the camera, step count and cadence may be unreliable — weight your visual assessment more.
+Only override the suggested score if the video clearly contradicts the measured data."""
 
         elif test_type == AssessmentTest.CHAIR_STAND.value:
             rep_count = metrics.get("refinedRepCount", 0)
             avg_rep = metrics.get("avgRepTime", 0)
             peak_lean = metrics.get("peakTrunkLeanDuringRise", 0)
-            trans_speed = metrics.get("transitionSpeed", 0)
             rep_cv = metrics.get("repConsistency", 0)
+
+            # Estimate actual rep duration (not raw recording time which includes idle)
+            # avgRepTime is the mean interval between consecutive stand-ups
+            # For N reps: estimated total = avgRepTime × N (includes first rep approximation)
+            if rep_count > 0 and avg_rep > 0:
+                est_rep_duration_ms = avg_rep * rep_count
+            else:
+                est_rep_duration_ms = dur  # fallback to full recording
+            est_rep_s = est_rep_duration_ms / 1000
+
+            # Derive SPPB score from estimated rep duration
+            if rep_count >= 5:
+                if est_rep_s <= 11.19: suggested = 4
+                elif est_rep_s <= 13.69: suggested = 3
+                elif est_rep_s <= 16.69: suggested = 2
+                else: suggested = 1
+            elif rep_count > 0:
+                suggested = 1
+            else:
+                suggested = 0
             return header + f"""
-CHAIR STAND METRICS:
-- Repetitions detected: {rep_count} (target: 5; SPPB requires 5 stands)
-- Average rep time: {avg_rep} ms (SPPB cutoffs: <2240ms=score 4, <2720ms=3, <3320ms=2, else=1)
-- Total duration: {dur} ms (SPPB cutoffs: <11.2s=4, <13.7s=3, <16.7s=2, else=1)
-- Peak trunk lean during rise: {peak_lean}° (healthy: <15°, compensatory: >25°)
-- Transition speed (knee velocity): {trans_speed} deg/frame (higher = more explosive)
-- Rep consistency (CV): {rep_cv}% (healthy: <15%, fatiguing: >25%)
-- Knee angle: min {knee.get('min', 0)}° (seated) → max {knee.get('max', 0)}° (standing), range {knee.get('range', 0)}°
-- Hip angle: min {hip.get('min', 0)}° → max {hip.get('max', 0)}°, range {hip.get('range', 0)}°
-- Movement phases (knee oscillations): {phases}
+CHAIR STAND MEASURED DATA:
+- Repetitions detected: {rep_count} / 5
+- Average time per rep: {avg_rep}ms
+- Estimated total rep time: {est_rep_duration_ms}ms ({est_rep_s:.1f}s) (excludes idle time before/after reps)
+- Raw recording duration: {dur}ms (includes idle — do NOT use for scoring)
+- Suggested SPPB score: {suggested} (cutoffs: ≤11.19s→4, ≤13.69s→3, ≤16.69s→2, else→1)
+- Peak trunk lean during rise: {peak_lean}° (2D projection — may be distorted by camera angle)
+- Rep consistency (CV): {rep_cv}%
+- Knee angle: min {knee.get('min', 0)}° (seated) → max {knee.get('max', 0)}° (standing) (2D projected)
 {flags_block}
-Cross-reference these quantitative metrics with your visual assessment. Key indicators: rep count, avg rep time, trunk lean during rise, and rep consistency."""
+Your role: Verify the rep count by watching the video. The pose model detected {rep_count} reps in ~{est_rep_s:.1f}s → score {suggested}. Confirm or adjust:
+- Did you count a different number of complete sit-to-stand reps?
+- Did they uncross arms or use hands for support?
+- Does the movement look faster or slower than {est_rep_s:.1f}s suggests?"""
 
         return ""
 

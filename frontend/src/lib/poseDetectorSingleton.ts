@@ -9,38 +9,36 @@ import * as poseDetection from '@tensorflow-models/pose-detection';
 
 let detectorPromise: Promise<poseDetection.PoseDetector> | null = null;
 
-function initDetector(): Promise<poseDetection.PoseDetector> {
-  return (async () => {
-    // console.log('[singleton] Initializing TensorFlow.js backend...');
-    await tf.setBackend('webgl');
-    await tf.ready();
-    // console.log('[singleton] TensorFlow.js backend ready:', tf.getBackend());
+async function initDetector(): Promise<poseDetection.PoseDetector> {
+  await tf.setBackend('webgl');
+  await tf.ready();
 
-    // console.log('[singleton] Loading MoveNet model...');
-    const detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING },
-    );
+  const detector = await poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING },
+  );
 
-    // Warm-up inference — compiles WebGL shaders so first real frame is fast
-    // console.log('[singleton] Running warm-up inference...');
-    const dummy = document.createElement('canvas');
-    dummy.width = 1;
-    dummy.height = 1;
-    await detector.estimatePoses(dummy);
-    // console.log('[singleton] MoveNet ready and warm');
+  // Warm-up inference — compiles WebGL shaders so first real frame is fast
+  const dummy = document.createElement('canvas');
+  dummy.width = 1;
+  dummy.height = 1;
+  await detector.estimatePoses(dummy);
 
-    return detector;
-  })();
+  return detector;
 }
 
 /**
  * Returns a promise that resolves to the shared detector.
  * The first call triggers init; subsequent calls return the same promise.
+ * On failure, resets so the next call retries.
  */
 export function getDetector(): Promise<poseDetection.PoseDetector> {
   if (!detectorPromise) {
-    detectorPromise = initDetector();
+    detectorPromise = initDetector().catch((err) => {
+      // Reset so next call retries instead of returning a permanently rejected promise
+      detectorPromise = null;
+      throw err;
+    });
   }
   return detectorPromise;
 }

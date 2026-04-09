@@ -72,12 +72,16 @@ export function usePoseMetrics(
     // Pose metrics flushed: framesRef.current.length frames
   }, []);
 
-  /** Imperatively flush: build time series from whatever frames we have */
+  /** Imperatively flush: build from frames if not already built.
+   *  If the effect already built the summary (frames cleared), keep it. */
   const flush = useCallback(() => {
-    // Reset built state so buildFromFrames will run
-    summaryRef.current = null;
-    timeSeriesRef.current = null;
-    buildFromFrames();
+    if (framesRef.current.length > 0) {
+      // Frames still available — rebuild fresh
+      summaryRef.current = null;
+      timeSeriesRef.current = null;
+      buildFromFrames();
+    }
+    // If frames are empty but summary exists, keep it (effect already built it)
   }, [buildFromFrames]);
 
   // Collect frames while recording

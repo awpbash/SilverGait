@@ -7,12 +7,13 @@ import { type RefObject } from 'react';
 import { Loading, PoseOverlay } from './index';
 import { tpl } from '../i18n';
 import type { Translations } from '../i18n/en';
-import type { AssessmentTestConfig, AssessmentStep } from '../hooks/useAssessmentFlow';
+import type { AssessmentTestConfig, AssessmentStep, AssessmentTestId } from '../hooks/useAssessmentFlow';
 
 interface CameraRecordingViewProps {
   t: Translations;
   step: AssessmentStep;
   currentTest: AssessmentTestConfig;
+  currentTestId: AssessmentTestId;
   progressLabel: string;
   cameraReady: boolean;
   countdown: number;
@@ -41,6 +42,7 @@ export function CameraRecordingView({
   t,
   step,
   currentTest,
+  currentTestId,
   progressLabel,
   cameraReady,
   countdown,
@@ -92,6 +94,7 @@ export function CameraRecordingView({
           confidenceRef={poseDetection.confidenceRef}
           isActive={(step === 'setup' || step === 'countdown' || step === 'recording') && poseDetection.isReady}
           showOverlay={showOverlay}
+          testType={currentTestId}
         />
 
         {(step === 'setup' || step === 'recording') && poseDetection.isReady && (
